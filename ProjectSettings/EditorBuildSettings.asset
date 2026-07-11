@@ -4,7 +4,16 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/Lab1_Electrostatics.unity
+    guid: 160ffb960ced0214c9c033b037c29f49
+  - enabled: 1
+    path: Assets/Scenes/Lab2_Magnetostatics.unity
+    guid: 46215c7e278b89d41925c1ef115c67a1
+  - enabled: 1
+    path: Assets/Scenes/Lab3_WavePolarization.unity
+    guid: 9c0f8b593d2e7b946944af5d50d13597
   m_configObjects:
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 60af7768ed3502f429bf4117e90885b5, type: 2}
     com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 11821d2610b926d41b24cc3b8cdf979e, type: 2}
