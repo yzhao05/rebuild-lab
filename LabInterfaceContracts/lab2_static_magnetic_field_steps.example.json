@@ -1,0 +1,69 @@
+{
+  "schema_version": "0.1.0",
+  "lab_id": "lab2_static_magnetic_field",
+  "steps": [
+    {
+      "step_id": "L2S1",
+      "title": "Prepare a current source",
+      "student_goal": "Select a wire or solenoid and give it a nonzero current state.",
+      "expected_action": "prepare_current_source_object",
+      "expected_object_ids": [
+        "lab2_current_wire_01",
+        "lab2_solenoid_01",
+        "lab2_current_control_zone"
+      ],
+      "success_criteria": [
+        "A wire or solenoid has a nonzero current state.",
+        "The selected source is available for magnetic field-line observation."
+      ],
+      "assist_triggers": [
+        "idle_on_step",
+        "repeated_invalid_selection",
+        "source_has_zero_current"
+      ]
+    },
+    {
+      "step_id": "L2S2",
+      "title": "Observe one current-carrying wire",
+      "student_goal": "Observe field-line direction and density around a straight current-carrying wire.",
+      "expected_action": "observe_single_wire_magnetic_field_lines",
+      "expected_object_ids": [
+        "lab2_current_wire_01",
+        "lab2_observation_zone",
+        "lab2_magnetic_field_lines"
+      ],
+      "success_criteria": [
+        "Student observes field lines around the wire.",
+        "Student connects field direction with the right-hand rule.",
+        "Student connects denser magnetic field lines with stronger field."
+      ],
+      "assist_triggers": [
+        "idle_on_step",
+        "right_hand_rule_confusion",
+        "missing_observation"
+      ]
+    },
+    {
+      "step_id": "L2S3",
+      "title": "Compare wire and solenoid fields",
+      "student_goal": "Compare magnetic field patterns produced by a straight wire and a solenoid.",
+      "expected_action": "compare_wire_solenoid_magnetic_fields",
+      "expected_object_ids": [
+        "lab2_current_wire_01",
+        "lab2_solenoid_01",
+        "lab2_magnetic_field_lines"
+      ],
+      "success_criteria": [
+        "Student identifies circular field patterns around a straight wire.",
+        "Student identifies concentrated field lines through the solenoid interior.",
+        "Student explains how current direction changes magnetic field direction."
+      ],
+      "assist_triggers": [
+        "idle_on_step",
+        "field_pattern_confusion",
+        "repeated_same_action"
+      ]
+    }
+  ]
+}
+

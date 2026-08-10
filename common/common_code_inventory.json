@@ -1,0 +1,148 @@
+{
+  "schema_version": "0.1.0",
+  "project": "EMVRLABS-Summer26",
+  "purpose": "Inventory of shared code, scenes, and refactor candidates across the three Summer26 labs.",
+  "labs": [
+    {
+      "lab_id": "lab1_electrostatics",
+      "scene": "Assets/Scenes/Static_Electric_Field.unity",
+      "entry_script": "Assets/Scene1.cs",
+      "domain_scripts": [
+        "Assets/Scripts/ElectricField.cs",
+        "Assets/Scripts/Sphere.cs",
+        "Assets/Scripts/Wire.cs",
+        "Assets/Scripts/Plane.cs",
+        "Assets/Scripts/ChargingBox.cs",
+        "Assets/Scripts/Charge_quantity.cs"
+      ]
+    },
+    {
+      "lab_id": "lab2_static_magnetic_field",
+      "scene": "Assets/Scenes/Static_Magnetic_Field.unity",
+      "entry_script": "Assets/Scene2.cs",
+      "domain_scripts": [
+        "Assets/Scripts/MagneticField.cs",
+        "Assets/Scripts/Wire.cs",
+        "Assets/Scripts/Solenoid.cs"
+      ]
+    },
+    {
+      "lab_id": "lab3_wave_polarization",
+      "scene": "Assets/Scenes/Wave_Polarization.unity",
+      "entry_script": "Assets/Scene3.cs",
+      "domain_scripts": [
+        "Assets/Scripts/WaveField.cs",
+        "Assets/Scripts/Polarizer.cs",
+        "Assets/Scripts/LinearPolarizer.cs",
+        "Assets/Scripts/QuarterPlate.cs"
+      ]
+    }
+  ],
+  "shared_scenes": [
+    "Assets/Scenes/start.unity",
+    "Assets/Scenes/startVR.unity"
+  ],
+  "common_code_groups": [
+    {
+      "group": "xr_locomotion_and_hands",
+      "files": [
+        "Assets/Continuous_Movement.cs",
+        "Assets/HandPresence.cs",
+        "Assets/GrabDetect.cs",
+        "Assets/GrabDetect_Left.cs",
+        "Assets/GrabDetect_Right.cs",
+        "Assets/Scripts/Respawn.cs",
+        "Assets/Trashcan.cs"
+      ],
+      "summary": "VR movement, hand animation, grab tracking, object respawn, and cleanup support."
+    },
+    {
+      "group": "scene_and_navigation",
+      "files": [
+        "Assets/Scene1.cs",
+        "Assets/Scene2.cs",
+        "Assets/Scene3.cs",
+        "Assets/LoadScene.cs",
+        "Assets/Scripts/Back.cs",
+        "Assets/QUIT.cs"
+      ],
+      "summary": "Scene entry buttons, movement-triggered scene loading, back navigation, and quit behavior."
+    },
+    {
+      "group": "step_and_instruction_flow",
+      "files": [
+        "Assets/Scripts/Step.cs",
+        "Assets/Scripts/Start_Game.cs",
+        "Assets/Scripts/Game_1_P.cs",
+        "Assets/Scripts/Game_1_S.cs",
+        "Assets/Scripts/Game_1_W.cs",
+        "Assets/Scripts/Game_2_P.cs",
+        "Assets/Scripts/Game_2_S.cs",
+        "Assets/Scripts/Game_2_W.cs",
+        "Assets/Scripts/Game_3_P.cs",
+        "Assets/Scripts/Game_3_S.cs",
+        "Assets/Scripts/Game_3_W.cs"
+      ],
+      "summary": "Step UI, start-button reveal behavior, and repeated placement-condition checks."
+    },
+    {
+      "group": "assist_framework",
+      "files": [
+        "Assets/Scripts/EMVR/Assist/Core/AssistConfig.cs",
+        "Assets/Scripts/EMVR/Assist/Core/AssistPayloadBuilder.cs",
+        "Assets/Scripts/EMVR/Assist/Core/LabSessionManager.cs",
+        "Assets/Scripts/EMVR/Assist/Core/StepProgressManager.cs",
+        "Assets/Scripts/EMVR/Assist/Data/AssistPayload.cs",
+        "Assets/Scripts/EMVR/Assist/Data/AssistResponseModels.cs",
+        "Assets/Scripts/EMVR/Assist/Data/DiagnosticHintsModels.cs",
+        "Assets/Scripts/EMVR/Assist/Data/ExperimentObjectModels.cs",
+        "Assets/Scripts/EMVR/Assist/Data/InteractionEventModels.cs",
+        "Assets/Scripts/EMVR/Assist/Logging/InteractionEventLogger.cs",
+        "Assets/Scripts/EMVR/Assist/Network/AssistGatewayClient.cs",
+        "Assets/Scripts/EMVR/Assist/Objects/ExperimentObject.cs",
+        "Assets/Scripts/EMVR/Assist/Objects/ExperimentObjectRegistry.cs",
+        "Assets/Scripts/EMVR/Assist/Objects/SelectionTracker.cs",
+        "Assets/Scripts/EMVR/Assist/Objects/AssistSelectionReporter.cs",
+        "Assets/Scripts/EMVR/Assist/Outcome/OutcomeTracker.cs",
+        "Assets/Scripts/EMVR/Assist/Proactive/BehaviorMonitor.cs",
+        "Assets/Scripts/EMVR/Assist/UI/AssistUIController.cs",
+        "Assets/Scripts/EMVR/Assist/UI/AssistResponseExecutor.cs",
+        "Assets/Scripts/EMVR/Assist/Validation/LocalValidationManager.cs"
+      ],
+      "summary": "Common AI assist, grounding, telemetry, object registry, network, UI, validation, and outcome tracking."
+    },
+    {
+      "group": "legacy_assist_models",
+      "files": [
+        "Assets/Scripts/AssistantRequest.cs",
+        "Assets/Scripts/AssistantResponse.cs",
+        "Assets/Scripts/BridgeResponse.cs"
+      ],
+      "summary": "Older serializable assist request and response DTOs that overlap with EMVR/Assist/Data."
+    },
+    {
+      "group": "visualization_controllers",
+      "files": [
+        "Assets/Scripts/ElectricField.cs",
+        "Assets/Scripts/MagneticField.cs",
+        "Assets/Scripts/WaveField.cs"
+      ],
+      "summary": "Per-lab field or wave visualization controllers with repeated detection and update patterns."
+    }
+  ],
+  "recommended_common_modules": [
+    "XR",
+    "SceneFlow",
+    "Objects",
+    "Visualization",
+    "Validation",
+    "Assist"
+  ],
+  "notes": [
+    "This inventory is documentation only; no Unity assets were moved.",
+    "Move scripts later only with Unity meta GUIDs preserved.",
+    "The EMVR/Assist folder is already close to a reusable common subsystem.",
+    "Game_* scripts are structurally common but currently hardcoded to electrostatics tags and electric_mag."
+  ]
+}
+

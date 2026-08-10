@@ -1,0 +1,68 @@
+{
+  "schema_version": "0.1.0",
+  "lab_id": "lab1_electrostatics",
+  "steps": [
+    {
+      "step_id": "L1S1",
+      "title": "Prepare a charged object",
+      "student_goal": "Charge a sphere or select an already charged sphere for observation.",
+      "expected_action": "prepare_charged_point_object",
+      "expected_object_ids": [
+        "lab1_charge_sphere_01",
+        "lab1_charge_zone"
+      ],
+      "success_criteria": [
+        "A sphere has a nonzero charge state.",
+        "The charged sphere is available for field-line observation."
+      ],
+      "assist_triggers": [
+        "idle_on_step",
+        "repeated_invalid_selection",
+        "wrong_object_type"
+      ]
+    },
+    {
+      "step_id": "L1S2",
+      "title": "Observe one point charge",
+      "student_goal": "Observe field-line direction and density around one point charge.",
+      "expected_action": "observe_single_charge_field_lines",
+      "expected_object_ids": [
+        "lab1_charge_sphere_01",
+        "lab1_observation_zone",
+        "lab1_field_lines"
+      ],
+      "success_criteria": [
+        "Student observes field lines near and far from the charge.",
+        "Student connects line direction with force on a positive test charge.",
+        "Student connects denser field lines with stronger field."
+      ],
+      "assist_triggers": [
+        "idle_on_step",
+        "field_line_misinterpretation",
+        "missing_observation"
+      ]
+    },
+    {
+      "step_id": "L1S3",
+      "title": "Compare two point charges",
+      "student_goal": "Use two point charges to reason about superposition.",
+      "expected_action": "compare_two_charge_superposition",
+      "expected_object_ids": [
+        "lab1_charge_sphere_01",
+        "lab1_charge_sphere_02",
+        "lab1_field_lines"
+      ],
+      "success_criteria": [
+        "Student compares field patterns for same-sign and opposite-sign charges.",
+        "Student explains that the net field is the vector sum of individual fields.",
+        "Student identifies where field strength is relatively stronger or weaker."
+      ],
+      "assist_triggers": [
+        "idle_on_step",
+        "superposition_confusion",
+        "repeated_same_action"
+      ]
+    }
+  ]
+}
+

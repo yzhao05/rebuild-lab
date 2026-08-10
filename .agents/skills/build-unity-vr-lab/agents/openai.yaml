@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Unity VR Lab"
+  short_description: "Guide staged EMVR rebuilds with user interviews"
+  default_prompt: "Use $build-unity-vr-lab to report the current stage, interview me for missing Brief requirements, and advance this Unity VR lab one approved gate at a time."

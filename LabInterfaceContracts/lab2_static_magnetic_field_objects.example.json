@@ -1,0 +1,86 @@
+{
+  "schema_version": "0.1.0",
+  "lab_id": "lab2_static_magnetic_field",
+  "objects": [
+    {
+      "object_id": "lab2_current_wire_01",
+      "display_name": "Current wire 1",
+      "object_type": "Wire",
+      "unity_name_hint": "Wire",
+      "domain_properties": {
+        "current_ampere": 1.0,
+        "is_current_source": true
+      },
+      "telemetry_roles": [
+        "selectable",
+        "grabbable",
+        "field_source"
+      ]
+    },
+    {
+      "object_id": "lab2_current_wire_02",
+      "display_name": "Current wire 2",
+      "object_type": "Wire",
+      "unity_name_hint": "Wire",
+      "domain_properties": {
+        "current_ampere": -1.0,
+        "is_current_source": true
+      },
+      "telemetry_roles": [
+        "selectable",
+        "grabbable",
+        "field_source"
+      ]
+    },
+    {
+      "object_id": "lab2_solenoid_01",
+      "display_name": "Solenoid",
+      "object_type": "Solenoid",
+      "unity_name_hint": "Solenoid",
+      "domain_properties": {
+        "current_ampere": 1.0,
+        "is_current_source": true,
+        "turn_count_hint": 30
+      },
+      "telemetry_roles": [
+        "selectable",
+        "grabbable",
+        "field_source"
+      ]
+    },
+    {
+      "object_id": "lab2_current_control_zone",
+      "display_name": "Current control zone",
+      "object_type": "CurrentControlZone",
+      "unity_name_hint": "Charge",
+      "domain_properties": {},
+      "telemetry_roles": [
+        "parameter_control_zone"
+      ]
+    },
+    {
+      "object_id": "lab2_observation_zone",
+      "display_name": "Observation zone",
+      "object_type": "ObservationZone",
+      "unity_name_hint": "Observation",
+      "domain_properties": {},
+      "telemetry_roles": [
+        "observation_zone"
+      ]
+    },
+    {
+      "object_id": "lab2_magnetic_field_lines",
+      "display_name": "Magnetic field lines",
+      "object_type": "MagneticFieldLine",
+      "unity_name_hint": "Magnetic Field Line",
+      "domain_properties": {
+        "visualizes": "magnetic_field"
+      },
+      "telemetry_roles": [
+        "observable",
+        "highlightable"
+      ]
+    }
+  ]
+}
+

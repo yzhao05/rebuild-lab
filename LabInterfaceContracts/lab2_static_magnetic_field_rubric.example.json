@@ -1,0 +1,71 @@
+{
+  "schema_version": "0.1.0",
+  "lab_id": "lab2_static_magnetic_field",
+  "rubrics": [
+    {
+      "step_id": "L2S1",
+      "criteria": [
+        {
+          "criterion_id": "L2S1_C1",
+          "concept": "current_source_state",
+          "mastery_indicator": "Student recognizes that magnetic field lines require a current-carrying source.",
+          "common_misconceptions": [
+            "Any neutral wire should create magnetic field lines.",
+            "Current magnitude is only a visual label and does not affect the field."
+          ],
+          "diagnostic_hint_keys": [
+            "wrong_object_type",
+            "source_has_zero_current"
+          ]
+        }
+      ]
+    },
+    {
+      "step_id": "L2S2",
+      "criteria": [
+        {
+          "criterion_id": "L2S2_C1",
+          "concept": "magnetic_field_direction",
+          "mastery_indicator": "Student uses the right-hand rule to explain field direction around a current-carrying wire.",
+          "common_misconceptions": [
+            "Magnetic field direction points along the wire.",
+            "Reversing current does not change the magnetic field direction."
+          ],
+          "diagnostic_hint_keys": [
+            "right_hand_rule_confusion"
+          ]
+        },
+        {
+          "criterion_id": "L2S2_C2",
+          "concept": "field_strength_density",
+          "mastery_indicator": "Student links denser magnetic field lines with stronger field magnitude.",
+          "common_misconceptions": [
+            "Every point on a magnetic field line has the same field strength.",
+            "Longer field lines mean stronger field."
+          ],
+          "diagnostic_hint_keys": [
+            "density_strength_confusion"
+          ]
+        }
+      ]
+    },
+    {
+      "step_id": "L2S3",
+      "criteria": [
+        {
+          "criterion_id": "L2S3_C1",
+          "concept": "wire_solenoid_field_patterns",
+          "mastery_indicator": "Student distinguishes circular wire fields from concentrated solenoid interior fields.",
+          "common_misconceptions": [
+            "A solenoid field has the same shape as a straight wire field.",
+            "Magnetic field lines begin and end on the solenoid ends."
+          ],
+          "diagnostic_hint_keys": [
+            "field_pattern_confusion"
+          ]
+        }
+      ]
+    }
+  ]
+}
+

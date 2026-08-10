@@ -1,0 +1,92 @@
+{
+  "schema_version": "0.1.0",
+  "lab_id": "lab3_wave_polarization",
+  "objects": [
+    {
+      "object_id": "lab3_wave_source",
+      "display_name": "Wave source",
+      "object_type": "WaveSource",
+      "unity_name_hint": "Wave",
+      "domain_properties": {
+        "initial_mag_x": 1.0,
+        "initial_mag_y": 1.0,
+        "initial_relative_phase_degrees": 0
+      },
+      "telemetry_roles": [
+        "field_source",
+        "observable"
+      ]
+    },
+    {
+      "object_id": "lab3_wave_field_vectors",
+      "display_name": "Electric field vectors",
+      "object_type": "WaveFieldVector",
+      "unity_name_hint": "Arrow",
+      "domain_properties": {
+        "visualizes": "electric_field_vector"
+      },
+      "telemetry_roles": [
+        "observable",
+        "highlightable"
+      ]
+    },
+    {
+      "object_id": "lab3_linear_polarizer_01",
+      "display_name": "Linear polarizer 1",
+      "object_type": "LinearPolarizer",
+      "unity_name_hint": "LinearPolarizer",
+      "domain_properties": {
+        "transmission_axis_degrees": 0,
+        "linear": true
+      },
+      "telemetry_roles": [
+        "selectable",
+        "grabbable",
+        "rotatable",
+        "optical_element"
+      ]
+    },
+    {
+      "object_id": "lab3_linear_polarizer_02",
+      "display_name": "Linear polarizer 2",
+      "object_type": "LinearPolarizer",
+      "unity_name_hint": "LinearPolarizer",
+      "domain_properties": {
+        "transmission_axis_degrees": 90,
+        "linear": true
+      },
+      "telemetry_roles": [
+        "selectable",
+        "grabbable",
+        "rotatable",
+        "optical_element"
+      ]
+    },
+    {
+      "object_id": "lab3_quarter_wave_plate_01",
+      "display_name": "Quarter-wave plate",
+      "object_type": "QuarterWavePlate",
+      "unity_name_hint": "Quarter",
+      "domain_properties": {
+        "phase_shift_degrees": 90,
+        "linear": false
+      },
+      "telemetry_roles": [
+        "selectable",
+        "grabbable",
+        "optical_element"
+      ]
+    },
+    {
+      "object_id": "lab3_observation_zone",
+      "display_name": "Observation zone",
+      "object_type": "ObservationZone",
+      "unity_name_hint": "Observation",
+      "domain_properties": {},
+      "telemetry_roles": [
+        "observation_zone"
+      ]
+    }
+  ]
+}
+

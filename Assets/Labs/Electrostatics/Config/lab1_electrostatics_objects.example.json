@@ -1,0 +1,70 @@
+{
+  "schema_version": "0.1.0",
+  "lab_id": "lab1_electrostatics",
+  "objects": [
+    {
+      "object_id": "lab1_charge_sphere_01",
+      "display_name": "Charge sphere 1",
+      "object_type": "Charge",
+      "unity_name_hint": "Sphere",
+      "domain_properties": {
+        "charge_coulomb": 1.0,
+        "is_charged": true
+      },
+      "telemetry_roles": [
+        "selectable",
+        "grabbable",
+        "field_source"
+      ]
+    },
+    {
+      "object_id": "lab1_charge_sphere_02",
+      "display_name": "Charge sphere 2",
+      "object_type": "Charge",
+      "unity_name_hint": "Sphere",
+      "domain_properties": {
+        "charge_coulomb": -1.0,
+        "is_charged": true
+      },
+      "telemetry_roles": [
+        "selectable",
+        "grabbable",
+        "field_source"
+      ]
+    },
+    {
+      "object_id": "lab1_charge_zone",
+      "display_name": "Charge zone",
+      "object_type": "ChargeZone",
+      "unity_name_hint": "Charge",
+      "domain_properties": {},
+      "telemetry_roles": [
+        "placement_zone"
+      ]
+    },
+    {
+      "object_id": "lab1_observation_zone",
+      "display_name": "Observation zone",
+      "object_type": "ObservationZone",
+      "unity_name_hint": "Observation",
+      "domain_properties": {},
+      "telemetry_roles": [
+        "observation_zone"
+      ]
+    },
+    {
+      "object_id": "lab1_field_lines",
+      "display_name": "Electric field lines",
+      "object_type": "FieldLine",
+      "unity_name_hint": "Field",
+      "domain_properties": {
+        "visualizes": "electric_field"
+      },
+      "telemetry_roles": [
+        "observable",
+        "highlightable"
+      ]
+    }
+  ]
+}
+

@@ -1,0 +1,84 @@
+{
+  "schema_version": "0.1.0",
+  "lab_id": "lab1_electrostatics",
+  "required_context_fields": [
+    "session_id",
+    "user_id",
+    "lab_id",
+    "step_id",
+    "timestamp_ms"
+  ],
+  "event_types": [
+    {
+      "event_type": "session_start",
+      "required_fields": [
+        "session_id",
+        "user_id",
+        "lab_id"
+      ]
+    },
+    {
+      "event_type": "step_start",
+      "required_fields": [
+        "session_id",
+        "step_id"
+      ]
+    },
+    {
+      "event_type": "object_selected",
+      "required_fields": [
+        "session_id",
+        "step_id",
+        "object_id",
+        "object_type"
+      ]
+    },
+    {
+      "event_type": "object_placed",
+      "required_fields": [
+        "session_id",
+        "step_id",
+        "object_id",
+        "result"
+      ]
+    },
+    {
+      "event_type": "field_line_observed",
+      "required_fields": [
+        "session_id",
+        "step_id",
+        "object_id"
+      ]
+    },
+    {
+      "event_type": "assist_requested",
+      "required_fields": [
+        "session_id",
+        "step_id",
+        "mode",
+        "trigger_reason_json"
+      ]
+    },
+    {
+      "event_type": "assist_response_shown",
+      "required_fields": [
+        "session_id",
+        "step_id",
+        "trace_id",
+        "intervention_type"
+      ]
+    },
+    {
+      "event_type": "outcome_recorded",
+      "required_fields": [
+        "session_id",
+        "step_id",
+        "trace_id",
+        "resolved",
+        "status"
+      ]
+    }
+  ],
+  "export_notes": "Keep event names stable so pilot-study logs can be compared across builds."
+}
+

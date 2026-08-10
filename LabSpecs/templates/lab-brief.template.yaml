@@ -1,0 +1,85 @@
+schema_version: "1.0.0"
+lab_id: "lab4_example"
+title: "Example Lab"
+domain: "replace_with_domain"
+workflow_mode: "rebuild"
+status: "draft"
+
+source_material:
+  handbook: "docs/replace_with_handbook.pdf"
+  additional_notes: []
+
+learning_goals:
+  - "State the first observable learning goal."
+
+student_tasks:
+  - step_id: "S1"
+    goal: "Describe the first student task."
+    expected_action: "observe_or_interact"
+    success_criteria:
+      - "Define an observable completion condition."
+
+physics:
+  formulas: []
+  units: []
+  parameter_ranges: []
+  assumptions: []
+  expected_results: []
+
+objects:
+  - object_id: "lab4_example_experiment_root"
+    display_name: "Experiment root"
+    object_type: "ExperimentRoot"
+    role: "calculation-region"
+    initial_state: "active"
+    desktop_interaction: "none"
+    xr_interaction: "none"
+    visible_feedback: "status display shows ready"
+
+presets: []
+
+interaction_modes:
+  desktop_mouse: true
+  xr_device_simulator: true
+  real_vr: true
+  mouse_to_vr_mapping:
+    move: "mouse position controls pointer direction"
+    select: "left mouse button"
+    drag: "hold left mouse button"
+    release: "release left mouse button"
+
+scene:
+  donor_scene: "Assets/Scenes/Static_Electric_Field.unity"
+  output_scene: "Assets/Scenes/Lab4_Example.unity"
+  reuse_environment: true
+  camera_style: "reuse donor"
+  language: "English"
+  required_visible_regions:
+    - "instruction"
+    - "experiment"
+    - "status"
+    - "result"
+
+acceptance:
+  core_flow:
+    - "Scene is generated from an Editor menu."
+    - "There are no blocking compile errors."
+    - "Desktop input completes the core task."
+    - "Important actions produce visible feedback."
+  required_evidence:
+    - "Game View initial state"
+    - "Game View completed state"
+    - "Console after Clear"
+  report_questions: []
+
+current_editor_state:
+  unity_version: "2022.3.62f3c1"
+  unity_open: true
+  compiling: false
+  play_mode: false
+
+workflow_limits:
+  run_batchmode: false
+  hand_edit_scene_yaml: false
+  no_visible_progress_minutes: 5
+  unity_wait_limit_minutes: 10

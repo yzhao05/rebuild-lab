@@ -1,0 +1,20 @@
+{
+  "name": "EMVR.Common.Editor",
+  "rootNamespace": "EMVR.Common.Editor",
+  "references": [
+    "EMVR.Common.Runtime",
+    "Unity.ugui",
+    "Unity.XR.Interaction.Toolkit"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

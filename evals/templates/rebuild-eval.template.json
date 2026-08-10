@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0.0",
+  "eval_id": "rebuild_lab_example_v1",
+  "lab_id": "lab4_example",
+  "workflow_version": "0.1.0",
+  "inputs": {
+    "brief": "LabSpecs/lab4_example/brief.yaml",
+    "contracts": "LabInterfaceContracts/lab4_example_*.json",
+    "donor_scene": "Assets/Scenes/Static_Electric_Field.unity"
+  },
+  "checks": {
+    "contracts_valid": false,
+    "design_approved": false,
+    "scaffold_created": false,
+    "unity_compile_passed": false,
+    "scene_builder_passed": false,
+    "desktop_core_flow_passed": false,
+    "xr_core_flow_passed": null,
+    "visual_readability_passed": false,
+    "documentation_matches": false
+  },
+  "evidence": {
+    "console": [],
+    "game_view": [],
+    "scene_view": []
+  },
+  "issues": [],
+  "final_effective_fixes": []
+}

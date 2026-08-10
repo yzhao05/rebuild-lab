@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "summer26-labs": {
+      "command": "python",
+      "args": [
+        "E:\\暑研\\EMVRLABS-Summer26(1)\\EMVRLABS-Summer26\\LabMCP\\lab_mcp_server.py"
+      ]
+    }
+  }
+}
+

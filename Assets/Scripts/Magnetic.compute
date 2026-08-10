@@ -1,0 +1,147 @@
+#pragma kernel CSMain
+struct Wire{
+    float3 p1;
+    float3 p2;
+    float electric_mag;
+};
+struct Solenoid{
+    float3 p1;
+    float3 p2;
+    float3 p3;
+    float3 p4;
+    float electric_mag;
+};
+StructuredBuffer<Wire> Wires; // readonly 
+StructuredBuffer<Solenoid> Solenoids; // readonly 
+
+
+
+RWStructuredBuffer<float3> fResult; // forward
+RWStructuredBuffer<float3> bResult; // backward
+
+RWStructuredBuffer<int> fCount;
+RWStructuredBuffer<int> bCount;
+
+int Line_density,Field_Line_Length,Wires_size,Solenoids_size,num_subrings;
+float stepsize,CollisionBound;
+float4 boundmax,boundmin;
+
+
+//valid
+float3  GetPerpVec(float3 p1, float3 p2, float3 fPt)
+    {
+        float3 d = normalize(p1 - p2);
+        float3 v = fPt - p2;
+        float t = dot(v, d);
+        float3 P = p2 + t * d;
+        return fPt - P;
+        
+    }
+
+//
+// valid
+float3 GetFieldAtPoint(float3 point1)
+    {
+
+    
+        float3 Field=float3(0,0,0);
+        for (int i = 0; i <Wires_size; i++){
+            float3 p1=Wires[i].p1;
+            float3 p2=Wires[i].p2;
+            float3 vec=GetPerpVec(p1,p2,point1);
+            float3 direction=normalize(cross(normalize(p1-p2),vec));
+            Field+=length(p2-p1)/length(vec)*Wires[i].electric_mag*direction;
+
+            
+        }
+
+        for ( int j = 0; j <Solenoids_size; j++){
+            float3 p1=Solenoids[j].p1;
+            float3 p2=Solenoids[j].p2;
+            float3 p3=Solenoids[j].p3;
+            float3 p4=Solenoids[j].p4;
+            float RE = length(p3 - p2);
+            float3 up = normalize(p1 - p2);
+            float3 right = normalize(p3 - p2);
+            float3 front = normalize(p4 - p2);
+            //each subring
+            for (int i = 0; i <=num_subrings; i++){
+                float3 r=point1-(p2 + (p1 - p2) / num_subrings * i);
+                float R=length(r);
+                if (length(r) >= RE){
+                    float y = dot(r, up);
+                    float x = dot(r, right);
+                    float z = dot(r, front);
+                    Field -= right * 3 * 1 * x * y / R / R / R / R / R + up * 1 * (3 * y * y - R * R) / R / R / R / R / R + front * 3 * 1 * z * y / R / R / R / R / R;
+                }else{
+                    float3 u=normalize(p1-p2);
+                    Field += (3 * dot(u, r) * r - u) / (2 * R * R * R);
+
+                }
+
+            }
+            
+            
+        }
+
+        return Field;
+    }
+
+//valid
+float3 Integration(float3 point1, float stepsize, int sign){
+        float3 k_1 = float3(0,0,0);
+        float3 k_2 = float3(0,0,0);
+        float3 k_3 = float3(0,0,0);
+        float3 k_4 = float3(0,0,0);
+        k_1 += normalize(GetFieldAtPoint(point1));
+        k_2 += normalize(GetFieldAtPoint(point1 + sign * k_1 * stepsize / 2));
+        k_3 += normalize(GetFieldAtPoint(point1 + sign * k_2 * stepsize / 2));
+        k_4 += normalize(GetFieldAtPoint(point1 + sign * k_3 * stepsize));
+        return (k_1 + 2 * k_2 + 2 * k_3 + k_4) / 6;
+    }
+
+
+[numthreads(1,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID){
+    // fCount[id.x]=id.x+1;
+    // bCount[id.x]=id.x;
+
+    float3 start=fResult[id.x*Field_Line_Length];
+    bool Forward = true;
+    bool Backward = true;
+    float3 Curr_Forward = start;
+    float3 Curr_Backward = start;
+    float3 Next_Forward = start;
+    float3 Next_Backward = start;
+    int count1=1; // forward count
+    int count2=0; // backward count
+    for (int i = 1; i <Field_Line_Length; i++){
+        if (Forward){
+                Curr_Forward = Next_Forward;
+                float3 Integration_Result = Integration(Next_Forward, stepsize, 1);
+                if (any(Curr_Forward<=boundmin.xyz)||any(Curr_Forward>=boundmax.xyz))
+                    Forward = false;
+                Next_Forward = Next_Forward + (stepsize*Integration_Result);
+                fResult[id.x*Field_Line_Length+i]=Next_Forward;
+                count1++;
+                // order issue  
+            }   
+        if (Backward){
+                Curr_Backward = Next_Backward;
+                float3 Integration_Result = Integration(Next_Backward, stepsize, -1);
+                if(any(Curr_Backward<=boundmin.xyz)||any(Curr_Backward>=boundmax.xyz))
+                    Backward = false;
+                Next_Backward = Next_Backward - (stepsize*Integration_Result);
+                bResult[id.x*Field_Line_Length+i-1]=Next_Backward;
+                count2++;
+            } 
+        if ((i>30)&&(distance(Curr_Forward,Curr_Backward)<=CollisionBound))
+                break;    
+        if ((!Forward)&&(!Backward)) break;
+
+        
+    }
+    fCount[id.x]=count1;
+    bCount[id.x]=count2;
+
+}
