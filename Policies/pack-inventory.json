@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.2.0",
+  "created_from": "frozen EMVR workflow baseline",
+  "gold_copied_into_builder_pack": false,
+  "inventory_semantics": "Frozen counts apply only to immutable reusable inputs. Dynamic knowledge and per-run outputs intentionally have no fixed count.",
+  "sections": {
+    "UnityProject/LocalPackages/com.emvr.lab-common": {
+      "category": "direct_reuse",
+      "files": 110,
+      "bytes": 287844,
+      "version": "0.7.0",
+      "package_json_sha256": "0F77035453316F4180566539F7EC0FA277BF0BDB23B76A2C769405D2B126AFFF",
+      "directory_digest_sha256": "B3B89D63CF271C974B9D060853A6AEF376EC3952ABDC90BB27C4BA34EAFD50CA"
+    },
+    "ApprovedAssets": {
+      "category": "direct_reuse",
+      "files": 759,
+      "bytes": 19054726,
+      "directory_digest_sha256": "346E1D9158F6E1F03241C63C755E80A6D1C289AF113388E1E01FAE51F6739642"
+    },
+    "ReusableFoundation/Gate5MinimalSlice": {
+      "category": "controlled_immutable_copy",
+      "integrity": "manifest_sha256_per_file",
+      "manifest": "ReusableFoundation/Gate5MinimalSlice/manifest.json",
+      "destination": "UnityProject/Assets/Generated/<lab_id>/Gate5Foundation",
+      "note": "Source and generated copy are read-only to Builder Agents."
+    },
+    "OptionalIntegrations/UnityMCP/Assets/Plugins/NuGet": {
+      "category": "disabled_optional_integration",
+      "files": 85,
+      "bytes": 18002717,
+      "mcp_package_version": "0.79.1",
+      "active_in_unity_project": false
+    },
+    "OptionalIntegrations/UnityMCP/AgentSkills": {
+      "category": "disabled_optional_integration",
+      "files": 77,
+      "bytes": 385976,
+      "active_in_agent_skill_discovery": false
+    },
+    "KnowledgeBase": {
+      "category": "conditional_reuse_knowledge_only_and_restricted_archive",
+      "integrity": "dynamic_gate_10_append_only",
+      "note": "Clean run packs omit the restricted archive; Gate 10 may add one current-run lesson."
+    },
+    "LabSpecs": {
+      "category": "knowledge_only_and_generated_input",
+      "integrity": "per_run_generated"
+    },
+    "LabInterfaceContracts": {
+      "category": "single_run_generated_input",
+      "integrity": "per_run_generated"
+    }
+  },
+  "boundary_verification": "run .agents/skills/build-unity-vr-lab-blind/scripts/verify_builder_pack.ps1"
+}

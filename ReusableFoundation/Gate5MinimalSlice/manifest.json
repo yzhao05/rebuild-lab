@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "name": "EMVR Gate 5 Minimal Slice Foundation",
+  "copy_mode": "byte_for_byte_read_only",
+  "destination": "UnityProject/Assets/Generated/<lab_id>/Gate5Foundation",
+  "files": [
+    {
+      "path": "Editor/EMVR.ReusableFoundation.Gate5.Editor.asmdef",
+      "sha256": "D528CE933A3B93529C3107F7159B08315B7A5CE6F9B0A8F912B745A40DC65CF8"
+    },
+    {
+      "path": "Editor/EmVrGate5FoundationSceneUtility.cs",
+      "sha256": "5E0B53E7016D37A580BD7CBDF91A9BC62FD1B1C6D7BE0CBA2ED16260BA93F766"
+    },
+    {
+      "path": "Runtime/EMVR.ReusableFoundation.Gate5.Runtime.asmdef",
+      "sha256": "140C3AD8EEE71AAEAF2D5C280B9E048FB7470198351069224405F45FAA01B1D7"
+    },
+    {
+      "path": "Runtime/EmVrGate5FoundationHarness.cs",
+      "sha256": "6025E7C497C511C15C8DAA0BB8AF255B826CBD449DB30BA5D7D64F10A595F0EF"
+    },
+    {
+      "path": "Tests/EditMode/EMVR.ReusableFoundation.Gate5.Tests.asmdef",
+      "sha256": "B99F8D75787926CA7982D2B3218928EB079B61EA764DC63AFFC23606A742D668"
+    },
+    {
+      "path": "Tests/EditMode/EmVrGate5FoundationTests.cs",
+      "sha256": "79232512D7465583AAE61257AD189B2BA1D6891E6B0D0331C93293EE811B36A5"
+    }
+  ]
+}

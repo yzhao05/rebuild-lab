@@ -1,7 +1,0 @@
-2026-07-11 01:55:30.748 | Build started.
-2026-07-11 01:55:30.762 | Created or updated materials.
-2026-07-11 01:55:30.959 | Created lighting, cameras, and optional XR setup.
-2026-07-11 01:55:30.967 | Created visualization cube and Helmholtz ROI marker.
-2026-07-11 01:55:31.025 | Created boards, loaders, source rack, and controls.
-2026-07-11 01:55:31.035 | Applied default Helmholtz-like preset.
-2026-07-11 01:55:33.159 | Saved scene and assets.

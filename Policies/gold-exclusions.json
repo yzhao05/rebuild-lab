@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0.0",
+  "forbidden_scope": "all paths outside this Builder Pack",
+  "maintenance_only_scope": [
+    "../EMVR_Workflow_Maintenance/**",
+    "**/WORKFLOW_MAINTAINER_GUIDE.md"
+  ],
+  "forbidden_inside_builder_pack": [
+    "KnowledgeBase/legacy-lab-specific-summaries/**",
+    "LabSpecs/<any_lab_other_than_current>/**",
+    "LabInterfaceContracts/<any_lab_other_than_current>_*.json",
+    "UnityProject/Assets/<any_previous_or_other_lab_output>/**",
+    "BuildEvidence/<any_lab_other_than_current>/**"
+  ],
+  "forbidden_artifact_patterns": [
+    "Assets/Scenes/Static_Electric_Field.unity",
+    "Assets/Scenes/Static_Magnetic_Field.unity",
+    "Assets/Scenes/Wave_Polarization.unity",
+    "Assets/Scenes/Lab1_Electrostatics_Rebuild.unity",
+    "Assets/Scripts/ElectricField.cs",
+    "Assets/Scripts/MagneticField.cs",
+    "Assets/Scripts/WaveField.cs",
+    "Assets/Scripts/Game_*.cs",
+    "Assets/Scripts/Lab1_Electrostatics_Rebuild/**",
+    "Assets/Editor/Lab1_Electrostatics_Rebuild/**",
+    "rebuild/**"
+  ],
+  "forbidden_uses": [
+    "copying a Gold scene or prefab",
+    "reading target-Lab implementation code",
+    "reusing scene or prefab GUID wiring",
+    "using old implementation details to fill a missing requirement",
+    "reading another workflow run as target context",
+    "using legacy example contracts as current requirements",
+    "reading workflow-maintenance material while acting as a Builder Agent"
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "schema_version": "0.1.0",
+  "lab_id": "lab3_wave_polarization",
+  "steps": [
+    {
+      "step_id": "L3S1",
+      "title": "Observe the incoming wave",
+      "student_goal": "Observe the electric field vectors before any optical element is inserted.",
+      "expected_action": "observe_unfiltered_wave_vectors",
+      "expected_object_ids": [
+        "lab3_wave_source",
+        "lab3_wave_field_vectors",
+        "lab3_observation_zone"
+      ],
+      "success_criteria": [
+        "Student observes both transverse field components.",
+        "Student identifies the wave propagation direction.",
+        "Student describes polarization using field-vector motion instead of object motion."
+      ],
+      "assist_triggers": [
+        "idle_on_step",
+        "wave_direction_confusion",
+        "missing_observation"
+      ]
+    },
+    {
+      "step_id": "L3S2",
+      "title": "Rotate a linear polarizer",
+      "student_goal": "Rotate a linear polarizer and observe how transmitted amplitude and orientation change.",
+      "expected_action": "rotate_linear_polarizer_and_observe_projection",
+      "expected_object_ids": [
+        "lab3_linear_polarizer_01",
+        "lab3_wave_field_vectors",
+        "lab3_observation_zone"
+      ],
+      "success_criteria": [
+        "Student rotates the polarizer transmission axis.",
+        "Student observes transmitted field vectors align with the polarizer axis.",
+        "Student connects reduced amplitude with projection onto the transmission axis."
+      ],
+      "assist_triggers": [
+        "idle_on_step",
+        "polarizer_axis_confusion",
+        "projection_misinterpretation"
+      ]
+    },
+    {
+      "step_id": "L3S3",
+      "title": "Add a quarter-wave plate",
+      "student_goal": "Insert a quarter-wave plate and reason about relative phase and polarization state.",
+      "expected_action": "insert_quarter_wave_plate_and_observe_phase_shift",
+      "expected_object_ids": [
+        "lab3_linear_polarizer_01",
+        "lab3_quarter_wave_plate_01",
+        "lab3_wave_field_vectors"
+      ],
+      "success_criteria": [
+        "Student observes a change in field-vector motion after the quarter-wave plate.",
+        "Student explains that the plate adds a relative phase shift between components.",
+        "Student distinguishes circular or elliptical polarization from linear polarization."
+      ],
+      "assist_triggers": [
+        "idle_on_step",
+        "phase_shift_confusion",
+        "polarization_state_confusion"
+      ]
+    }
+  ]
+}
+

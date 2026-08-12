@@ -1,0 +1,71 @@
+{
+  "schema_version": "0.1.0",
+  "lab_id": "lab1_electrostatics",
+  "rubrics": [
+    {
+      "step_id": "L1S1",
+      "criteria": [
+        {
+          "criterion_id": "L1S1_C1",
+          "concept": "charge_state",
+          "mastery_indicator": "Student recognizes that field lines require a charged source object.",
+          "common_misconceptions": [
+            "Any neutral sphere should create field lines.",
+            "Charging is only a visual effect."
+          ],
+          "diagnostic_hint_keys": [
+            "wrong_object_type",
+            "object_not_charged"
+          ]
+        }
+      ]
+    },
+    {
+      "step_id": "L1S2",
+      "criteria": [
+        {
+          "criterion_id": "L1S2_C1",
+          "concept": "field_direction",
+          "mastery_indicator": "Student explains field direction as the force direction on a positive test charge.",
+          "common_misconceptions": [
+            "Field direction is the direction the field line was drawn by the software.",
+            "Positive and negative charges have the same field direction."
+          ],
+          "diagnostic_hint_keys": [
+            "field_direction_confusion"
+          ]
+        },
+        {
+          "criterion_id": "L1S2_C2",
+          "concept": "field_strength_density",
+          "mastery_indicator": "Student links denser field lines with stronger field magnitude.",
+          "common_misconceptions": [
+            "Every point on a field line has the same field strength.",
+            "Longer field lines mean stronger field."
+          ],
+          "diagnostic_hint_keys": [
+            "density_strength_confusion"
+          ]
+        }
+      ]
+    },
+    {
+      "step_id": "L1S3",
+      "criteria": [
+        {
+          "criterion_id": "L1S3_C1",
+          "concept": "superposition",
+          "mastery_indicator": "Student explains the net electric field as a vector sum from both charges.",
+          "common_misconceptions": [
+            "Only the closest charge matters.",
+            "Fields cancel everywhere between opposite charges."
+          ],
+          "diagnostic_hint_keys": [
+            "superposition_confusion"
+          ]
+        }
+      ]
+    }
+  ]
+}
+

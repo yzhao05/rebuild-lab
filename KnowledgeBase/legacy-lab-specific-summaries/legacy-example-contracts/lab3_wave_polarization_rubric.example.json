@@ -1,0 +1,61 @@
+{
+  "schema_version": "0.1.0",
+  "lab_id": "lab3_wave_polarization",
+  "rubrics": [
+    {
+      "step_id": "L3S1",
+      "criteria": [
+        {
+          "criterion_id": "L3S1_C1",
+          "concept": "polarization_state_observation",
+          "mastery_indicator": "Student describes polarization from the electric field vector's direction and motion.",
+          "common_misconceptions": [
+            "Polarization is the direction the whole wave object travels.",
+            "A larger field vector means a different propagation direction."
+          ],
+          "diagnostic_hint_keys": [
+            "wave_direction_confusion",
+            "polarization_definition_confusion"
+          ]
+        }
+      ]
+    },
+    {
+      "step_id": "L3S2",
+      "criteria": [
+        {
+          "criterion_id": "L3S2_C1",
+          "concept": "linear_polarizer_projection",
+          "mastery_indicator": "Student explains that a linear polarizer transmits the field component along its axis.",
+          "common_misconceptions": [
+            "A linear polarizer rotates the incoming wave without reducing amplitude.",
+            "A crossed polarizer blocks light because the wave has stopped moving."
+          ],
+          "diagnostic_hint_keys": [
+            "polarizer_axis_confusion",
+            "projection_misinterpretation"
+          ]
+        }
+      ]
+    },
+    {
+      "step_id": "L3S3",
+      "criteria": [
+        {
+          "criterion_id": "L3S3_C1",
+          "concept": "quarter_wave_phase_shift",
+          "mastery_indicator": "Student explains that a quarter-wave plate introduces a relative phase shift between orthogonal components.",
+          "common_misconceptions": [
+            "A quarter-wave plate is the same as a second linear polarizer.",
+            "Circular polarization means the wave travels in a circle."
+          ],
+          "diagnostic_hint_keys": [
+            "phase_shift_confusion",
+            "polarization_state_confusion"
+          ]
+        }
+      ]
+    }
+  ]
+}
+

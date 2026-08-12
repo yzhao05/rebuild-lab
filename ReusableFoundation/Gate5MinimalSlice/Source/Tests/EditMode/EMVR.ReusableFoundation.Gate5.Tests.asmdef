@@ -1,0 +1,25 @@
+{
+  "name": "EMVR.ReusableFoundation.Gate5.Tests",
+  "rootNamespace": "EMVR.ReusableFoundation.Gate5.Tests",
+  "references": [
+    "EMVR.ReusableFoundation.Gate5.Runtime",
+    "EMVR.Common.Runtime",
+    "Unity.ugui"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

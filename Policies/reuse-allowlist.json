@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.2.0",
+  "policy": "deny_unlisted",
+  "categories": {
+    "direct_reuse": [
+      "UnityProject/LocalPackages/com.emvr.lab-common/**",
+      "ApprovedAssets/**",
+      "UnityProject/Packages/**",
+      "UnityProject/ProjectSettings/**"
+    ],
+    "controlled_immutable_copy": [
+      "ReusableFoundation/Gate5MinimalSlice/Source/** -> UnityProject/Assets/Generated/<lab_id>/Gate5Foundation/** via materialize_gate5_foundation.py only"
+    ],
+    "conditional_reuse": [
+      "KnowledgeBase/ReusableCodeArchive/**"
+    ],
+    "knowledge_only": [
+      "KnowledgeBase/docs/**",
+      "KnowledgeBase/rebuild-lessons/**",
+      "LabSpecs/templates/**",
+      "BuildEvidence/EvalTemplates/**"
+    ],
+    "restricted_lab_specific_archive": [
+      "KnowledgeBase/legacy-lab-specific-summaries/** (forbidden during blind rebuild; exact-file user authorization required for non-blind comparison)"
+    ],
+    "maintenance_only_material": [
+      "../EMVR_Workflow_Maintenance/** (forbidden to Builder Agents)",
+      "**/WORKFLOW_MAINTAINER_GUIDE.md (forbidden to Builder Agents)"
+    ],
+    "authorized_conversation_inputs": [
+      "exact requirements/reference documents explicitly uploaded or attached by the user in the current conversation"
+    ],
+    "disabled_optional_integrations": [
+      "OptionalIntegrations/UnityMCP/**",
+      "OptionalIntegrations/LabMCP/**"
+    ],
+    "generated_output": [
+      "UnityProject/Assets/<current_lab_paths_declared_in_implementation_handoff>/**",
+      "UnityProject/Assets/Generated/<lab_id>/ApprovedDependencies/**",
+      "UnityProject/Assets/Generated/<lab_id>/Gate5Foundation/** (tool-generated immutable copy; Builder Agent must not edit)",
+      "LabSpecs/<lab_id>/**",
+      "LabInterfaceContracts/<lab_id>_*.json",
+      "BuildEvidence/<lab_id>/**",
+      "KnowledgeBase/rebuild-lessons/<lab_id>.md (Gate 10 only; create, never overwrite)"
+    ]
+  },
+  "ownership": {
+    "protected_foundation": [
+      "AGENTS.md",
+      ".agents/**",
+      "Policies/**",
+      "Tools/**",
+      "LocalPackages/**",
+      "UnityProject/LocalPackages/**",
+      "OptionalIntegrations/**",
+      "ReusableFoundation/**",
+      "ApprovedAssets/**",
+      "KnowledgeBase/**",
+      "LabSpecs/templates/**",
+      "UnityProject/Packages/**",
+      "UnityProject/ProjectSettings/**",
+      "UnityProject/Assets/ApprovedReuse/**",
+      "UnityProject/Assets/Plugins/**",
+      "pre-existing cross-Lab Unity files"
+    ],
+    "foundation_owner": "user",
+    "agent_action_on_foundation_defect": "stop current gate and report; do not modify, work around, or provide replacement code",
+    "controlled_write_exception": "Gate 10 may create only KnowledgeBase/rebuild-lessons/<current_lab_id>.md after Gate 9 user acceptance"
+  },
+  "mandatory_assets": [
+    "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+  ],
+  "requirements": {
+    "record_provenance": true,
+    "generalize_conditional_code": true,
+    "validate_new_shared_code": true,
+    "ask_when_spec_is_missing": true,
+    "conversation_attachment_scope": "exact file only; never enumerate its parent directory",
+    "one_isolated_builder_pack_per_run": true,
+    "approved_asset_import_destination": "UnityProject/Assets/Generated/<lab_id>/ApprovedDependencies",
+    "gate5_foundation_source": "ReusableFoundation/Gate5MinimalSlice/Source",
+    "gate5_foundation_destination": "UnityProject/Assets/Generated/<lab_id>/Gate5Foundation",
+    "gate5_foundation_materializer": ".agents/skills/build-unity-vr-lab-blind/scripts/materialize_gate5_foundation.py",
+    "gate5_foundation_source_and_copy_are_immutable": true,
+    "gate5_foundation_evidence_required": true,
+    "gate5_evidence_content_digest_required": true,
+    "gate5_foundation_and_domain_evidence_must_be_fresh_together": true,
+    "approved_asset_real_import_gate": 5,
+    "approved_unity_scene_import_forbidden": true,
+    "protected_foundation_is_read_only": true,
+    "foundation_defects_are_user_repaired": true,
+    "unity_mcp_enabled": false,
+    "preflight_before_lab_code": true,
+    "mandatory_reuse_matrix": ".agents/skills/build-unity-vr-lab-blind/references/mandatory-reuse-matrix.md",
+    "mandatory_room_prefab_reuse": true,
+    "copy_demo_scene_forbidden": true,
+    "primitive_room_substitution_forbidden": true,
+    "scene_builder_fail_closed": true,
+    "game_view_layout_acceptance_required": true,
+    "unity_handoffs_assume_zero_experience": true,
+    "unity_handoffs_require_exact_menu_and_click_paths": true,
+    "test_runner_handoff_requires_exact_assembly_tests_and_success_criteria": true,
+    "one_atomic_conversation_per_gate": true,
+    "explicit_user_approval_per_gate": true,
+    "next_gate_changes_before_approval_forbidden": true,
+    "prior_rebuild_lessons_review_required_at_gate_0": true,
+    "pre_workflow_build_experience_recommended": true,
+    "legacy_lab_specific_summaries_forbidden_by_default": true,
+    "workflow_maintenance_material_forbidden": true,
+    "gate_9_user_acceptance_required": true,
+    "gate_10_retrospective_required": true,
+    "gate_9_must_announce_gate_10": true
+  }
+}

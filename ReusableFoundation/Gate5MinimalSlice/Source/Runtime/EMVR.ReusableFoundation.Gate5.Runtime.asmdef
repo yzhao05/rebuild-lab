@@ -1,0 +1,17 @@
+{
+  "name": "EMVR.ReusableFoundation.Gate5.Runtime",
+  "rootNamespace": "EMVR.ReusableFoundation.Gate5",
+  "references": [
+    "EMVR.Common.Runtime",
+    "Unity.ugui"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

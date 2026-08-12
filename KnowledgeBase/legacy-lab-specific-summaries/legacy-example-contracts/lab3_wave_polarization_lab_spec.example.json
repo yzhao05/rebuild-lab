@@ -1,0 +1,35 @@
+{
+  "schema_version": "0.1.0",
+  "lab_id": "lab3_wave_polarization",
+  "title": "Wave Polarization: Linear Polarizers and Quarter-Wave Plates",
+  "domain": "wave_polarization",
+  "unity_scene": "Assets/Scenes/Wave_Polarization.unity",
+  "entry_step_id": "L3S1",
+  "learning_goals": [
+    "Distinguish linear, circular, and elliptical polarization from field-vector motion.",
+    "Explain how a linear polarizer projects the electric field onto its transmission axis.",
+    "Explain how a quarter-wave plate changes relative phase between field components."
+  ],
+  "assist_contract": {
+    "required_grounding_fields": [
+      "session_id",
+      "user_id",
+      "lab_id",
+      "step_id",
+      "mode",
+      "student_input_text",
+      "selected_object_json",
+      "objects_json",
+      "recent_actions_json",
+      "diagnostic_hints_json",
+      "trigger_reason_json",
+      "step_rubric_json",
+      "session_memory_json"
+    ],
+    "gateway_route": "/v1/assist",
+    "response_root": "unity_output"
+  },
+  "telemetry_profile": "research_mvp",
+  "notes": "Example contract only. Runtime loading will be added in a later phase."
+}
+

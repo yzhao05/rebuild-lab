@@ -1,0 +1,35 @@
+{
+  "schema_version": "0.1.0",
+  "lab_id": "lab2_static_magnetic_field",
+  "title": "Static Magnetic Field: Currents, Wires, and Solenoids",
+  "domain": "magnetostatics",
+  "unity_scene": "Assets/Scenes/Static_Magnetic_Field.unity",
+  "entry_step_id": "L2S1",
+  "learning_goals": [
+    "Identify magnetic field direction around a current-carrying wire.",
+    "Relate magnetic field line density to field strength.",
+    "Compare magnetic field patterns produced by straight wires and solenoids."
+  ],
+  "assist_contract": {
+    "required_grounding_fields": [
+      "session_id",
+      "user_id",
+      "lab_id",
+      "step_id",
+      "mode",
+      "student_input_text",
+      "selected_object_json",
+      "objects_json",
+      "recent_actions_json",
+      "diagnostic_hints_json",
+      "trigger_reason_json",
+      "step_rubric_json",
+      "session_memory_json"
+    ],
+    "gateway_route": "/v1/assist",
+    "response_root": "unity_output"
+  },
+  "telemetry_profile": "research_mvp",
+  "notes": "Example contract only. Runtime loading will be added in a later phase."
+}
+

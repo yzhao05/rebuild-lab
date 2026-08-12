@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.2.0",
+  "eval_id": "rebuild_lab_example_v1",
+  "lab_id": "lab4_example",
+  "workflow_version": "1.7.0",
+  "inputs": {
+    "brief": "LabSpecs/lab4_example/brief.yaml",
+    "contracts": "LabInterfaceContracts/lab4_example_*.json",
+    "scene_creation_mode": "new_scene",
+    "approved_assets": []
+  },
+  "checks": {
+    "single_run_isolation_passed": false,
+    "restricted_legacy_material_not_accessed": false,
+    "prior_lessons_review_complete": false,
+    "boundary_verifier_passed": false,
+    "contracts_valid": false,
+    "design_approved": false,
+    "api_signature_audit_complete": false,
+    "mandatory_common_reuse_complete": false,
+    "mandatory_room_import_manifest_present": false,
+    "scaffold_created": false,
+    "scaffold_compile_passed": false,
+    "gate5_foundation_manifest_valid": false,
+    "gate5_foundation_copy_immutable": false,
+    "gate5_foundation_tests_3_of_3_passed": false,
+    "gate5_neutral_button_spawn_visibility_passed": false,
+    "gate5_foundation_evidence_digest_current": false,
+    "domain_slice_passed": false,
+    "domain_compile_passed": false,
+    "gate5_domain_evidence_digest_current": false,
+    "unity_handoff_beginner_complete": false,
+    "test_runner_location_and_exact_targets_given": false,
+    "integrated_unity_compile_passed": false,
+    "scene_builder_passed": false,
+    "desktop_core_flow_passed": false,
+    "xr_core_flow_passed": null,
+    "visual_readability_passed": false,
+    "documentation_matches": false,
+    "per_lab_evidence_complete": false,
+    "user_accepted": false,
+    "gate_10_retrospective_approved": false
+  },
+  "evidence": {
+    "console": [],
+    "game_view": [],
+    "scene_view": []
+  },
+  "issues": [],
+  "final_effective_fixes": []
+}

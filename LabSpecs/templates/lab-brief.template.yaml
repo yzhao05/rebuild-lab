@@ -1,0 +1,106 @@
+schema_version: "1.0.0"
+lab_id: "lab4_example"
+title: "Example Lab"
+domain: "replace_with_domain"
+workflow_mode: "rebuild"
+status: "draft"
+
+source_material:
+  handbook: "docs/replace_with_handbook.pdf"
+  additional_notes: []
+
+learning_goals:
+  - "State the first observable learning goal."
+
+student_tasks:
+  - step_id: "S1"
+    goal: "Describe the first student task."
+    expected_action: "observe_or_interact"
+    success_criteria:
+      - "Define an observable completion condition."
+
+physics:
+  formulas: []
+  units: []
+  parameter_ranges: []
+  assumptions: []
+  expected_results: []
+
+objects:
+  - object_id: "lab4_example_experiment_root"
+    display_name: "Experiment root"
+    object_type: "ExperimentRoot"
+    role: "calculation-region"
+    initial_state: "active"
+    desktop_interaction: "none"
+    xr_interaction: "none"
+    visible_feedback: "status display shows ready"
+
+presets: []
+
+interaction_modes:
+  desktop_mouse: true
+  xr_device_simulator: true
+  real_vr: true
+  mouse_to_vr_mapping:
+    move: "mouse position controls pointer direction"
+    select: "left mouse button"
+    drag: "hold left mouse button"
+    release: "release left mouse button"
+
+environment:
+  room_shell_strategy: "mandatory_approved_prefab"
+  room_shell_source: "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+  copy_demo_scene: false
+  allow_generated_primitive_room: false
+  room_placement_and_adaptation: "replace_with_confirmed_placement_and_non_destructive_adaptation"
+  visual_style_reference: "replace_with_confirmed_visual_style"
+  lighting_requirement: "replace_with_confirmed_lighting"
+  camera_and_ui_safe_area: "replace_with_confirmed_game_view_layout"
+
+initial_and_action_states:
+  authored_initial_state: "replace_with_exact_visible_initial_state"
+  hidden_templates_or_loaders: "replace_with_none_or_exact_hidden_items"
+  first_required_action: "replace_with_first_user_action"
+  expected_visible_after_action: "replace_with_exact_post_action_state"
+
+reuse_requirements:
+  mandatory_common_baseline: true
+  capability_triggered_common_reuse: true
+  reuse_audit_required_in_design: true
+
+scene:
+  output_scene: "Assets/Scenes/Lab4_Example.unity"
+  creation_mode: "new_scene"
+  approved_asset_sources: []
+  camera_style: "generated from approved XR/Common components"
+  language: "English"
+  required_visible_regions:
+    - "instruction"
+    - "experiment"
+    - "status"
+    - "result"
+
+acceptance:
+  core_flow:
+    - "Scene is generated from an Editor menu."
+    - "There are no blocking compile errors."
+    - "Desktop input completes the core task."
+    - "Important actions produce visible feedback."
+  required_evidence:
+    - "Game View initial state"
+    - "Game View completed state"
+    - "Console after Clear"
+  report_questions: []
+
+current_editor_state:
+  unity_version: "2022.3.62f3c1"
+  unity_open: false
+  compiling: false
+  play_mode: false
+
+workflow_limits:
+  run_batchmode: false
+  hand_edit_scene_yaml: false
+  no_visible_progress_minutes: 5
+  unity_wait_limit_minutes: 10

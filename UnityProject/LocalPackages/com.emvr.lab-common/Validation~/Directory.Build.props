@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>$(TEMP)\emvr-lab-common-syntax\obj\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(TEMP)\emvr-lab-common-syntax\obj\</MSBuildProjectExtensionsPath>
+    <OutputPath>$(TEMP)\emvr-lab-common-syntax\bin\</OutputPath>
+  </PropertyGroup>
+</Project>

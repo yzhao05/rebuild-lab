@@ -1,0 +1,24 @@
+{
+  "name": "com.emvr.lab-common",
+  "version": "0.7.0",
+  "displayName": "EMVR Lab Common",
+  "description": "Reusable interaction, scene-flow, object-state, telemetry, and assist-grounding components for EMVR Unity teaching labs.",
+  "unity": "2022.3",
+  "dependencies": {
+    "com.unity.inputsystem": "1.7.0",
+    "com.unity.ugui": "1.0.0",
+    "com.unity.xr.interaction.toolkit": "2.6.5",
+    "com.unity.xr.management": "4.7.0",
+    "com.unity.xr.openxr": "1.14.3"
+  },
+  "keywords": [
+    "unity",
+    "xr",
+    "vr",
+    "education",
+    "laboratory"
+  ],
+  "author": {
+    "name": "EMVR"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "EMVR.ReusableFoundation.Gate5.Editor",
+  "rootNamespace": "EMVR.ReusableFoundation.Gate5.Editor",
+  "references": [
+    "EMVR.ReusableFoundation.Gate5.Runtime",
+    "Unity.XR.Interaction.Toolkit",
+    "Unity.ugui"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
