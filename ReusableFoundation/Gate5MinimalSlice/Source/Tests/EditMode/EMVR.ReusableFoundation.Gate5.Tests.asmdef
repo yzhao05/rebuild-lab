@@ -3,6 +3,7 @@
   "rootNamespace": "EMVR.ReusableFoundation.Gate5.Tests",
   "references": [
     "EMVR.ReusableFoundation.Gate5.Runtime",
+    "EMVR.ReusableFoundation.Gate5.Editor",
     "EMVR.Common.Runtime",
     "Unity.ugui"
   ],

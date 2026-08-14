@@ -1,5 +1,16 @@
 # Foundation preflight
 
+Classify the task before creating state. For blind rebuild/recreation/comparison,
+require `.emvr-workspace.json` and the exact internal path
+`EMVR_Blind_BuilderPack/RebuildWorkspaces/EMVR_Blind_Rebuild_<lab_id>`. For a Builder Pack embedded in
+a host project to develop a genuinely new Lab, use `integrated-development` and
+do not apply the path requirement.
+
+When starting in the master Pack, the rebuilding Agent itself must run
+`Tools/create_blind_run_pack.ps1 -LabId <lab_id>`, verify PASS, and ask the User
+to switch. When starting in a matching marked child, skip the copy and continue
+there. Never instruct the User to execute this command or copy the Pack manually.
+
 Complete this preflight before creating or changing Lab C#.
 
 1. Run `scripts/verify_builder_pack.ps1`.
@@ -32,7 +43,7 @@ Complete this preflight before creating or changing Lab C#.
     non-`.meta` source file exactly once with a matching SHA-256. Reject any
     unlisted source file. The actual copy and approved-room import happen only
     after Gate 4 approval, during Gate 5.
-12. When resuming, require `workflow_state.json` schema `1.7.0`. If `status`
+12. When resuming, require `workflow_state.json` schema `1.8.0`. If `status`
     reports an older schema, run `labflow migrate-state`; all prior approvals
     and evidence must be reviewed again from Gate 0.
 

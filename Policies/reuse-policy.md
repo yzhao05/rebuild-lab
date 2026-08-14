@@ -1,5 +1,22 @@
 # Reuse policy
 
+## Workspace modes
+
+- A blind rebuild, recreation, or comparison must use the fixed workspace
+  `EMVR_Blind_BuilderPack/RebuildWorkspaces/EMVR_Blind_Rebuild_<lab_id>` created by
+  `Tools/create_blind_run_pack.ps1 -LabId <lab_id>`. The rebuilding Agent must
+  execute this command and report the exact generated path; the User only
+  switches workspace and must never be asked to run the command or copy the
+  Pack. It must not be created in the Builder Pack's parent or under a different
+  name.
+- A valid fixed child whose `.emvr-workspace.json` matches the requested Lab ID
+  is resumed in place. The Agent must not invoke the master copy tool again from
+  that child.
+- When this Builder Pack is deliberately embedded in a host project to develop
+  a genuinely new Lab, the internal-location rule does not apply. Use
+  `labflow new --mode integrated-development`; reuse and Gate rules remain in
+  force.
+
 ## Category A: directly reusable
 
 These resources were validated as cross-Lab infrastructure and may be imported
@@ -40,6 +57,16 @@ manifest and every source/copy hash.
 `new_scene` forbids donor Lab scene copying, including `DemoScene.unity`; it does
 not permit primitive-generated walls as a substitute. A missing or broken room
 Prefab is a foundation blocker.
+
+The verified XR baseline is also mandatory direct reuse. Import and instantiate
+`Starter Assets/Prefabs/XR Interaction Setup.prefab` as the top-level XR setup
+and `XR Device Simulator/XR Device Simulator.prefab` as its desktop simulator.
+Do not instantiate the bare `XR Origin (XR Rig).prefab` as a substitute for
+the complete setup and do not reconstruct the controller rig in Lab-specific
+code. The approved simulator controls must retain the validated Up/Down-arrow
+`Keyboard Y Translate` bindings. Configure rays through Common
+`EmVrXrRayRuntimeTuner`/`EmVrXrRayUtility`; never fork the old Lab-specific
+ray implementation.
 
 ## Disabled optional integration: Unity MCP
 
@@ -156,7 +183,7 @@ boundary.
 
 The Builder Agent owns only the current Lab's generated specifications,
 non-example contracts, declared Lab-specific Unity output, and evidence. The
-workflow infrastructure, Skills, policies, tools, Common package, reusable
+workflow infrastructure, repository `.gitattributes`/`.gitignore`, Skills, policies, tools, Common package, reusable
 code, models/assets, knowledge base, dependencies, project/package settings,
 templates, and pre-existing shared Unity files are protected foundation owned
 by the user.
@@ -168,8 +195,10 @@ to regenerate, patch, or replace it manually.
 
 The sole controlled exception is Gate 10 after Gate 9 user acceptance. The
 Builder Agent may create and complete exactly
+`BuildEvidence/retrospectives/<current_lab_id>.md` and
 `KnowledgeBase/rebuild-lessons/<current_lab_id>.md` using the workflow's
-retrospective generator. It may not overwrite or revise an earlier lesson.
+retrospective generator. It may not overwrite or revise an earlier
+retrospective or lesson.
 
 When a protected item is incorrect or incomplete, the Agent must stop the
 current gate and report its path, evidence, impact, and the user action needed.

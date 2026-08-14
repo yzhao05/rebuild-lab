@@ -32,8 +32,10 @@ baseline remains the Gold Reference and is not copied into this pack.
 
 ## Operating boundary
 
-Open this directory as the Agent workspace. Do not open its parent directory as
-the workspace. For a controlled evaluation, run the Builder Agent under an
+For a blind rebuild, open this master Pack only long enough to create the fixed
+child workspace described below; perform the rebuild in that child, not here or
+in the Pack's parent. In integrated-development mode, use the host-project
+integration root. For a controlled evaluation, run the Builder Agent under an
 account or sandbox that cannot read the frozen Gold Reference.
 
 Run the boundary check before starting a rebuild:
@@ -41,6 +43,12 @@ Run the boundary check before starting a rebuild:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .agents/skills/build-unity-vr-lab-blind/scripts/verify_builder_pack.ps1
 ```
+
+The committed `.gitattributes` forces portable LF checkout for integrity-tracked
+text files, so this byte-level boundary check remains valid after a Windows
+clone even when the user's global Git setting has `core.autocrlf=true`.
+The committed `.gitignore` keeps internal rebuild workspaces and generated
+Unity/Python/IDE files outside the maintained source revision.
 
 Open `UnityProject/` in Unity. The local package dependency is self-contained
 and points only to `../LocalPackages/com.emvr.lab-common`.
@@ -74,20 +82,28 @@ Use one isolated Builder Pack copy per Lab run. `labflow new` refuses to start
 when another run's specifications, contracts, Unity output, or evidence remain.
 This prevents a rebuild Agent from seeing an earlier implementation.
 
-Create that isolated copy from the maintained master pack before starting a new
-Lab (choose a new, empty destination for every run):
+For a blind rebuild/recreation/comparison, the rebuilding Agent—not the User—
+creates the fixed internal child workspace from the maintained master Pack:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File Tools/create_blind_run_pack.ps1 -Destination "E:\path\to\EMVR_Blind_Run_<lab_id>"
+powershell -ExecutionPolicy Bypass -File Tools/create_blind_run_pack.ps1 -LabId <lab_id>
 ```
 
-Open the generated destination itself as the Agent workspace. Do not run a new
-Lab directly in a master pack that already contains another run.
+The only allowed rebuild workspace name/path is
+`RebuildWorkspaces/EMVR_Blind_Rebuild_<lab_id>` inside this Pack. Open that
+child itself as the Agent workspace. The Agent must run the PowerShell command
+and report its exact absolute output path; the User only switches to that path
+and must not be asked to run the copy command. Do not run implementation in the
+master Pack. If this Pack is embedded in a host project to develop a genuinely
+new Lab rather than rebuild one, use `labflow new --mode
+integrated-development`; the internal child-location restriction does not apply
+in that mode.
 
 `ApprovedAssets/` is outside the Unity import root. Import selected assets with
 the Skill's `import_approved_asset_closure.py`; generated copies belong only
 under `UnityProject/Assets/Generated/<lab_id>/ApprovedDependencies/`. Plan the
-mandatory room in Gate 1/3, but execute this copy only during Gate 5.
+mandatory room and verified XR Setup/Simulator baselines in Gate 1/3, but
+execute these copies only during Gate 5.
 
 At Gate 5, materialize the protected source separately:
 

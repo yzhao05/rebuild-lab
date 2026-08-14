@@ -14,11 +14,19 @@ $BuilderRoot = (Resolve-Path -LiteralPath $BuilderRoot).Path
 $codeExtensions = @(".cs", ".py", ".ps1", ".sh", ".bat", ".cmd", ".js", ".ts")
 $generatedUnityPattern = '\\(Library|Temp|Logs|obj)\\'
 
-$files = Get-ChildItem -LiteralPath $BuilderRoot -Recurse -File -ErrorAction SilentlyContinue |
-    Where-Object {
+$files = foreach ($topLevelItem in Get-ChildItem -LiteralPath $BuilderRoot -Force -ErrorAction SilentlyContinue) {
+    if ($topLevelItem.Name -in @(".git", "RebuildWorkspaces", "tmp")) { continue }
+    $candidates = if ($topLevelItem.PSIsContainer) {
+        Get-ChildItem -LiteralPath $topLevelItem.FullName -Recurse -File -ErrorAction SilentlyContinue
+    }
+    else {
+        @($topLevelItem)
+    }
+    $candidates | Where-Object {
         $codeExtensions -contains $_.Extension.ToLowerInvariant() -and
         $_.FullName -notmatch $generatedUnityPattern
     }
+}
 
 $inventory = foreach ($file in $files) {
     $relative = $file.FullName.Substring($BuilderRoot.Length + 1)

@@ -1,0 +1,28 @@
+# Keep byte-level integrity manifests stable across Windows, macOS, and Linux.
+* text=auto eol=lf
+
+# Windows command scripts are the only files that require CRLF checkout.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Never run binary assets through end-of-line conversion.
+*.dll binary
+*.exe binary
+*.fbx binary
+*.gif binary
+*.jpeg binary
+*.jpg binary
+*.mp3 binary
+*.mp4 binary
+*.ogg binary
+*.otf binary
+*.pdf binary
+*.png binary
+*.psd binary
+*.tga binary
+*.ttf binary
+*.wav binary
+*.webm binary
+*.woff binary
+*.woff2 binary
+*.zip binary

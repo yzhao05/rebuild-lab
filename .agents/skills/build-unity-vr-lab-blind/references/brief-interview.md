@@ -36,9 +36,9 @@ Core student flow
 Physics and presets
 Objects and feedback
 Desktop/XR interactions
-Clean-scene, mandatory room Prefab, camera/UI, and approved-asset plan
+Clean-scene, mandatory room/XR Setup/XR Simulator Prefabs, camera/UI, and approved-asset plan
 Initial state and post-action visible state
-Mandatory Common reuse audit
+Mandatory Common/room/XR reuse audit
 Lifecycle, telemetry, and assist
 Acceptance evidence
 Unresolved items: none

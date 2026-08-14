@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -20,7 +21,11 @@ from typing import Any
 CONTRACT_KINDS = ("lab_spec", "objects", "steps", "rubric", "telemetry_map")
 LAB_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
 RESULT_VALUES = ("pending", "passed", "failed")
-CURRENT_STATE_SCHEMA = "1.7.0"
+CURRENT_STATE_SCHEMA = "1.8.0"
+WORKFLOW_MODES = ("blind-rebuild", "integrated-development")
+REBUILD_WORKSPACE_PREFIX = "EMVR_Blind_Rebuild_"
+MASTER_PACK_DIRECTORY_NAME = "EMVR_Blind_BuilderPack"
+WORKSPACE_MARKER_SCHEMA = "1.1.0"
 GATE_NAMES = {
     0: "Boundary verified",
     1: "Brief confirmed",
@@ -85,9 +90,82 @@ def read_json(path: Path) -> dict[str, Any]:
         raise RuntimeError(f"Invalid JSON in {path}: {error}") from error
 
 
+def native_path(path: Path) -> str:
+    """Return an absolute OS path that bypasses legacy MAX_PATH on Windows."""
+    absolute = os.path.abspath(os.fspath(path))
+    if os.name != "nt" or absolute.startswith("\\\\?\\"):
+        return absolute
+    if absolute.startswith("\\\\"):
+        return "\\\\?\\UNC\\" + absolute[2:]
+    return "\\\\?\\" + absolute
+
+
+def normal_path(path: str) -> Path:
+    if os.name == "nt" and path.startswith("\\\\?\\UNC\\"):
+        return Path("\\\\" + path[8:])
+    if os.name == "nt" and path.startswith("\\\\?\\"):
+        return Path(path[4:])
+    return Path(path)
+
+
+def fs_exists(path: Path) -> bool:
+    return os.path.exists(native_path(path))
+
+
+def fs_is_file(path: Path) -> bool:
+    return os.path.isfile(native_path(path))
+
+
+def iter_files(path: Path):
+    if not fs_exists(path):
+        return
+    for directory, _subdirectories, files in os.walk(native_path(path)):
+        display_directory = normal_path(directory)
+        for file_name in files:
+            yield display_directory / file_name
+
+
+def validate_workspace_mode(root: Path, lab_id: str, workflow_mode: str) -> None:
+    if workflow_mode not in WORKFLOW_MODES:
+        raise RuntimeError(
+            "workflow mode must be blind-rebuild or integrated-development"
+        )
+    if workflow_mode == "integrated-development":
+        return
+
+    marker_path = root / ".emvr-workspace.json"
+    expected_name = f"{REBUILD_WORKSPACE_PREFIX}{lab_id}"
+    if root.name != expected_name:
+        raise RuntimeError(
+            "Blind rebuilds must run in the fixed internal workspace "
+            f"RebuildWorkspaces/{expected_name}; current directory is {root.name}. "
+            "The rebuilding Agent must create it from the master Builder Pack with "
+            f"`powershell -ExecutionPolicy Bypass -File Tools/create_blind_run_pack.ps1 -LabId {lab_id}`."
+        )
+    if (
+        root.parent.name != "RebuildWorkspaces"
+        or root.parent.parent.name != MASTER_PACK_DIRECTORY_NAME
+        or not marker_path.is_file()
+    ):
+        raise RuntimeError(
+            "Blind rebuild workspace marker/parent is missing. The rebuilding "
+            "Agent must use the fixed create_blind_run_pack.ps1 command from "
+            "the master Builder Pack; do not delegate it to the User."
+        )
+    marker = read_json(marker_path)
+    if (
+        marker.get("schema_version") != WORKSPACE_MARKER_SCHEMA
+        or marker.get("workflow_mode") != "blind-rebuild"
+        or marker.get("lab_id") != lab_id
+        or marker.get("required_master_directory_name") != MASTER_PACK_DIRECTORY_NAME
+        or marker.get("required_directory_name") != expected_name
+    ):
+        raise RuntimeError("Blind rebuild workspace marker does not match the requested Lab ID.")
+
+
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
-    with path.open("rb") as stream:
+    with open(native_path(path), "rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest().upper()
@@ -106,6 +184,19 @@ def directory_digest(path: Path) -> str:
     return digest.hexdigest().upper()
 
 
+def mandatory_approved_assets(root: Path) -> list[str]:
+    policy_path = root / "Policies" / "reuse-allowlist.json"
+    if policy_path.exists():
+        policy = read_json(policy_path)
+        configured = policy.get("mandatory_assets", [])
+        if isinstance(configured, list) and configured:
+            return [str(item) for item in configured]
+    return [
+        "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/"
+        "DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+    ]
+
+
 def foundation_errors(root: Path) -> list[str]:
     errors: list[str] = []
     for maintenance_leak in (
@@ -118,7 +209,17 @@ def foundation_errors(root: Path) -> list[str]:
                 "Maintainer-only material leaked into the Builder Pack: "
                 f"{maintenance_leak.relative_to(root)}"
             )
+    workspace_marker = root / ".emvr-workspace.json"
+    if workspace_marker.exists():
+        try:
+            marker = read_json(workspace_marker)
+            marker_lab_id = str(marker.get("lab_id", ""))
+            validate_workspace_mode(root, marker_lab_id, str(marker.get("workflow_mode", "")))
+        except RuntimeError as error:
+            errors.append(f"Invalid rebuild workspace marker/location: {error}")
     for relative in (
+        ".gitattributes",
+        ".gitignore",
         "Policies/reuse-allowlist.json",
         "Policies/gold-exclusions.json",
         "Policies/pack-inventory.json",
@@ -142,6 +243,17 @@ def foundation_errors(root: Path) -> list[str]:
     ):
         if not (root / relative).exists():
             errors.append(f"Required Builder foundation item is missing: {relative}")
+
+    attributes_path = root / ".gitattributes"
+    if attributes_path.exists():
+        attribute_rules = {
+            line.split("#", 1)[0].strip()
+            for line in attributes_path.read_text(encoding="utf-8-sig").splitlines()
+        }
+        if "* text=auto eol=lf" not in attribute_rules:
+            errors.append(
+                ".gitattributes must enforce '* text=auto eol=lf' so frozen hashes survive Git checkout"
+            )
 
     if (root / "KnowledgeBase" / "EMVR-Agent-Knowledge").exists():
         errors.append("Unsafe legacy Agent knowledge bundle was not moved to the restricted archive")
@@ -214,17 +326,10 @@ def foundation_errors(root: Path) -> list[str]:
         if expected_approved_digest and directory_digest(root / "ApprovedAssets") != expected_approved_digest:
             errors.append("ApprovedAssets differs from the frozen inventory")
 
-    room_prefab = (
-        root
-        / "ApprovedAssets"
-        / "XRInteractionToolkitSamples"
-        / "Starter Assets"
-        / "DemoSceneAssets"
-        / "Prefabs"
-        / "Teleportation Environment.prefab"
-    )
-    if not room_prefab.exists() or not Path(str(room_prefab) + ".meta").exists():
-        errors.append("Mandatory Teleportation Environment.prefab or its .meta is missing")
+    for required_asset in mandatory_approved_assets(root):
+        required_path = root / required_asset
+        if not required_path.exists() or not Path(str(required_path) + ".meta").exists():
+            errors.append(f"Mandatory approved asset or its .meta is missing: {required_asset}")
     active_states = list((root / "LabSpecs").glob("*/workflow_state.json"))
     if len(active_states) > 1:
         errors.append(
@@ -351,15 +456,12 @@ def approved_asset_import_errors(root: Path, lab_id: str) -> list[str]:
         root / "UnityProject" / "Assets" / "Generated" / lab_id / "ApprovedDependencies"
     ).resolve()
     approved_root = (root / "ApprovedAssets").resolve()
-    required_room = (
-        "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/"
-        "DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
-    )
+    required_assets = set(mandatory_approved_assets(root))
     manifests = sorted(manifest_root.glob("*.json")) if manifest_root.exists() else []
     if not manifests:
-        return ["Mandatory approved-room import evidence is missing."]
+        return ["Mandatory approved-asset import evidence is missing."]
 
-    room_found = False
+    found_required_assets: set[str] = set()
     expected_destinations: set[Path] = set()
     for manifest_path in manifests:
         try:
@@ -371,8 +473,9 @@ def approved_asset_import_errors(root: Path, lab_id: str) -> list[str]:
             errors.append(f"Approved-asset import has the wrong lab_id: {manifest_path.name}")
         if manifest.get("dry_run") is not False:
             errors.append(f"Approved-asset import is not a real copy: {manifest_path.name}")
-        if manifest.get("approved_source") == required_room:
-            room_found = True
+        approved_source = str(manifest.get("approved_source", ""))
+        if approved_source in required_assets:
+            found_required_assets.add(approved_source)
         assets = manifest.get("assets", [])
         if manifest.get("asset_count") != len(assets):
             errors.append(f"Approved-asset import count is inconsistent: {manifest_path.name}")
@@ -393,17 +496,17 @@ def approved_asset_import_errors(root: Path, lab_id: str) -> list[str]:
                 (source_meta, record.get("meta_sha256"), "source meta"),
                 (destination_meta, record.get("meta_sha256"), "copy meta"),
             ):
-                if not path.is_file():
+                if not fs_is_file(path):
                     errors.append(f"Approved-asset {label} is missing: {path}")
                 elif not expected or file_sha256(path) != expected:
                     errors.append(f"Approved-asset {label} hash mismatch: {path}")
             expected_destinations.add(destination)
 
-    if not room_found:
-        errors.append("Mandatory Teleportation Environment Prefab was not imported.")
-    if destination_root.exists():
-        for path in destination_root.rglob("*"):
-            if path.is_file() and path.suffix.lower() != ".meta" and path.resolve() not in expected_destinations:
+    for missing in sorted(required_assets - found_required_assets):
+        errors.append(f"Mandatory approved asset was not imported: {missing}")
+    if fs_exists(destination_root):
+        for path in iter_files(destination_root):
+            if path.suffix.lower() != ".meta" and Path(os.path.abspath(path)) not in expected_destinations:
                 errors.append(
                     "ApprovedDependencies contains an untracked or modified extra file: "
                     + path.relative_to(destination_root).as_posix()
@@ -436,12 +539,12 @@ def gate5_lab_output_digest(root: Path, lab_id: str) -> str:
     excluded_roots = (
         unity_assets / "Generated" / lab_id / "Gate5Foundation",
     )
-    if unity_assets.exists():
-        for path in unity_assets.rglob("*"):
-            if not path.is_file() or path.suffix.lower() == ".meta":
+    if fs_exists(unity_assets):
+        for path in iter_files(unity_assets):
+            if path.suffix.lower() == ".meta":
                 continue
-            resolved = path.resolve()
-            if any(excluded.resolve() in resolved.parents for excluded in excluded_roots):
+            resolved = Path(os.path.abspath(path))
+            if any(Path(os.path.abspath(excluded)) in resolved.parents for excluded in excluded_roots):
                 continue
             included.append(path)
     lines = [
@@ -511,6 +614,9 @@ def load_state(root: Path, lab_id: str) -> dict[str, Any]:
 def load_current_state(root: Path, lab_id: str) -> dict[str, Any]:
     state = load_state(root, lab_id)
     require_current_state_schema(state)
+    validate_workspace_mode(
+        root, lab_id, str(state.get("workflow_mode", "blind-rebuild"))
+    )
     return state
 
 
@@ -707,7 +813,9 @@ def default_contracts(lab_id: str, title: str, domain: str, scene: str) -> dict[
     }
 
 
-def brief_text(lab_id: str, title: str, domain: str, scene: str) -> str:
+def brief_text(
+    lab_id: str, title: str, domain: str, scene: str, workflow_mode: str = "blind-rebuild"
+) -> str:
     title_yaml = json.dumps(title, ensure_ascii=False)
     domain_yaml = json.dumps(domain, ensure_ascii=False)
     scene_yaml = json.dumps(scene, ensure_ascii=False)
@@ -715,7 +823,7 @@ def brief_text(lab_id: str, title: str, domain: str, scene: str) -> str:
 lab_id: "{lab_id}"
 title: {title_yaml}
 domain: {domain_yaml}
-workflow_mode: "rebuild"
+workflow_mode: "{workflow_mode}"
 status: "draft"
 
 source_material:
@@ -1173,13 +1281,15 @@ def command_new(args: argparse.Namespace) -> int:
     root = args.project_root.resolve()
     require_foundation(root)
     lab_id = require_lab_id(args.lab_id)
+    workflow_mode = args.mode
+    validate_workspace_mode(root, lab_id, workflow_mode)
     title = validate_text_argument(args.title, "title")
     domain = validate_text_argument(args.domain, "domain")
     scene = validate_scene_path(args.scene)
     contamination = new_run_contamination_errors(root)
     if contamination:
         raise RuntimeError(
-            "A new blind run requires a pristine Builder Pack. Resume the single active run "
+            "A new workflow run requires a pristine Builder Pack. Resume the single active run "
             "or start from a clean foundation copy; do not expose one run to another.\n- "
             + "\n- ".join(contamination)
         )
@@ -1196,7 +1306,10 @@ def command_new(args: argparse.Namespace) -> int:
     if existing:
         raise RuntimeError("Workflow already contains run files; refusing to overwrite:\n" + "\n".join(map(str, existing)))
 
-    write_text(lab_dir / "brief.yaml", brief_text(lab_id, title, domain, scene))
+    write_text(
+        lab_dir / "brief.yaml",
+        brief_text(lab_id, title, domain, scene, workflow_mode),
+    )
     write_text(lab_dir / "design.md", design_text(lab_id, scene))
     write_text(
         root / prior_lessons_review_relative_path(lab_id),
@@ -1214,6 +1327,7 @@ def command_new(args: argparse.Namespace) -> int:
         "lab_id": lab_id,
         "title": title,
         "domain": domain,
+        "workflow_mode": workflow_mode,
         "stage": "gate_0_in_progress",
         "scene": scene,
         "scene_creation_mode": "new_scene",
@@ -1819,6 +1933,22 @@ def command_status(args: argparse.Namespace) -> int:
     root = args.project_root.resolve()
     lab_id = require_lab_id(args.lab_id)
     state = load_state(root, lab_id)
+    workflow_mode = str(state.get("workflow_mode", "blind-rebuild"))
+    try:
+        validate_workspace_mode(root, lab_id, workflow_mode)
+    except RuntimeError as error:
+        payload = {
+            "lab_id": lab_id,
+            "workflow_mode": workflow_mode,
+            "state_schema": state.get("schema_version", "missing"),
+            "current_schema": CURRENT_STATE_SCHEMA,
+            "current_gate": None,
+            "gate_ready_for_approval": False,
+            "gate_blockers": [str(error)],
+            "next_action": "Create/open the prescribed workspace, then start or resume there.",
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
     if state.get("schema_version") != CURRENT_STATE_SCHEMA:
         payload = {
             "lab_id": lab_id,
@@ -1844,6 +1974,7 @@ def command_status(args: argparse.Namespace) -> int:
     readiness = [] if workflow_complete else gate_readiness_errors(root, state, gate)
     payload = {
         "lab_id": lab_id,
+        "workflow_mode": workflow_mode,
         "state_schema": state.get("schema_version", "missing"),
         "current_schema": CURRENT_STATE_SCHEMA,
         "legacy_state_requires_gate_reapproval": state.get("schema_version") != CURRENT_STATE_SCHEMA,
@@ -2032,6 +2163,10 @@ def command_migrate_state(args: argparse.Namespace) -> int:
     if old_schema == CURRENT_STATE_SCHEMA:
         raise RuntimeError("Workflow state is already current; no migration is needed.")
 
+    workflow_mode = str(state.get("workflow_mode", "blind-rebuild"))
+    validate_workspace_mode(root, lab_id, workflow_mode)
+    state["workflow_mode"] = workflow_mode
+
     evidence = ensure_evidence(state)
     state.setdefault("migration_history", []).append(
         {
@@ -2081,6 +2216,15 @@ def build_parser() -> argparse.ArgumentParser:
     new.add_argument("--title", required=True)
     new.add_argument("--domain", required=True)
     new.add_argument("--scene", required=True)
+    new.add_argument(
+        "--mode",
+        choices=WORKFLOW_MODES,
+        default="blind-rebuild",
+        help=(
+            "blind-rebuild requires the fixed internal RebuildWorkspaces directory; "
+            "integrated-development is for a Builder Pack embedded in a host project"
+        ),
+    )
     new.set_defaults(func=command_new)
 
     validate = subparsers.add_parser("validate", help="Validate all five contracts and cross-references.")

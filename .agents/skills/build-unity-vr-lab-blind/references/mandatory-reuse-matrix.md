@@ -36,6 +36,7 @@ Do not replace these responsibilities with new Lab-specific equivalents.
 | Visible operational status | `EmVrStatusDisplay` | Show at least ready, selected/action state, updating, completed, reset, and error. A Console-only state is insufficient. |
 | Desktop pointer baseline | `EmVrMousePointer` and its `EmVrDesktopInput`/`IEmVrPointerInput` support | Required because every accepted Lab has a desktop path. |
 | XR ray baseline | `EmVrXrRayRuntimeTuner` and `EmVrXrRayUtility` | Required with the approved XRI rig/controller-ray assets because every accepted Lab has an XR Simulator path. |
+| Verified XR setup | `ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab` plus `XR Device Simulator/XR Device Simulator.prefab` | Import both dependency closures and instantiate both. Use the complete setup as the top-level rig; a bare `XR Origin` or a Lab-specific reconstructed rig is not equivalent. |
 | Application scene lifecycle | `EmVrPersistentServiceRoot`, `EmVrSceneLoader` | Required for Start/Lab/Back and reload/reset lifecycle. A domain-only prototype may leave this pending but cannot reach final acceptance. |
 | Read-only scene validation | `EmVrSceneValidator` | Run after every build and require zero errors; record warnings explicitly. |
 | Room/environment baseline | `ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab` | Instantiate this approved Prefab in every new Lab scene with its `.meta` and Starter Assets dependency closure. Do not replace it with generated primitive walls. |
@@ -73,8 +74,9 @@ area, and require the foundation visibility check after button invocation.
 The Builder Agent must preserve this ownership boundary:
 
 1. Direct-call Common; never copy Common `.cs` files into the Lab.
-2. Import the approved room/XR assets only with GUID closure and preserve their
-   source.
+2. Import the approved room, `XR Interaction Setup`, and `XR Device Simulator`
+   only with GUID closure and preserve their source. Retain the validated
+   Up/Down-arrow `Keyboard Y Translate` bindings.
 3. Materialize the Gate 5 foundation byte-for-byte and never edit either copy.
 4. Put only the target's domain object, deterministic solver/result, adapter,
    state membership, telemetry/assist mapping, and domain tests in editable
@@ -117,3 +119,14 @@ replacing its room geometry.
 
 If the Prefab or any required dependency is missing or cannot be instantiated,
 report a protected foundation asset blocker and stop before design approval.
+
+## Mandatory verified XR baseline
+
+The portable, Lab1-validated baseline consists of the approved
+`XR Interaction Setup.prefab`, `XR Device Simulator.prefab`, the simulator
+controls (including Up/Down-arrow Y translation), and Common
+`EmVrXrRayRuntimeTuner`/`EmVrXrRayUtility`. Import both Prefabs by dependency
+closure, instantiate the setup and simulator, and attach/configure the Common
+tuner on the setup root. Do not copy Lab1-named scripts, copy an old Lab scene,
+instantiate a bare XR Origin as the top-level baseline, or patch an imported
+asset copy.

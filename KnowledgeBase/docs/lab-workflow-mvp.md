@@ -7,7 +7,8 @@ fixed wording is optional.
 Gate 5 begins by materializing the protected
 `ReusableFoundation/Gate5MinimalSlice` through
 `.agents/skills/build-unity-vr-lab-blind/scripts/materialize_gate5_foundation.py`.
-The mandatory room GUID closure is imported at the same gate, not earlier.
+The mandatory room, XR Interaction Setup, and XR Device Simulator GUID closures
+are imported at the same gate, not earlier.
 Its source and generated copy are immutable. The reusable foundation checkpoint
 must pass before target-domain code is added.
 
@@ -29,10 +30,12 @@ must pass before target-domain code is added.
 
 ## Core commands
 
-Create a clean run without a donor scene:
+After the rebuilding Agent has created the fixed internal child workspace and
+the User has opened that child, create a clean blind-rebuild run without a donor
+scene:
 
 ```powershell
-python Tools/labflow/labflow.py new --lab-id <lab_id> --title "<title>" --domain <domain> --scene Assets/Scenes/<Output>.unity
+python Tools/labflow/labflow.py new --mode blind-rebuild --lab-id <lab_id> --title "<title>" --domain <domain> --scene Assets/Scenes/<Output>.unity
 ```
 
 After the Gate 0 verifier actually passes:
@@ -55,10 +58,12 @@ python Tools/labflow/labflow.py validate --lab-id <lab_id>
 ```
 
 During Gate 5, after Gate 4 approval, import the approved asset GUID closure
-into the current Lab's generated directory. For the mandatory room:
+into the current Lab's generated directory. For the three mandatory Prefabs:
 
 ```powershell
 python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab"
+python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/XR Device Simulator/XR Device Simulator.prefab"
 python .agents/skills/build-unity-vr-lab-blind/scripts/materialize_gate5_foundation.py --lab-id <lab_id>
 ```
 

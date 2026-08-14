@@ -9,7 +9,10 @@ if ([string]::IsNullOrWhiteSpace($BuilderRoot)) {
 }
 
 $BuilderRoot = (Resolve-Path -LiteralPath $BuilderRoot).Path
+$errors = New-Object System.Collections.Generic.List[string]
 $required = @(
+    ".gitattributes",
+    ".gitignore",
     "AGENTS.md",
     "README.md",
     ".agents\skills\build-unity-vr-lab-blind\SKILL.md",
@@ -26,6 +29,12 @@ $required = @(
     "UnityProject\LocalPackages\com.emvr.lab-common\package.json",
     "ApprovedAssets\XRInteractionToolkitSamples\Starter Assets\DemoSceneAssets\Prefabs\Teleportation Environment.prefab",
     "ApprovedAssets\XRInteractionToolkitSamples\Starter Assets\DemoSceneAssets\Prefabs\Teleportation Environment.prefab.meta",
+    "ApprovedAssets\XRInteractionToolkitSamples\Starter Assets\Prefabs\XR Interaction Setup.prefab",
+    "ApprovedAssets\XRInteractionToolkitSamples\Starter Assets\Prefabs\XR Interaction Setup.prefab.meta",
+    "ApprovedAssets\XRInteractionToolkitSamples\XR Device Simulator\XR Device Simulator.prefab",
+    "ApprovedAssets\XRInteractionToolkitSamples\XR Device Simulator\XR Device Simulator.prefab.meta",
+    "ApprovedAssets\XRInteractionToolkitSamples\XR Device Simulator\XR Device Simulator Controls.inputactions",
+    "ApprovedAssets\XRInteractionToolkitSamples\XR Device Simulator\Unity.XR.Interaction.Toolkit.Samples.DeviceSimulator.asmdef",
     "ApprovedAssets",
     "KnowledgeBase",
     "KnowledgeBase\rebuild-lessons\README.md",
@@ -38,10 +47,50 @@ $required = @(
     "BuildEvidence"
 )
 
-$errors = New-Object System.Collections.Generic.List[string]
+$workspaceMarkerPath = Join-Path $BuilderRoot ".emvr-workspace.json"
+if (Test-Path -LiteralPath $workspaceMarkerPath) {
+    try {
+        $workspaceMarker = Get-Content -Raw -LiteralPath $workspaceMarkerPath | ConvertFrom-Json
+        $expectedName = "EMVR_Blind_Rebuild_$($workspaceMarker.lab_id)"
+        if ($workspaceMarker.schema_version -ne "1.1.0" -or
+            $workspaceMarker.workflow_mode -ne "blind-rebuild" -or
+            $workspaceMarker.required_master_directory_name -ne "EMVR_Blind_BuilderPack" -or
+            (Split-Path -Leaf $BuilderRoot) -ne $expectedName -or
+            (Split-Path -Leaf (Split-Path -Parent $BuilderRoot)) -ne "RebuildWorkspaces" -or
+            (Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent $BuilderRoot))) -ne "EMVR_Blind_BuilderPack") {
+            $errors.Add("Blind rebuild workspace marker/location does not match RebuildWorkspaces/$expectedName")
+        }
+    }
+    catch {
+        $errors.Add("Invalid .emvr-workspace.json: $($_.Exception.Message)")
+    }
+}
+
 foreach ($relative in $required) {
     if (-not (Test-Path -LiteralPath (Join-Path $BuilderRoot $relative))) {
         $errors.Add("Missing required Builder Pack item: $relative")
+    }
+}
+
+$attributesPath = Join-Path $BuilderRoot ".gitattributes"
+if (Test-Path -LiteralPath $attributesPath) {
+    $hasPortableLfRule = @(
+        Get-Content -LiteralPath $attributesPath | Where-Object {
+            $_.Split('#')[0].Trim() -eq "* text=auto eol=lf"
+        }
+    ).Count -gt 0
+    if (-not $hasPortableLfRule) {
+        $errors.Add(".gitattributes must enforce '* text=auto eol=lf' so frozen hashes survive Git checkout.")
+    }
+}
+
+$xrControlsPath = Join-Path $BuilderRoot "ApprovedAssets\XRInteractionToolkitSamples\XR Device Simulator\XR Device Simulator Controls.inputactions"
+if (Test-Path -LiteralPath $xrControlsPath) {
+    $xrControls = Get-Content -Raw -LiteralPath $xrControlsPath
+    foreach ($requiredBinding in @('"name": "Keyboard Y Translate"', '"path": "<Keyboard>/downArrow"', '"path": "<Keyboard>/upArrow"')) {
+        if (-not $xrControls.Contains($requiredBinding)) {
+            $errors.Add("Validated XR Device Simulator control binding is missing: $requiredBinding")
+        }
     }
 }
 
@@ -96,7 +145,9 @@ if ($activeExampleContracts.Count -gt 0) {
     $errors.Add("Legacy example contracts remain in the active LabInterfaceContracts directory.")
 }
 
-$activeStates = @(Get-ChildItem -LiteralPath (Join-Path $BuilderRoot "LabSpecs") -Recurse -Filter "workflow_state.json" -File -ErrorAction SilentlyContinue)
+$activeStates = @(
+    Get-ChildItem -LiteralPath (Join-Path $BuilderRoot "LabSpecs") -Recurse -Filter "workflow_state.json" -File -ErrorAction SilentlyContinue
+)
 if ($activeStates.Count -gt 1) {
     $errors.Add("More than one active Lab workflow exists. Use one isolated Builder Pack per run.")
 }
@@ -119,8 +170,19 @@ $generatedUnityPattern = '\\(Library|Temp|Logs|obj)\\'
 $restrictedArchivePattern = '\\KnowledgeBase\\legacy-lab-specific-summaries\\'
 $disabledIntegrationPattern = '\\OptionalIntegrations\\'
 $maintenancePattern = '\\(WorkflowMaintenance|EMVR_Workflow_Maintenance)\\|\\WORKFLOW_MAINTAINER_GUIDE\.md$'
+$sourceCandidates = @(
+    foreach ($topLevelItem in Get-ChildItem -LiteralPath $BuilderRoot -Force -ErrorAction SilentlyContinue) {
+        if ($topLevelItem.Name -in @(".git", "RebuildWorkspaces", "tmp")) { continue }
+        if ($topLevelItem.PSIsContainer) {
+            Get-ChildItem -LiteralPath $topLevelItem.FullName -Recurse -File -Force -ErrorAction SilentlyContinue
+        }
+        else {
+            $topLevelItem
+        }
+    }
+)
 $sourceFiles = @(
-    Get-ChildItem -LiteralPath $BuilderRoot -Recurse -File -ErrorAction SilentlyContinue |
+    $sourceCandidates |
         Where-Object {
             $_.FullName -notmatch $generatedUnityPattern -and
             $_.FullName -notmatch $restrictedArchivePattern -and

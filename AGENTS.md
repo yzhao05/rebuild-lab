@@ -53,6 +53,22 @@ only during Gate 5 into
 `UnityProject/Assets/Generated/<lab_id>/ApprovedDependencies/` using the Skill's
 importer. Gate 1/3 may plan the path but must not perform the copy.
 
+For a blind rebuild/recreation/comparison task, create the workspace only at
+`EMVR_Blind_BuilderPack/RebuildWorkspaces/EMVR_Blind_Rebuild_<lab_id>`,
+using `Tools/create_blind_run_pack.ps1 -LabId <lab_id>`. The rebuilding Agent
+must execute that command from the opened master Pack; it must never delegate
+the PowerShell command or manual copying to the User. After PASS, the User only
+opens the exact generated child path supplied by the Agent. Never create it in
+the Pack's parent or choose another name. This location constraint does not
+apply when the Pack is intentionally embedded in a host project to develop a
+genuinely new Lab; that case uses `labflow new --mode integrated-development`.
+If the current root already has a valid `.emvr-workspace.json` matching the
+requested Lab ID and fixed child path, do not run the copy tool again; initialize
+or resume the single run in that child.
+Workspace creation/switching is pre-Gate setup, not a blocked Gate 0. Do not
+write Gate 0 artifacts in the master Pack; Gate 0 starts only after `labflow new`
+has initialized the marked child.
+
 Gate 5 also has a protected reusable source at
 `ReusableFoundation/Gate5MinimalSlice/`. Copy it only with the Skill's
 `materialize_gate5_foundation.py` into
@@ -112,7 +128,7 @@ that exact KnowledgeBase file, and previous lessons remain read-only.
 ## Protected workflow foundation
 
 During a Lab rebuild, treat the workflow foundation as user-owned and read-only.
-This includes `AGENTS.md`, `.agents/`, `Policies/`, `Tools/`, `LocalPackages/`,
+This includes `.gitattributes`, `.gitignore`, `AGENTS.md`, `.agents/`, `Policies/`, `Tools/`, `LocalPackages/`,
 `UnityProject/LocalPackages/`, `OptionalIntegrations/`,
 `ApprovedAssets/`, `ReusableFoundation/`, `KnowledgeBase/`, `LabSpecs/templates/`, example contracts,
 `UnityProject/Packages/`, `UnityProject/ProjectSettings/`, and pre-existing
@@ -121,10 +137,12 @@ shared content under `UnityProject/Assets/` such as `ApprovedReuse/` and
 
 The Builder Agent may write only the current Lab's specification, five
 non-example contracts, declared Lab-specific Unity output files, and
-`BuildEvidence/<lab_id>/`. In Gate 10 only, it may also create and complete
-`KnowledgeBase/rebuild-lessons/<lab_id>.md` after `labflow retrospective`
-generates it. It must not edit a previous lesson, reusable source, or back-port
-a fix into Common while rebuilding a Lab.
+`BuildEvidence/<lab_id>/`. In Gate 10 only, after `labflow retrospective`
+generates them, it may also create and complete
+`BuildEvidence/retrospectives/<lab_id>.md` and
+`KnowledgeBase/rebuild-lessons/<lab_id>.md`. It must not overwrite an existing
+retrospective/lesson, edit a previous lesson, reusable source, or back-port a
+fix into Common while rebuilding a Lab.
 
 If inspection reveals a defect, missing dependency, stale rule, or required
 change in the protected foundation, stop the current gate and report the

@@ -1,0 +1,22 @@
+# Blind-rebuild run workspaces live inside the master Pack but are never source.
+RebuildWorkspaces/
+
+# Conversation/document rendering scratch output.
+tmp/
+
+# Unity-generated caches and IDE files.
+UnityProject/Library/
+UnityProject/Temp/
+UnityProject/Logs/
+UnityProject/obj/
+UnityProject/UserSettings/
+UnityProject/*.csproj
+UnityProject/*.sln
+UnityProject/*.userprefs
+
+# Python/OS/editor caches.
+**/__pycache__/
+*.pyc
+.vs/
+.DS_Store
+Thumbs.db

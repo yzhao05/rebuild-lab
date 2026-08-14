@@ -5,7 +5,8 @@
 顺序、成功标准和失败截图要求。
 
 > 重要：不要直接让 AI 在 `EMVR_Blind_BuilderPack` 主目录中搭建 Lab。
-> 每个 Lab 都必须先创建一个独立、干净的运行副本，再把该副本作为 AI 的工作区。
+> 盲重建/复刻/效果对比任务必须先在主 Builder Pack 内创建固定名称的独立
+> 子工作区，再把该子目录作为 AI 工作区。
 
 ## 1. 项目介绍
 
@@ -19,14 +20,15 @@ Builder Pack 为 AI 提供以下允许使用的基础：
 - 已验证的 EMVR Common 通用包；
 - XR 手柄、射线、桌面拖拽、状态保存、重置、遥测和 Assist 等通用能力；
 - 经过批准的模型、材质、UI、音频和 XRI 资源；
-- 必须复用的房间 Prefab；
+- 必须复用的房间、XR Interaction Setup 和 XR Device Simulator Prefab；
 - Gate 5 受保护的按钮、生成物可见性、EventSystem 和回归测试基础；
 - 历次重建中提炼出的跨 Lab 构建经验；
 - Gate 0–10 状态机、验证脚本和证据模板。
 
-AI 可以复制或调用已批准的通用代码，但不能修改 Common、受保护的 Gate 5
-基础、ApprovedAssets、工作流、Skill、Policy 或知识库。发现这些基础存在问题时，
-AI 必须暂停当前 Gate 并向用户汇报，不能自行修改基础设施或写替代代码。
+AI 只能直接调用 Common，通过指定工具导入 ApprovedAssets，并通过 Gate 5
+materializer 原样复制受保护基础；不能手工复制或修改这些来源，也不能修改工作流、
+Skill、Policy 或知识库。发现这些基础存在问题时，AI 必须暂停当前 Gate 并向用户
+汇报，不能自行修改基础设施或写替代代码。
 
 Unity MCP 当前禁用。Unity 中的编译、Test Runner、Game View 和交互检查由用户
 按照 AI 给出的详细步骤完成。
@@ -79,56 +81,68 @@ go ahead
 3–64 个字符。例如：
 
 ```text
-lab2_magnetostatics
+lab2_magnetostatic
 lab4_optics
 induction_demo
 ```
 
-## 4. 创建干净运行副本
+## 4. 让重建 Agent 创建干净运行副本
 
-### 第一步：关闭 Unity
+### 第一步：关闭 Unity，并在 Codex 中打开主 Pack
 
 创建运行副本前，先关闭正在打开 Builder Pack 的 Unity 窗口。
+在 Codex 中把下面的主目录作为初始工作区：
 
-### 第二步：打开 PowerShell
-
-在 Windows 开始菜单中搜索并打开 **PowerShell**，复制下面的命令。把目标路径
-中的 `<lab_id>` 换成实际 Lab ID。目标文件夹必须尚不存在。
-
-```powershell
-powershell -ExecutionPolicy Bypass -File "E:\暑研\EMVR_Blind_BuilderPack\Tools\create_blind_run_pack.ps1" -Destination "E:\暑研\EMVR_Blind_Run_<lab_id>"
+```text
+E:\暑研\EMVR_Blind_BuilderPack
 ```
 
-例如：
+### 第二步：让重建 Agent 自动创建副本
+
+在主 Pack 工作区上传需求文档，并按第 5 节的格式调用重建 Agent。重建 Agent
+必须自行判断这是盲重建任务，并自动执行下面的复制工具；**用户不需要打开
+PowerShell，也不应被要求手动输入这个命令或复制文件夹**：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "E:\暑研\EMVR_Blind_BuilderPack\Tools\create_blind_run_pack.ps1" -Destination "E:\暑研\EMVR_Blind_Run_lab2_magnetostatics"
+powershell -ExecutionPolicy Bypass -File Tools/create_blind_run_pack.ps1 -LabId <lab_id>
 ```
 
-成功时 PowerShell 会显示：
+Agent 必须等待并核对：
 
 ```text
 [EMVR Builder Boundary] PASS
-[EMVR Blind Run Pack] CREATED
+[EMVR Blind Rebuild Workspace] CREATED
 ```
 
-如果显示 `FAIL` 或红色错误，不要调用 Lab Builder Agent，也不要自己改工作流；
-把完整错误发给工作流维护者。
+成功后，Agent 必须直接给出生成目录的**完整绝对路径**，并只要求用户切换到
+该目录。如果显示 `FAIL`、目标已存在或其他错误，Agent 必须向用户汇报，不能
+覆盖或删除现有目录，也不能把执行命令的责任转交给用户。
+创建和切换子工作区属于 Gate 0 之前的准备，不应被报告成“Gate 0 阻塞”。Agent
+只有在子工作区中初始化运行后才开始 Gate 0。
 
 ### 第三步：把运行副本作为 AI 工作区
 
-在 Codex 中选择打开文件夹，打开刚生成的目录，例如：
+用户此时只需在 Codex 中选择“打开文件夹”，打开 Agent 给出的目录，例如：
 
 ```text
-E:\暑研\EMVR_Blind_Run_lab2_magnetostatics
+E:\暑研\EMVR_Blind_BuilderPack\RebuildWorkspaces\EMVR_Blind_Rebuild_lab2_magnetostatic
 ```
 
-不要打开它的父目录 `E:\暑研`，也不要打开主目录
-`E:\暑研\EMVR_Blind_BuilderPack` 作为本次 Lab 的构建工作区。
+固定目录名必须是 `EMVR_Blind_Rebuild_<lab_id>`。不要把重建工作区创建到
+`E:\暑研` 等主 Pack 父目录，也不要打开主目录
+`E:\暑研\EMVR_Blind_BuilderPack` 作为本次 Lab 的实现工作区。
+
+这一位置限制只适用于盲重建、复刻和效果对比。如果以后把 Builder Pack 集成到
+其他项目内部，用它开发一个真正的新 Lab，则可以使用宿主项目工作区，并选择
+`integrated-development` 模式，不要求使用上述内部子目录。
 
 ## 5. 调用 AI 的格式
 
-打开运行副本后，把需求文档上传到当前对话，然后发送以下提示词：
+第一次调用时，在主 Pack 工作区把需求文档上传到当前对话，然后发送以下提示
+词。Agent 会先自动创建子工作区并让你切换；切换成功后，在同一对话回复
+“继续”即可。如果切换工作区后 Codex 新建了对话，请重新上传需求文档并再次
+发送同一提示词。Agent 应识别子工作区根目录中的 `.emvr-workspace.json`，直接
+初始化或恢复当前 Lab，不得再次创建副本。
 
 ```text
 $build-unity-vr-lab-blind
@@ -136,6 +150,9 @@ $build-unity-vr-lab-blind
 请根据我在当前对话中上传的需求文档重建这个 Unity VR Lab。
 Lab ID：<lab_id>
 Lab 名称：<实验名称>
+
+这是盲重建任务。请由你在主 Pack 中自动运行运行副本创建工具；不要让我执行
+PowerShell 或手动复制文件夹。创建成功后给出子工作区的完整绝对路径让我切换。
 
 请从 Gate 0 开始，严格一次对话只完成一个 Gate。完成当前 Gate 后，向我汇报：
 Current gate、Purpose、Verified、Remaining/blockers、Need from user，
@@ -152,8 +169,11 @@ Current gate、Purpose、Verified、Remaining/blockers、Need from user，
 $build-unity-vr-lab-blind
 
 请根据我上传的 Lab 2 Magnetostatic.pdf 重建这个 Unity VR Lab。
-Lab ID：lab2_magnetostatics
+Lab ID：lab2_magnetostatic
 Lab 名称：Magnetostatics
+
+这是盲重建任务。请由你自动创建内部运行副本，成功后给出完整绝对路径让我
+切换；不要让我运行 PowerShell 或手动复制文件夹。
 
 请从 Gate 0 开始，严格一次对话只完成一个 Gate。完成当前 Gate 后汇报结果并
 等待我审批。需要我操作 Unity 时，请给出完整菜单路径、点击顺序、通过标准和
@@ -163,7 +183,7 @@ Lab 名称：Magnetostatics
 如果 AI 尚未初始化运行，它会执行类似下面的命令：
 
 ```powershell
-python Tools/labflow/labflow.py new --lab-id <lab_id> --title "<实验名称>" --domain <领域名称> --scene Assets/Scenes/<场景名称>.unity
+python Tools/labflow/labflow.py new --mode blind-rebuild --lab-id <lab_id> --title "<实验名称>" --domain <领域名称> --scene Assets/Scenes/<场景名称>.unity
 ```
 
 这些命令通常由 AI 执行，用户不需要手动输入。
@@ -254,7 +274,7 @@ Gate 5 分为两个有顺序的检查点。
 
 AI 会：
 
-- 导入必须复用的房间 Prefab 及依赖；
+- 导入必须复用的房间、XR Interaction Setup、XR Device Simulator Prefab 及依赖；
 - 原样复制受保护的 Gate 5 基础代码；
 - 接入 Common 的桌面拖拽、XR 射线、对象状态、重置、遥测、Assist 和生命周期；
 - 搭建中性测试单元，包括按钮、EventSystem、生成模板、可见生成物和状态显示；
@@ -313,7 +333,7 @@ Tools > EMVR > Common > Validate Active Scene
 
 - Console 无红色错误；
 - Builder 出错时停止且不保存半成品；
-- 房间、Common、领域对象和状态接线正确；
+- 房间、XR Setup/Simulator、Common、领域对象和状态接线正确；
 - Game View 中 UI 清晰且不遮挡实验区；
 - 初始状态及第一次操作后的画面符合 Brief。
 
@@ -468,6 +488,7 @@ BuildEvidence/retrospectives/<lab_id>.md
 KnowledgeBase/rebuild-lessons/<lab_id>.md
 ```
 
-保留整个 `EMVR_Blind_Run_<lab_id>` 文件夹即可保存本次 Lab、规格、代码、场景、
+保留整个 `RebuildWorkspaces/EMVR_Blind_Rebuild_<lab_id>` 文件夹即可保存本次
+Lab、规格、代码、场景、
 测试和证据。下一次重建其他 Lab 时，应重新从主 Builder Pack 创建新的独立副本，
 不要清空或复用这次运行目录。

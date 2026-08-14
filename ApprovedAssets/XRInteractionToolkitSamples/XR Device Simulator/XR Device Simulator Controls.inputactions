@@ -332,6 +332,28 @@
                     "isPartOfComposite": true
                 },
                 {
+                    "name": "negative",
+                    "id": "176aa482-27c6-4ab2-a095-81e9d64b5f3f",
+                    "path": "<Keyboard>/downArrow",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Keyboard Y Translate",
+                    "isComposite": false,
+                    "isPartOfComposite": true
+                },
+                {
+                    "name": "positive",
+                    "id": "5854832c-0217-499b-86be-c5d9219add57",
+                    "path": "<Keyboard>/upArrow",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Keyboard Y Translate",
+                    "isComposite": false,
+                    "isPartOfComposite": true
+                },
+                {
                     "name": "",
                     "id": "fcfb16fb-edee-474c-b1f2-f10b2a0a3569",
                     "path": "<Keyboard>/leftShift",

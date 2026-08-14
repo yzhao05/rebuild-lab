@@ -6,7 +6,7 @@ verified: true
 migrated_on: 2026-08-11
 source_material:
   - KnowledgeBase/docs/unity-compile-error-playbook.md
-  - LabSpecs/lab2_magnetostatics/workflow_state.json
+  - pre-workflow user-validated run evidence
   - user-validated Common minimal-validation and XR debugging evidence
 ---
 

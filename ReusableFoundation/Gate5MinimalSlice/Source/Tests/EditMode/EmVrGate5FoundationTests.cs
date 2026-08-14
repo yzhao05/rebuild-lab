@@ -1,8 +1,9 @@
 using System.Collections.Generic;
 using EMVR.Common.Objects;
+using EMVR.ReusableFoundation.Gate5.Editor;
 using NUnit.Framework;
-using UnityEditor.Events;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -62,9 +63,14 @@ namespace EMVR.ReusableFoundation.Gate5.Tests
         public void PersistentButtonSpawnsActiveVisibleCollidableObject()
         {
             EmVrGate5FoundationHarness harness = CreateHarness(out _);
-            UnityEventTools.AddPersistentListener(harness.spawnButton.onClick, harness.SpawnAndValidate);
+            EmVrGate5FoundationSceneUtility.AddEditorAndRuntimePersistentListener(
+                harness.spawnButton,
+                harness.SpawnAndValidate);
 
             Assert.That(harness.TryValidateWiring(out string wiringFailure), Is.True, wiringFailure);
+            Assert.That(
+                harness.spawnButton.onClick.GetPersistentListenerState(0),
+                Is.EqualTo(UnityEventCallState.EditorAndRuntime));
             harness.spawnButton.onClick.Invoke();
             created.Add(harness.SpawnedObject);
             Assert.That(

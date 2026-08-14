@@ -2,6 +2,21 @@
 
 ## Rule for every gate
 
+Before Gate 0, classify the workspace mode. A blind rebuild, recreation, or
+comparison must be created at
+`EMVR_Blind_BuilderPack/RebuildWorkspaces/EMVR_Blind_Rebuild_<lab_id>` with
+`create_blind_run_pack.ps1 -LabId <lab_id>`. The rebuilding Agent runs this
+command from the master Pack, verifies PASS, and gives the User the exact output
+path. The User only switches workspace; never ask them to run PowerShell or copy
+the Pack. A Builder Pack embedded in a host project for genuinely new-Lab
+development uses `integrated-development` and is not subject to that
+internal-location rule.
+If the current root is already that child and its `.emvr-workspace.json` matches
+the requested Lab ID, skip creation and initialize/resume there. Never invoke
+the master copy tool from inside a valid child.
+This workspace handoff is pre-Gate setup, not a Gate 0 blocker. Gate 0 work and
+artifacts begin only after `labflow new` initializes the marked child.
+
 Use one atomic conversation work package per gate:
 
 1. execute and verify only the current gate;
@@ -80,7 +95,7 @@ passed`; policy inspection alone is not sufficient.
 
 Identity, learning goals, tasks, formulas/units, parameter ranges, expected
 results, object inventory, desktop/XR paths, lifecycle, and evidence are explicit
-and user-confirmed. Mandatory room Prefab placement/adaptation, initial
+and user-confirmed. Mandatory room and verified XR Prefab placement/adaptation, initial
 visibility, first action, post-action visibility, and Game View layout are also
 explicit; `new_scene` is not treated as permission to generate a primitive room.
 
@@ -93,12 +108,13 @@ step, rubric, telemetry, and assist references.
 
 The user approves the learning flow, clean-scene plan, Common APIs, approved
 assets, new Lab code, interactions, feedback, and evidence plan. The design
-contains every row of the mandatory Common/room reuse audit plus environment, visibility,
+contains every row of the mandatory Common/room/XR reuse audit plus environment, visibility,
 builder-failure, and camera/UI decisions. It also records the real source path
 or package version, assembly, and exact member signature for every Common,
-Unity, and XRI API the new Lab will call. It names the approved room's generated
-import path under `Assets/Generated/<lab_id>/ApprovedDependencies/` and its
-import-manifest evidence.
+Unity, and XRI API the new Lab will call. It names all three mandatory Prefabs'
+generated import paths under
+`Assets/Generated/<lab_id>/ApprovedDependencies/` and their import-manifest
+evidence.
 
 ## 4. Scaffold ready
 
@@ -113,15 +129,19 @@ errors, and `scaffold_compile` evidence is recorded before approval.
 Gate 5 has two ordered checkpoints inside the same gate. Checkpoint 5A must
 finish before any target-domain code is added:
 
-1. run `import_approved_asset_closure.py` for the mandatory room Prefab, then
-   run `materialize_gate5_foundation.py --lab-id <lab_id>`;
+1. run `import_approved_asset_closure.py` separately for the mandatory room,
+   `Starter Assets/Prefabs/XR Interaction Setup.prefab`, and
+   `XR Device Simulator/XR Device Simulator.prefab`; then run
+   `materialize_gate5_foundation.py --lab-id <lab_id>`;
 2. verify the source/copy hashes and preserve
    `BuildEvidence/<lab_id>/gate5-foundation-import.json`;
 3. call the Common desktop pointer/drag, XR ray, object state, status,
    telemetry, assist, lifecycle, and replacement-spawn APIs required by the
    design; do not copy or rewrite Common source;
 4. build a neutral validation unit in the new Lab scene containing the approved
-   room, camera/XR rig and rays, exactly one XR UI EventSystem, one persistent
+   room, the complete XR Interaction Setup (not a bare XR Origin), XR Device
+   Simulator with validated Up/Down Y translation, controller rays configured
+   through the Common tuner, exactly one XR UI EventSystem, one persistent
    interactable button, one active offstage neutral template, one visible
    collidable spawned object, desktop drag, Capture/Restore/Reset, and visible
    status;

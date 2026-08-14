@@ -4,7 +4,6 @@ description: Build or rebuild an EMVR Unity/VR teaching lab from approved specif
 ---
 
 # Build Unity VR Lab Blind
-
 Use the Builder Pack plus explicitly user-provided conversation documents as the
 complete information boundary. Never search its parent or siblings for an older
 Lab.
@@ -16,7 +15,6 @@ clean run Packs and is not an authorized requirement, lesson, or implementation
 source.
 
 ## Report the current gate
-
 Treat each gate as one atomic conversation work package. In one substantive
 response, perform all currently possible reading, writing, and validation for
 exactly one gate. Do not split a complete gate into repeated `continue` pauses
@@ -78,8 +76,11 @@ The command rejects out-of-order approval and a gate whose required evidence is
 not complete. It records the Agent's semantic decision; it does not require a
 specific approval phrase.
 
-## Verify the boundary first
+Before Gate 0, follow **Create or resume a run** below. In the master Pack,
+perform only child creation and handoff: do not write Gate 0 artifacts or call
+the workspace switch a blocked Gate. Gate 0 begins after `labflow new` in the child.
 
+## Verify the boundary first
 1. Confirm the working root contains `Policies/reuse-allowlist.json`.
 2. Run `scripts/verify_builder_pack.ps1`.
 3. Read `Policies/reuse-policy.md` and
@@ -122,10 +123,9 @@ Read [references/foundation-preflight.md](references/foundation-preflight.md)
 and finish its dependency checks before writing any Lab C#.
 
 ## Keep the workflow foundation read-only
-
 During a rebuild, never modify the Builder Pack's workflow foundation:
 
-- `AGENTS.md`, `.agents/`, `Policies/`, and `Tools/`;
+- `.gitattributes`, `.gitignore`, `AGENTS.md`, `.agents/`, `Policies/`, and `Tools/`;
 - `LocalPackages/`, `ApprovedAssets/`, and `KnowledgeBase/`;
 - `ReusableFoundation/`, including every Gate 5 source and manifest;
 - `LabSpecs/templates/` and all restricted legacy material;
@@ -149,10 +149,10 @@ the Builder Agent. Do not hand-copy, patch, rename, fork, or rewrite either.
 Lab-specific domain code must call or compose around these assemblies from
 separate declared output paths. If they need a change, use the foundation
 defect report and wait for the user.
-The only KnowledgeBase write exception is Gate 10: after Gate 9 user acceptance,
-create and complete exactly
+The only additional write exception is Gate 10: after Gate 9 user acceptance,
+create and complete exactly `BuildEvidence/retrospectives/<lab_id>.md` and
 `KnowledgeBase/rebuild-lessons/<lab_id>.md` through `labflow retrospective`.
-Never edit or overwrite a previous Lab's lesson file.
+Never edit or overwrite a previous Lab's retrospective or lesson file.
 
 When a protected resource is defective or insufficient:
 
@@ -228,30 +228,31 @@ as background context for a blind rebuild.
 
 ## Create or resume a run
 
-From the Builder Pack root:
-
+First classify the task mode and inspect `.emvr-workspace.json`. If the current
+root is already the valid fixed child for this `lab_id`, do not copy again;
+initialize or resume the run there. Otherwise, for a **blind rebuild**,
+recreation, or comparison against an old result, the rebuilding Agent must run
+the following command from the opened master Pack; never tell the user to run
+PowerShell or copy the Pack:
 ```powershell
-python Tools/labflow/labflow.py new --lab-id <lab_id> --title "<title>" --domain <domain> --scene Assets/Scenes/<Output>.unity
+powershell -ExecutionPolicy Bypass -File Tools/create_blind_run_pack.ps1 -LabId <lab_id>
+```
+After PASS, give the user the exact absolute child path
+`RebuildWorkspaces/EMVR_Blind_Rebuild_<lab_id>` and ask them only to open it as
+the workspace. Continue there and have the Agent run:
+```powershell
+python Tools/labflow/labflow.py new --mode blind-rebuild --lab-id <lab_id> --title "<title>" --domain <domain> --scene Assets/Scenes/<Output>.unity
 python Tools/labflow/labflow.py status --lab-id <lab_id>
 ```
-
-The workflow creates a new scene; it never copies a donor scene.
-`labflow new` requires a pristine Builder Pack with no other active or completed
-run output. Resume the single existing run or start from a clean foundation
-copy; never put two Lab runs in one Agent-visible Pack.
-
-For a new Lab, create the isolated foundation copy before invoking `labflow
-new` (the destination must not already exist):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File Tools/create_blind_run_pack.ps1 -Destination "E:\path\to\EMVR_Blind_Run_<lab_id>"
-```
-
-Then open that destination as the workspace and run `labflow new` there. Do not
-use the master pack or a prior run as the new Lab's workspace.
+The workflow creates a new scene and never copies a donor scene. `labflow new`
+requires no other run output. Never overwrite/delete an existing destination or
+use the master Pack, its parent/sibling, another name, or a prior run; report a
+conflict or resume the single matching run.
+For a genuinely new Lab in a host project containing the Pack, impose no
+workspace-location rule; run `labflow new --mode integrated-development` at the
+integration root. All other Gate, reuse, evidence, and foundation rules apply.
 
 ## Confirm the Brief
-
 First extract every supported fact from user-provided conversation documents.
 Then interview the user only for unresolved observable learning goals, ordered
 tasks, formulas,
@@ -260,14 +261,18 @@ reset/lifecycle behavior, telemetry, assist context, environment/room strategy,
 initial versus first-action visibility, UI/camera layout, and evidence. Ask no more
 than three related questions at once.
 
-Always plan to reuse the mandatory room baseline at
-`ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab`.
-Record this source and the intended generated path in the Brief/design, but do
-not copy it during Gate 1. The actual import belongs to Gate 5 so one response
+Always plan to reuse the mandatory room and verified XR baselines:
+
+- `ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab`;
+- `ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab`;
+- `ApprovedAssets/XRInteractionToolkitSamples/XR Device Simulator/XR Device Simulator.prefab`.
+
+Record these sources and their intended generated paths in the Brief/design,
+but do not copy them during Gate 1. The actual imports belong to Gate 5 so one response
 does not perform work from multiple gates. At Gate 5, instantiate the result under
 `Assets/Generated/<lab_id>/ApprovedDependencies/` in a new Lab scene. Preserve
 the generated import manifest as provenance. Never copy `DemoScene.unity` and
-never replace the room with generated primitive walls/floors. If the mandatory
+never replace the room with generated primitive walls/floors. If a mandatory
 Prefab or an approved dependency is missing, report a protected-foundation
 blocker.
 
@@ -290,7 +295,7 @@ python Tools/labflow/labflow.py validate --lab-id <lab_id>
 
 Resolve every error before Lab-specific C#. Then write the shortest design in
 `LabSpecs/<lab_id>/design.md`, naming every Common API and approved asset to use.
-Include the mandatory Common/room reuse audit, room placement/adaptation plan, authored
+Include the mandatory Common/room/XR reuse audit, room placement/adaptation plan, authored
 initial state and expected post-action visible state, builder failure policy,
 and Game View camera/UI layout. Add an API signature audit for every Common,
 Unity, and XRI member that Lab-specific code will call: record the exact source
@@ -325,12 +330,20 @@ python Tools/labflow/labflow.py record --lab-id <lab_id> --scaffold-compile <pas
 
 Do not approve Gate 4 until `scaffold_compile` is `passed` with zero compiler
 errors. After Gate 4 approval, Gate 5 must begin with the reusable foundation,
-not target-domain code. First import the mandatory approved room and then
-materialize the protected C# foundation. Run these exact commands from the
-Builder Pack root:
+not target-domain code. First import the mandatory approved room and the
+Lab1-validated generic XR setup/simulator closures, then materialize the
+protected C# foundation. Run these exact commands from the Builder Pack root:
 
 ```powershell
 python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+```
+
+```powershell
+python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab"
+```
+
+```powershell
+python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/XR Device Simulator/XR Device Simulator.prefab"
 ```
 
 ```powershell
@@ -339,12 +352,19 @@ python .agents/skills/build-unity-vr-lab-blind/scripts/materialize_gate5_foundat
 
 Use the copied helpers plus direct Common calls to assemble the neutral
 foundation checkpoint defined in `references/workflow-gates.md`: mandatory
-room, camera/XR rig and rays, exactly one XR UI EventSystem, one persistent
+room, complete XR Interaction Setup and XR Device Simulator, camera/controller
+rays configured through Common `EmVrXrRayRuntimeTuner`, exactly one XR UI
+EventSystem, one persistent
 interactable button, Common replacement spawner with an active offstage neutral
 template, a visible collidable spawned object, desktop drag, state/reset,
 status, telemetry, assist, and fail-closed build handling. Do not implement a
 parallel Lab-specific pointer, XR, button-wiring, replacement-spawn, state,
 status, telemetry, assist, or room system.
+
+Instantiate `XR Interaction Setup.prefab` as the top-level setup; do not use
+the bare `XR Origin (XR Rig).prefab` as an equivalent baseline. Preserve the
+approved simulator's Up/Down-arrow `Keyboard Y Translate` bindings and never
+patch the imported copy.
 
 Before target-domain code, run the exact `EMVR.ReusableFoundation.Gate5.Tests`
 EditMode assembly containing three tests:
@@ -466,31 +486,14 @@ Compilation or scene generation alone is not acceptance.
 
 ## Complete acceptance and Gate 10 knowledge capture
 
-Use Gate 8 to finish the evidence/provenance package. Use Gate 9 to present the
-completed Lab for the user's final acceptance. In the Gate 9 completion report,
-explicitly tell the user that approval will be followed by the required Gate 10
-error-retrospective and reusable-lesson step; do not describe Gate 9 acceptance
-as the end of the workflow.
-
-After the user approves Gate 9, record that approval, then execute Gate 10 in
-the next substantive response:
+Follow the Gate 8-10 evidence, reminder, content, exclusion, and readiness rules
+in [references/workflow-gates.md](references/workflow-gates.md). Gate 8 packages
+evidence; Gate 9 presents the Lab and announces the required retrospective;
+after Gate 9 user approval, run Gate 10 in the next substantive response:
 
 ```powershell
 python Tools/labflow/labflow.py retrospective --lab-id <lab_id>
 ```
 
-Review `workflow_state.json`, ordered evidence notes, Console/build/playtest
-evidence, current-Lab fixes, rejected workarounds, and reported foundation
-defects. Replace every placeholder in both generated files:
-
-- `BuildEvidence/retrospectives/<lab_id>.md`: complete run-specific timeline,
-  verified root causes, fixes, verification, deferred risks, and Gate mapping;
-- `KnowledgeBase/rebuild-lessons/<lab_id>.md`: only normalized, verified,
-  cross-Lab error patterns, ownership, API/lifecycle constraints, prevention
-  checks, and search cues for future Agents.
-
-If the build had no errors, state that explicitly and record which safeguards
-kept it clean. Exclude large logs, copied implementation code, target answers,
-rubric logic, Gold details, personal paths, secrets, and unverified guesses.
 Request Gate 10 approval only after both files contain no placeholders and pass
 `labflow` readiness checks. Gate 10 approval marks the workflow complete.

@@ -41,11 +41,14 @@
       "LabSpecs/<lab_id>/**",
       "LabInterfaceContracts/<lab_id>_*.json",
       "BuildEvidence/<lab_id>/**",
+      "BuildEvidence/retrospectives/<lab_id>.md (Gate 10 only; create, never overwrite)",
       "KnowledgeBase/rebuild-lessons/<lab_id>.md (Gate 10 only; create, never overwrite)"
     ]
   },
   "ownership": {
     "protected_foundation": [
+      ".gitattributes",
+      ".gitignore",
       "AGENTS.md",
       ".agents/**",
       "Policies/**",
@@ -65,10 +68,12 @@
     ],
     "foundation_owner": "user",
     "agent_action_on_foundation_defect": "stop current gate and report; do not modify, work around, or provide replacement code",
-    "controlled_write_exception": "Gate 10 may create only KnowledgeBase/rebuild-lessons/<current_lab_id>.md after Gate 9 user acceptance"
+    "controlled_write_exception": "After Gate 9 user acceptance, Gate 10 may create only BuildEvidence/retrospectives/<current_lab_id>.md and KnowledgeBase/rebuild-lessons/<current_lab_id>.md; neither may overwrite an existing file"
   },
   "mandatory_assets": [
-    "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+    "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab",
+    "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab",
+    "ApprovedAssets/XRInteractionToolkitSamples/XR Device Simulator/XR Device Simulator.prefab"
   ],
   "requirements": {
     "record_provenance": true,
@@ -77,7 +82,20 @@
     "ask_when_spec_is_missing": true,
     "conversation_attachment_scope": "exact file only; never enumerate its parent directory",
     "one_isolated_builder_pack_per_run": true,
+    "blind_rebuild_master_directory_name": "EMVR_Blind_BuilderPack",
+    "blind_rebuild_workspace_parent": "RebuildWorkspaces",
+    "blind_rebuild_workspace_name": "EMVR_Blind_Rebuild_<lab_id>",
+    "blind_rebuild_workspace_must_be_inside_builder_pack": true,
+    "blind_rebuild_workspace_creator": "rebuilding_agent",
+    "user_runs_blind_rebuild_copy_command": false,
+    "valid_matching_blind_rebuild_child_is_resumed_without_copy": true,
+    "integrated_development_workspace_location_restricted": false,
     "approved_asset_import_destination": "UnityProject/Assets/Generated/<lab_id>/ApprovedDependencies",
+    "approved_asset_import_handles_windows_extended_paths": true,
+    "approved_asset_import_is_transactional": true,
+    "approved_asset_import_manifest_commits_last": true,
+    "approved_asset_import_preserves_unity_assembly_boundaries": true,
+    "approved_asset_manifest_may_only_expand_when_prior_records_are_unchanged": true,
     "gate5_foundation_source": "ReusableFoundation/Gate5MinimalSlice/Source",
     "gate5_foundation_destination": "UnityProject/Assets/Generated/<lab_id>/Gate5Foundation",
     "gate5_foundation_materializer": ".agents/skills/build-unity-vr-lab-blind/scripts/materialize_gate5_foundation.py",
@@ -93,6 +111,10 @@
     "preflight_before_lab_code": true,
     "mandatory_reuse_matrix": ".agents/skills/build-unity-vr-lab-blind/references/mandatory-reuse-matrix.md",
     "mandatory_room_prefab_reuse": true,
+    "mandatory_verified_xr_interaction_setup_prefab": true,
+    "mandatory_verified_xr_device_simulator_prefab": true,
+    "bare_xr_origin_as_top_level_baseline_forbidden": true,
+    "verified_xr_simulator_up_down_y_binding": true,
     "copy_demo_scene_forbidden": true,
     "primitive_room_substitution_forbidden": true,
     "scene_builder_fail_closed": true,

@@ -2,7 +2,7 @@
   "schema_version": "1.2.0",
   "eval_id": "rebuild_lab_example_v1",
   "lab_id": "lab4_example",
-  "workflow_version": "1.7.0",
+  "workflow_version": "1.8.0",
   "inputs": {
     "brief": "LabSpecs/lab4_example/brief.yaml",
     "contracts": "LabInterfaceContracts/lab4_example_*.json",

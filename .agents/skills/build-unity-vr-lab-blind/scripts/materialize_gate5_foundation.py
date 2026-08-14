@@ -14,7 +14,7 @@ from pathlib import Path
 
 
 LAB_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
-CURRENT_STATE_SCHEMA = "1.7.0"
+CURRENT_STATE_SCHEMA = "1.8.0"
 
 
 def sha256(path: Path) -> str:

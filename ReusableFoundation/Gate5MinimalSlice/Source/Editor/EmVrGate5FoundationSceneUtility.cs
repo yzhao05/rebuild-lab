@@ -73,7 +73,7 @@ namespace EMVR.ReusableFoundation.Gate5.Editor
             image.color = new Color(0.12f, 0.42f, 0.58f, 0.96f);
 
             Button button = buttonObject.GetComponent<Button>();
-            UnityEventTools.AddPersistentListener(button.onClick, callback);
+            AddEditorAndRuntimePersistentListener(button, callback);
 
             GameObject textObject = new GameObject(
                 "Label",
@@ -100,6 +100,27 @@ namespace EMVR.ReusableFoundation.Gate5.Editor
             return button;
         }
 
+        public static void AddEditorAndRuntimePersistentListener(
+            Button button,
+            UnityAction callback)
+        {
+            if (button == null)
+            {
+                throw new ArgumentNullException(nameof(button));
+            }
+
+            if (callback == null)
+            {
+                throw new ArgumentNullException(nameof(callback));
+            }
+
+            int listenerIndex = button.onClick.GetPersistentEventCount();
+            UnityEventTools.AddPersistentListener(button.onClick, callback);
+            button.onClick.SetPersistentListenerState(
+                listenerIndex,
+                UnityEventCallState.EditorAndRuntime);
+        }
+
         public static GameObject CreateActiveOffstageTemplate(Transform parent)
         {
             GameObject template = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -118,6 +139,17 @@ namespace EMVR.ReusableFoundation.Gate5.Editor
                 throw new InvalidOperationException(
                     "Gate 5 requires an active interactable Button with a persistent onClick listener.");
             }
+
+            for (int i = 0; i < button.onClick.GetPersistentEventCount(); i++)
+            {
+                if (button.onClick.GetPersistentListenerState(i) == UnityEventCallState.EditorAndRuntime)
+                {
+                    return;
+                }
+            }
+
+            throw new InvalidOperationException(
+                "Gate 5 requires a persistent onClick listener enabled in both EditMode and runtime.");
         }
     }
 

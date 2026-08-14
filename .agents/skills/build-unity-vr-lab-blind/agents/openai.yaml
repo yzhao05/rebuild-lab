@@ -1,4 +1,4 @@
 interface:
   display_name: "Blind Unity VR Lab Builder"
   short_description: "Blind rebuilds with isolated runs and verified reuse"
-  default_prompt: "Use $build-unity-vr-lab-blind to rebuild one Unity VR lab in an isolated Builder Pack using approved inputs, immutable Gate 5 foundation materialization, mandatory Common/room reuse, per-gate approval, and no Gold or MCP."
+  default_prompt: "Use $build-unity-vr-lab-blind to classify this as a blind rebuild or integrated new-Lab task, automatically create the required blind-rebuild child workspace when applicable, then build one Unity VR lab with approved inputs, mandatory reuse, per-gate approval, and no Gold or MCP."

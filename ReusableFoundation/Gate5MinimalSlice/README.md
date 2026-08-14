@@ -25,9 +25,11 @@ The slice supplies:
   active EventSystem, and checks that a spawned object is active, renderable,
   collidable, and inside the validation camera;
 - an Editor scene utility for a single XR UI EventSystem, a persistently wired
-  button, a neutral active offstage spawn template, and fail-closed build logs;
+  button whose listener is enabled in both EditMode and runtime, a neutral
+  active offstage spawn template, and fail-closed build logs;
 - three generic EditMode regression tests for inactive-template, visible-spawn,
-  and duplicate-EventSystem failures.
+  and duplicate-EventSystem failures. The visible-spawn test invokes the
+  persistent button in EditMode to prevent a `RuntimeOnly` listener regression.
 
 It does not build the target domain. The current Lab must add its own smallest
 domain object, deterministic calculation, visible result, interaction adapter,

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +18,64 @@ SPEC.loader.exec_module(labflow)
 
 
 class LabflowTests(unittest.TestCase):
+    def test_blind_rebuild_requires_fixed_internal_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "wrong_name"
+            root.mkdir()
+            with self.assertRaisesRegex(RuntimeError, "fixed internal workspace"):
+                labflow.validate_workspace_mode(root, "lab_example", "blind-rebuild")
+
+            valid = (
+                Path(directory)
+                / "EMVR_Blind_BuilderPack"
+                / "RebuildWorkspaces"
+                / "EMVR_Blind_Rebuild_lab_example"
+            )
+            valid.mkdir(parents=True)
+            (valid / ".emvr-workspace.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "1.1.0",
+                        "workflow_mode": "blind-rebuild",
+                        "lab_id": "lab_example",
+                        "required_master_directory_name": "EMVR_Blind_BuilderPack",
+                        "required_directory_name": "EMVR_Blind_Rebuild_lab_example",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            labflow.validate_workspace_mode(valid, "lab_example", "blind-rebuild")
+
+    def test_integrated_development_has_no_internal_workspace_constraint(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            labflow.validate_workspace_mode(
+                Path(directory), "lab_example", "integrated-development"
+            )
+
+    def test_blind_rebuild_rejects_stale_workspace_marker_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = (
+                Path(directory)
+                / "EMVR_Blind_BuilderPack"
+                / "RebuildWorkspaces"
+                / "EMVR_Blind_Rebuild_lab_example"
+            )
+            root.mkdir(parents=True)
+            (root / ".emvr-workspace.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "1.0.0",
+                        "workflow_mode": "blind-rebuild",
+                        "lab_id": "lab_example",
+                        "required_master_directory_name": "EMVR_Blind_BuilderPack",
+                        "required_directory_name": "EMVR_Blind_Rebuild_lab_example",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(RuntimeError, "marker does not match"):
+                labflow.validate_workspace_mode(root, "lab_example", "blind-rebuild")
+
     def test_foundation_rejects_maintainer_material_inside_pack(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -22,6 +83,35 @@ class LabflowTests(unittest.TestCase):
             guide.write_text("maintenance only", encoding="utf-8")
             errors = labflow.foundation_errors(root)
             self.assertTrue(any("Maintainer-only material" in item for item in errors))
+
+    def test_foundation_requires_portable_lf_checkout_rule(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".gitattributes").write_text("* text=auto\n", encoding="utf-8")
+
+            errors = labflow.foundation_errors(root)
+
+            self.assertTrue(
+                any("frozen hashes survive Git checkout" in item for item in errors)
+            )
+
+    def test_foundation_requires_repository_ignore_rules(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            errors = labflow.foundation_errors(root)
+            self.assertIn(
+                "Required Builder foundation item is missing: .gitignore",
+                errors,
+            )
+
+    def test_run_pack_creator_uses_extended_length_copy(self) -> None:
+        script = (Path(__file__).resolve().parents[1] / "create_blind_run_pack.ps1").read_text(
+            encoding="utf-8-sig"
+        )
+        self.assertIn("Convert-ToExtendedLengthPath", script)
+        self.assertIn("[System.IO.Directory]::CreateDirectory", script)
+        self.assertIn("[System.IO.File]::Copy", script)
+        self.assertNotIn("Copy-Item", script)
 
     def test_scene_path_is_confined_to_assets_scenes(self) -> None:
         self.assertEqual(
@@ -204,7 +294,16 @@ class LabflowTests(unittest.TestCase):
     def test_gate_five_rejects_missing_mandatory_room_import(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             errors = labflow.approved_asset_import_errors(Path(directory), "lab_example")
-            self.assertTrue(any("room import evidence" in item.lower() for item in errors))
+            self.assertTrue(any("approved-asset import evidence" in item.lower() for item in errors))
+
+    def test_policy_drives_all_mandatory_approved_assets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            policy = root / "Policies/reuse-allowlist.json"
+            policy.parent.mkdir(parents=True)
+            expected = ["ApprovedAssets/Room.prefab", "ApprovedAssets/XR Setup.prefab"]
+            policy.write_text(json.dumps({"mandatory_assets": expected}), encoding="utf-8")
+            self.assertEqual(labflow.mandatory_approved_assets(root), expected)
 
     def test_gate_five_detects_modified_approved_asset_copy(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -248,6 +347,67 @@ class LabflowTests(unittest.TestCase):
             errors = labflow.approved_asset_import_errors(root, "lab_example")
             self.assertTrue(any("copy hash mismatch" in item.lower() for item in errors))
 
+    def test_gate_five_validates_import_beyond_windows_max_path(self) -> None:
+        directory = tempfile.mkdtemp()
+        root = Path(directory)
+        try:
+            lab_id = "lab_example"
+            approved = root / "ApprovedAssets"
+            parts: list[str] = []
+            while len(str((approved / Path(*parts) / "Room.prefab.meta").resolve())) < 220:
+                parts.append(f"dependency_folder_{len(parts):02d}")
+            relative = Path(*parts) / "Room.prefab"
+            source = approved / relative
+            self.assertLess(len(str(Path(str(source) + ".meta").resolve())), 260)
+            source.parent.mkdir(parents=True)
+            source.write_text("room", encoding="utf-8")
+            source_meta = Path(str(source) + ".meta")
+            source_meta.write_text(
+                "guid: 0123456789abcdef0123456789abcdef", encoding="utf-8"
+            )
+
+            destination_relative = (
+                Path("UnityProject/Assets/Generated")
+                / lab_id
+                / "ApprovedDependencies"
+                / relative
+            )
+            destination = root / destination_relative
+            destination_meta = Path(str(destination) + ".meta")
+            self.assertGreater(len(str(destination_meta.resolve())), 260)
+            os.makedirs(labflow.native_path(destination.parent), exist_ok=True)
+            shutil.copy2(labflow.native_path(source), labflow.native_path(destination))
+            shutil.copy2(labflow.native_path(source_meta), labflow.native_path(destination_meta))
+
+            source_relative = Path("ApprovedAssets") / relative
+            manifest = {
+                "lab_id": lab_id,
+                "approved_source": (
+                    "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/"
+                    "DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+                ),
+                "asset_count": 1,
+                "assets": [{
+                    "source": source_relative.as_posix(),
+                    "destination": destination_relative.as_posix(),
+                    "sha256": labflow.file_sha256(source),
+                    "meta_sha256": labflow.file_sha256(source_meta),
+                }],
+                "dry_run": False,
+            }
+            manifest_path = root / "BuildEvidence/lab_example/approved-asset-imports/room.json"
+            manifest_path.parent.mkdir(parents=True)
+            labflow.write_json(manifest_path, manifest)
+
+            self.assertEqual(labflow.approved_asset_import_errors(root, lab_id), [])
+            digest_before = labflow.gate5_lab_output_digest(root, lab_id)
+            with open(labflow.native_path(destination), "a", encoding="utf-8") as stream:
+                stream.write(" changed")
+            digest_after = labflow.gate5_lab_output_digest(root, lab_id)
+            self.assertNotEqual(digest_before, digest_after)
+        finally:
+            shutil.rmtree(labflow.native_path(root), ignore_errors=True)
+
     def test_foundation_manifest_rejects_unlisted_source_files(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -287,7 +447,25 @@ class LabflowTests(unittest.TestCase):
 
     def test_migrate_state_invalidates_every_gate_and_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
+            root = (
+                Path(directory)
+                / "EMVR_Blind_BuilderPack"
+                / "RebuildWorkspaces"
+                / "EMVR_Blind_Rebuild_lab_example"
+            )
+            root.mkdir(parents=True)
+            (root / ".emvr-workspace.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "1.1.0",
+                        "workflow_mode": "blind-rebuild",
+                        "lab_id": "lab_example",
+                        "required_master_directory_name": "EMVR_Blind_BuilderPack",
+                        "required_directory_name": "EMVR_Blind_Rebuild_lab_example",
+                    }
+                ),
+                encoding="utf-8",
+            )
             state = {
                 "schema_version": "1.5.0",
                 "lab_id": "lab_example",

@@ -19,10 +19,27 @@
 
 ## 创建或恢复运行
 
-新建运行：
+本节中的命令均由 Agent 执行，User 不需要打开 PowerShell 或手动复制 Pack。
+
+盲重建、复刻或效果对比任务中，重建 Agent 必须先在主 Pack 内执行：
 
 ```powershell
-python Tools/labflow/labflow.py new --lab-id <lab_id> --title "<title>" --domain <domain> --scene Assets/Scenes/<Output>.unity
+powershell -ExecutionPolicy Bypass -File Tools/create_blind_run_pack.ps1 -LabId <lab_id>
+```
+
+固定路径为
+`RebuildWorkspaces/EMVR_Blind_Rebuild_<lab_id>`。Agent 核对 PASS 后给出该目录的
+完整绝对路径；User 只负责把该子目录本身切换为 Agent workspace。不得要求
+User 执行复制命令，也不得在主 Pack、父目录、其他名称目录或旧运行副本中
+重建。
+
+如果当前根目录已经是固定子工作区且 `.emvr-workspace.json` 与请求的 Lab ID
+一致，Agent 直接初始化或恢复运行，不得再次调用主 Pack 复制工具。
+
+切换到子工作区后，由 Agent 新建运行：
+
+```powershell
+python Tools/labflow/labflow.py new --mode blind-rebuild --lab-id <lab_id> --title "<title>" --domain <domain> --scene Assets/Scenes/<Output>.unity
 ```
 
 查看状态：
@@ -31,17 +48,12 @@ python Tools/labflow/labflow.py new --lab-id <lab_id> --title "<title>" --domain
 python Tools/labflow/labflow.py status --lab-id <lab_id>
 ```
 
-如果 Pack 中已有运行，`new` 会拒绝覆盖。此时只能恢复该运行，或者复制一份
-干净基础 Pack 后创建新运行。
+如果 Pack 中已有运行，`new` 会拒绝覆盖。Agent 必须恢复匹配的现有运行或向
+User 报告冲突，不能覆盖、删除，也不能让 User 负责运行复制命令。
 
-从维护用主 Pack 创建隔离副本（目标目录必须尚不存在）：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File Tools/create_blind_run_pack.ps1 -Destination "E:\path\to\EMVR_Blind_Run_<lab_id>"
-```
-
-随后把生成的目标目录本身作为 Agent workspace；不要在主 Pack 或旧运行副本
-中执行新 Lab。
+如果 Builder Pack 已被集成到另一个项目，任务是开发一个真正的新 Lab 而不是
+重建/对比旧 Lab，则不限制工作区必须位于 `RebuildWorkspaces`；使用
+`labflow new --mode integrated-development`，其他 Gate 和复用规则仍然有效。
 
 ## 统一审批命令
 
@@ -110,10 +122,13 @@ python Tools/labflow/labflow.py validate --lab-id <lab_id>
 ## Gate 5 执行的 ApprovedAssets 导入
 
 `ApprovedAssets/` 位于 Unity import root 之外，不能直接实例化。使用固定工具
-把选定资产及其 ApprovedAssets GUID 依赖闭包复制到当前 Lab 输出。房间示例：
+把选定资产及其 ApprovedAssets GUID 依赖闭包复制到当前 Lab 输出。Gate 5
+必须依次导入房间、完整 XR Interaction Setup 和 XR Device Simulator：
 
 ```powershell
 python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab"
+python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/XR Device Simulator/XR Device Simulator.prefab"
 ```
 
 目标固定为：
@@ -200,7 +215,7 @@ Play Mode 时点击顶部中央三角形按钮并确认变蓝，退出时再次�
 - Console 清空后编译无错误；
 - Builder 遇到 Error/Exception/Assert 会停止且不保存部分场景；
 - 既有场景只有包含当前运行 marker root 才能重开；
-- Mandatory room、Common、对象和状态接线正确；
+- Mandatory room、XR Setup/Simulator、Common、对象和状态接线正确；
 - Game View UI 可读、不遮挡实验区；
 - 初始状态和第一步后的可见状态符合 Brief。
 

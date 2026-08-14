@@ -1,5 +1,15 @@
 # Project map
 
+- Blind rebuild workspace: `EMVR_Blind_BuilderPack/RebuildWorkspaces/EMVR_Blind_Rebuild_<lab_id>`.
+  The master verifier and copy tool ignore this
+  container when auditing/copying foundation inputs.
+- Integrated new-Lab development in a host project has no required workspace
+  location; use `labflow new --mode integrated-development`.
+
+- `.gitattributes`: portable LF checkout and binary-asset rules required by
+  frozen integrity hashes.
+- `.gitignore`: excludes internal rebuild workspaces, Unity caches, IDE output,
+  and Python caches from the maintained source Pack.
 - `AGENTS.md`: repository boundary and Unity safety rules.
 - `Policies/reuse-policy.md`: authoritative three-category reuse policy.
 - `Policies/reuse-allowlist.json`: machine-readable allowlist.
@@ -36,13 +46,21 @@
 - `references/unity-beginner-handoff.md`: mandatory click-by-click standard for
   every user-owned Unity action, including the exact Test Runner location.
 - `scripts/import_approved_asset_closure.py`: copies an approved GUID dependency
-  closure into current-Lab generated output and records a manifest. A real copy
-  is allowed only at Gate 5; `.unity` scene sources are rejected.
+  closure into current-Lab generated output, includes the nearest controlling
+  `.asmdef`/`.asmref` for every imported C# script, follows assembly-reference
+  GUIDs, and records a manifest. It uses
+  Windows extended-length paths, verifies source/copy hashes, adopts exact-hash
+  remnants from an interrupted attempt, safely expands an older manifest only
+  when every prior asset record is unchanged, and transactionally rolls back
+  uncommitted output on failure. A real copy is allowed only at Gate 5;
+  `.unity` scene sources are rejected.
 - `scripts/materialize_gate5_foundation.py`: verifies the protected Gate 5
   manifest, creates a byte-identical read-only current-Lab copy at
   `UnityProject/Assets/Generated/<lab_id>/Gate5Foundation/`, and records
   `BuildEvidence/<lab_id>/gate5-foundation-import.json`.
 - `BuildEvidence/<lab_id>/`: current-run provenance and validation evidence.
+- `BuildEvidence/retrospectives/<lab_id>.md`: Gate 10 run-specific audit;
+  create only after Gate 9 approval and never overwrite an existing file.
 - `BuildEvidence/EvalTemplates/`: read-only evaluator templates.
 - Current-conversation document attachments: authorized requirement inputs at
   their exact resolved paths; their surrounding directories remain forbidden.
@@ -58,11 +76,11 @@ During a rebuild, every mapped path is read-only except the current
 `LabSpecs/<lab_id>/`, its five non-example contracts, Lab-specific Unity output
 paths declared in its implementation handoff, generated approved dependencies
 under `UnityProject/Assets/Generated/<lab_id>/`, and
-`BuildEvidence/<lab_id>/`. Report
+`BuildEvidence/<lab_id>/`. In Gate 10 only, the two controlled additional
+writes are `BuildEvidence/retrospectives/<lab_id>.md` and
+`KnowledgeBase/rebuild-lessons/<current_lab_id>.md`. Report
 problems in all other paths to the user without changing them or supplying a
-replacement patch. The sole exception is the controlled Gate 10 creation of
-`KnowledgeBase/rebuild-lessons/<current_lab_id>.md`; previous lessons remain
-read-only.
+replacement patch. Previous retrospectives and lessons remain read-only.
 
 The Gate 5 generated foundation is an additional controlled exception to
 ordinary output ownership: the materializer may create it, but the Builder
