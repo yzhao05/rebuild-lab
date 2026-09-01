@@ -59,6 +59,9 @@
   `UnityProject/Assets/Generated/<lab_id>/Gate5Foundation/`, and records
   `BuildEvidence/<lab_id>/gate5-foundation-import.json`.
 - `BuildEvidence/<lab_id>/`: current-run provenance and validation evidence.
+- `BuildEvidence/<lab_id>/gate0-protected-baseline.json`: create-once Gate 0
+  snapshot made only by `labflow capture-gate0-baseline` after release Boundary
+  PASS; immutable and checked through Gate 10.
 - `BuildEvidence/retrospectives/<lab_id>.md`: Gate 10 run-specific audit;
   create only after Gate 9 approval and never overwrite an existing file.
 - `BuildEvidence/EvalTemplates/`: read-only evaluator templates.
@@ -81,6 +84,8 @@ writes are `BuildEvidence/retrospectives/<lab_id>.md` and
 `KnowledgeBase/rebuild-lessons/<current_lab_id>.md`. Report
 problems in all other paths to the user without changing them or supplying a
 replacement patch. Previous retrospectives and lessons remain read-only.
+Within current-run evidence, the Gate 0 baseline is a stricter exception: after
+its one-time tool creation, the Builder Agent cannot edit or overwrite it.
 
 The Gate 5 generated foundation is an additional controlled exception to
 ordinary output ownership: the materializer may create it, but the Builder

@@ -74,6 +74,19 @@ wiring, fixed coordinates, class names, and implementation code.
 - Validate text orientation and density in runtime Game View. Short,
   object-adjacent labels and separated instruction/status/result regions are
   more reliable than dense panels.
+- A world-space Canvas or TextMesh is directional. Determine the camera that
+  actually renders Play Mode after XR initialization, compute the normalized
+  direction from the surface to that camera. For Unity Canvas and TextMesh, the
+  readable front normal is `-Transform.forward`, so require a positive dot
+  product with that front normal. Testing `Transform.forward` instead reverses
+  the rule and creates the mirrored result it was meant to prevent. A
+  non-positive front-normal result means the camera is viewing the back even
+  when Scene View looks correct.
+- Give orientation one owner. Face the UI toward the runtime camera exactly
+  once; do not rotate both the camera and UI to compensate, because the two
+  changes can cancel and conceal the cause. Make the scene builder fail before
+  save when the authored initial camera sees a UI back face, then verify the
+  result in Play Mode Game View.
 - Update the experiment guide whenever interaction semantics change.
 
 ## Ownership and allowed fix location
@@ -90,12 +103,15 @@ wiring, fixed coordinates, class names, and implementation code.
 
 - Gate 0: read prior lessons and confirm Unity validation is user-owned.
 - Gate 1: specify interactive versus display-only roles, initial state, first
-  action, visible result, desktop/XR paths, and reset behavior.
+  desktop action, visible result, the default functionally equivalent XR path,
+  any explicitly confirmed semantic exceptions, and reset behavior.
 - Gate 3: assign one input owner per shortcut; document ray filtering,
-  colliders, drag plane, runtime camera, UI regions, and event evidence.
+  colliders, drag plane, runtime camera, UI regions, the world-space UI facing
+  check, and event evidence.
 - Gate 4: compile only the scaffold and reject duplicate managers/listeners.
 - Gate 5: prove one object can be selected, moved, recognized, reset, logged,
-  and visibly confirmed before adding the full Lab.
+  and visibly confirmed; also prove the real room and non-mirrored world-space
+  UI are visible from the runtime camera before adding the full Lab.
 - Gate 6: inspect cleared Console and actual Game View, not Scene View alone.
 - Gate 7: separately test desktop, XR simulator, lifecycle, and deferred real
   hardware.

@@ -36,10 +36,11 @@ Do not replace these responsibilities with new Lab-specific equivalents.
 | Visible operational status | `EmVrStatusDisplay` | Show at least ready, selected/action state, updating, completed, reset, and error. A Console-only state is insufficient. |
 | Desktop pointer baseline | `EmVrMousePointer` and its `EmVrDesktopInput`/`IEmVrPointerInput` support | Required because every accepted Lab has a desktop path. |
 | XR ray baseline | `EmVrXrRayRuntimeTuner` and `EmVrXrRayUtility` | Required with the approved XRI rig/controller-ray assets because every accepted Lab has an XR Simulator path. |
+| Default desktop-to-XR equivalence | Common desktop pointer/drag plus the applicable approved XRI Select/Trigger/Grab adapter | Every core desktop action automatically receives an XR path with the same target, state transition, visible feedback, and success result. Physical gestures are supplied by Common/XRI, not designed by the User in Gate 1. Only confirmed semantic exceptions may differ. |
 | Verified XR setup | `ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab` plus `XR Device Simulator/XR Device Simulator.prefab` | Import both dependency closures and instantiate both. Use the complete setup as the top-level rig; a bare `XR Origin` or a Lab-specific reconstructed rig is not equivalent. |
 | Application scene lifecycle | `EmVrPersistentServiceRoot`, `EmVrSceneLoader` | Required for Start/Lab/Back and reload/reset lifecycle. A domain-only prototype may leave this pending but cannot reach final acceptance. |
 | Read-only scene validation | `EmVrSceneValidator` | Run after every build and require zero errors; record warnings explicitly. |
-| Room/environment baseline | `ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab` | Instantiate this approved Prefab in every new Lab scene with its `.meta` and Starter Assets dependency closure. Do not replace it with generated primitive walls. |
+| Room/environment baseline | `ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab` | Instantiate this approved modular room in every new Lab scene with its `.meta` and dependency closure. Require visible floor, wall, and roof geometry; the XRI `Teleportation Environment` sample ground is not a room. Do not replace it with generated primitive walls. |
 | Gate 5 wiring foundation | `ReusableFoundation/Gate5MinimalSlice` via `materialize_gate5_foundation.py` | Copy only through the materializer; keep source and generated copy immutable. Use its EventSystem/button/spawn-visibility/build-guard helpers and run its three EditMode tests before domain code. |
 
 The Common contract interfaces and internal support types are reused
@@ -62,6 +63,13 @@ file.
 If a capability is present, the design must either use the listed Common code
 or report a foundation defect/blocker. It may not silently create a parallel
 Lab-specific implementation.
+
+Functional equivalence does not require identical physical gestures. Mouse
+click/hold/drag and XRI Select/Trigger/Grab may differ physically, but they must
+invoke the same Lab action handler and produce the same observable state and
+outcome. Gate 1 records this default without asking the User. A different
+target, state transition, feedback, or outcome is a semantic exception that
+requires explicit confirmation.
 
 For a loader/spawn interaction, use the Common `EmVrReplacementSpawner` and
 the Gate 5 foundation wiring together. Never use an inactive replacement
@@ -105,20 +113,22 @@ in a production Lab scene.
 
 ## Mandatory room/environment baseline
 
-Treat the approved XRI `Teleportation Environment.prefab` as the mandatory EMVR
-room baseline for every Lab rebuild. It is an asset rather than C# source, but
+Treat the approved `EMVRRoom/Prefabs/Room_Big_Part_01.prefab` as the mandatory
+EMVR room baseline for every Lab rebuild. It is an asset rather than C# source, but
 it belongs to the same mandatory-reuse audit as the Common code baseline.
 
 `new_scene` means create a new Lab scene and instantiate the approved room
 Prefab inside it. It does not authorize copying `DemoScene.unity`, generating
 Cube walls/floors as a substitute, or searching Gold. Preserve the Prefab and
-its dependency GUIDs by importing the required Starter Assets dependency
-closure with `.meta` files. Lab-specific apparatus, UI, lighting adjustments,
+its dependency GUIDs by importing the approved `EMVRRoom` dependency closure
+with `.meta` files. Lab-specific apparatus, UI, lighting adjustments,
 and navigation limits may be added around the instantiated room without
 replacing its room geometry.
 
 If the Prefab or any required dependency is missing or cannot be instantiated,
 report a protected foundation asset blocker and stop before design approval.
+The scene builder must also reject a loaded instance that lacks active floor,
+wall, or roof geometry; asset loading alone is not room validation.
 
 ## Mandatory verified XR baseline
 

@@ -18,6 +18,55 @@ SPEC.loader.exec_module(labflow)
 
 
 class LabflowTests(unittest.TestCase):
+    def test_generated_brief_locks_room_ui_and_default_desktop_xr_mapping(self) -> None:
+        brief = labflow.brief_text(
+            "lab_example",
+            "Example Lab",
+            "example",
+            "Assets/Scenes/Example.unity",
+        )
+        self.assertIn(
+            "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab",
+            brief,
+        )
+        self.assertIn("dot(-Transform.forward", brief)
+        self.assertIn("desktop_to_xr_mapping:", brief)
+        self.assertIn('policy: "equivalent_by_default"', brief)
+        self.assertIn(
+            'xr_interaction: "equivalent_to_desktop_via_common_xri_mapping"',
+            brief,
+        )
+        design = labflow.design_text(
+            "lab_example", "Assets/Scenes/Example.unity"
+        )
+        self.assertIn("- Desktop/XR default equivalence:", design)
+        self.assertIn("- Confirmed mapping exceptions:", design)
+
+    def test_brief_readiness_requires_default_desktop_xr_mapping(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brief = root / "LabSpecs" / "lab_example" / "brief.yaml"
+            brief.parent.mkdir(parents=True)
+            content = labflow.brief_text(
+                "lab_example",
+                "Example Lab",
+                "example",
+                "Assets/Scenes/Example.unity",
+            )
+            content = content.replace("Replace with", "Confirmed")
+            content = content.replace("replace_with", "confirmed")
+            brief.write_text(content, encoding="utf-8")
+            self.assertEqual([], labflow.brief_readiness_errors(root, "lab_example"))
+
+            brief.write_text(
+                content.replace("equivalent_by_default", "user_defined"),
+                encoding="utf-8",
+            )
+            self.assertIn(
+                "Brief must preserve `equivalent_by_default` desktop-to-XR mapping.",
+                labflow.brief_readiness_errors(root, "lab_example"),
+            )
+
     def test_blind_rebuild_requires_fixed_internal_workspace(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "wrong_name"
@@ -166,11 +215,112 @@ class LabflowTests(unittest.TestCase):
                 encoding="utf-8",
             )
             state = {"lab_id": "lab_example", "evidence": labflow.default_evidence()}
-            with mock.patch.object(labflow, "foundation_errors", side_effect=lambda _root: []):
+            with mock.patch.object(labflow, "foundation_errors", side_effect=lambda _root: []), mock.patch.object(
+                labflow, "protected_baseline_errors", side_effect=lambda *_args: []
+            ):
                 errors = labflow.gate_readiness_errors(root, state, 0)
                 self.assertTrue(any("Boundary verifier" in item for item in errors))
                 state["evidence"]["boundary_verifier"] = "passed"
                 self.assertEqual(labflow.gate_readiness_errors(root, state, 0), [])
+
+    def test_gate_zero_baseline_is_one_time_and_detects_protected_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            protected = root / "Policies" / "reuse-policy.md"
+            protected.parent.mkdir(parents=True)
+            protected.write_text("version one\n", encoding="utf-8")
+            (root / "KnowledgeBase" / "rebuild-lessons").mkdir(parents=True)
+            state = {
+                "schema_version": labflow.CURRENT_STATE_SCHEMA,
+                "lab_id": "lab_example",
+                "gate_approvals": {},
+                "evidence": labflow.default_evidence(),
+                "protected_baseline": None,
+            }
+            state["evidence"]["boundary_verifier"] = "passed"
+            with mock.patch.object(labflow, "foundation_errors", return_value=[]), mock.patch.object(
+                labflow, "save_state"
+            ):
+                baseline = labflow.capture_gate0_protected_baseline(
+                    root, "lab_example", state
+                )
+            self.assertTrue(baseline.is_file())
+            self.assertEqual(labflow.protected_baseline_errors(root, state), [])
+
+            with mock.patch.object(labflow, "foundation_errors", return_value=[]), mock.patch.object(
+                labflow, "save_state"
+            ):
+                with self.assertRaisesRegex(RuntimeError, "already registered"):
+                    labflow.capture_gate0_protected_baseline(root, "lab_example", state)
+
+            protected.write_text("version two\n", encoding="utf-8")
+            errors = labflow.protected_baseline_errors(root, state)
+            self.assertIn(
+                "Protected file changed after Gate 0: Policies/reuse-policy.md",
+                errors,
+            )
+
+    def test_gate_zero_readiness_requires_captured_baseline(self) -> None:
+        state = {
+            "lab_id": "lab_example",
+            "evidence": {"boundary_verifier": "passed"},
+            "protected_baseline": None,
+        }
+        with mock.patch.object(labflow, "foundation_errors", return_value=[]), mock.patch.object(
+            labflow, "prior_lessons_review_errors", return_value=[]
+        ):
+            errors = labflow.gate_readiness_errors(Path.cwd(), state, 0)
+        self.assertTrue(any("has not been captured" in item for item in errors))
+
+    def test_gate_zero_next_action_advances_from_boundary_to_baseline(self) -> None:
+        state = {
+            "lab_id": "lab_example",
+            "gate_approvals": {},
+            "evidence": labflow.default_evidence(),
+            "protected_baseline": None,
+        }
+        with mock.patch.object(labflow, "gate_readiness_errors", return_value=["pending"]):
+            self.assertIn("Builder Boundary", labflow.next_action(Path.cwd(), state))
+            state["evidence"]["boundary_verifier"] = "passed"
+            self.assertIn("capture-gate0-baseline", labflow.next_action(Path.cwd(), state))
+
+    def test_gate_zero_baseline_allows_only_current_gate10_lesson(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            lessons = root / "KnowledgeBase" / "rebuild-lessons"
+            lessons.mkdir(parents=True)
+            (lessons / "safe.md").write_text("safe\n", encoding="utf-8")
+            state = {
+                "schema_version": labflow.CURRENT_STATE_SCHEMA,
+                "lab_id": "lab_example",
+                "gate_approvals": {},
+                "evidence": labflow.default_evidence(),
+                "protected_baseline": None,
+            }
+            state["evidence"]["boundary_verifier"] = "passed"
+            with mock.patch.object(labflow, "foundation_errors", return_value=[]), mock.patch.object(
+                labflow, "save_state"
+            ):
+                baseline = labflow.capture_gate0_protected_baseline(
+                    root, "lab_example", state
+                )
+            (lessons / "lab_example.md").write_text("Gate 10 lesson\n", encoding="utf-8")
+            self.assertEqual(labflow.protected_baseline_errors(root, state), [])
+            baseline.write_text("{}\n", encoding="utf-8")
+            self.assertIn(
+                "Gate 0 protected-baseline file was changed after capture.",
+                labflow.protected_baseline_errors(root, state),
+            )
+
+    def test_gate_zero_baseline_cannot_be_captured_after_gate_zero(self) -> None:
+        state = {
+            "lab_id": "lab_example",
+            "gate_approvals": {"0": {"approved": True}},
+            "evidence": {"boundary_verifier": "passed"},
+            "protected_baseline": None,
+        }
+        with self.assertRaisesRegex(RuntimeError, "only during Gate 0"):
+            labflow.capture_gate0_protected_baseline(Path.cwd(), "lab_example", state)
 
     def test_gate_eight_uses_only_current_lab_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -186,7 +336,8 @@ class LabflowTests(unittest.TestCase):
             (root / "BuildEvidence" / "reuse-report.md").write_text(
                 "lab_example complete", encoding="utf-8"
             )
-            errors = labflow.gate_readiness_errors(root, state, 8)
+            with mock.patch.object(labflow, "protected_baseline_errors", side_effect=lambda *_args: []):
+                errors = labflow.gate_readiness_errors(root, state, 8)
             self.assertEqual(len(errors), 2)
 
             reuse, validation = labflow.evidence_relative_paths("lab_example")
@@ -194,7 +345,8 @@ class LabflowTests(unittest.TestCase):
                 path = root / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("lab_example\ncomplete\npassed\n", encoding="utf-8")
-            self.assertEqual(labflow.gate_readiness_errors(root, state, 8), [])
+            with mock.patch.object(labflow, "protected_baseline_errors", side_effect=lambda *_args: []):
+                self.assertEqual(labflow.gate_readiness_errors(root, state, 8), [])
 
     def test_scaffold_runtime_has_no_unreviewed_common_calls(self) -> None:
         source = labflow.runtime_source("LabExample", "LabExample", "lab_example")
@@ -226,6 +378,8 @@ class LabflowTests(unittest.TestCase):
                 labflow, "gate5_materialization_errors", side_effect=lambda *_args: []
             ), mock.patch.object(
                 labflow, "approved_asset_import_errors", side_effect=lambda *_args: []
+            ), mock.patch.object(
+                labflow, "protected_baseline_errors", side_effect=lambda *_args: []
             ):
                 errors = labflow.gate_readiness_errors(root, state, 5)
                 self.assertTrue(any("reusable-foundation" in item for item in errors))
@@ -296,6 +450,34 @@ class LabflowTests(unittest.TestCase):
             errors = labflow.approved_asset_import_errors(Path(directory), "lab_example")
             self.assertTrue(any("approved-asset import evidence" in item.lower() for item in errors))
 
+    def test_room_semantics_reject_sample_ground(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            room = root / "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
+            room.parent.mkdir(parents=True)
+            room.write_text(
+                "GameObject:\n  m_Name: Non-Teleportable Ground\nMeshRenderer:\n",
+                encoding="utf-8",
+            )
+            errors = labflow.approved_room_asset_errors(root)
+            self.assertTrue(any("Wall geometry" in item for item in errors))
+            self.assertTrue(any("Roof geometry" in item for item in errors))
+            self.assertTrue(any("at least 6 MeshRenderers" in item for item in errors))
+
+    def test_room_semantics_accept_complete_shell(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            room = root / "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
+            room.parent.mkdir(parents=True)
+            room.write_text(
+                "GameObject:\n  m_Name: Floor_01\n"
+                "GameObject:\n  m_Name: Wall_01\n"
+                "GameObject:\n  m_Name: Roof_01\n"
+                + "MeshRenderer:\n" * 6,
+                encoding="utf-8",
+            )
+            self.assertEqual(labflow.approved_room_asset_errors(root), [])
+
     def test_policy_drives_all_mandatory_approved_assets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -309,8 +491,7 @@ class LabflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source_relative = Path(
-                "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/"
-                "DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+                "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
             )
             source = root / source_relative
             source.parent.mkdir(parents=True)
@@ -319,8 +500,7 @@ class LabflowTests(unittest.TestCase):
             source_meta.write_text("guid: 0123456789abcdef0123456789abcdef", encoding="utf-8")
             destination_relative = Path(
                 "UnityProject/Assets/Generated/lab_example/ApprovedDependencies/"
-                "XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/"
-                "Teleportation Environment.prefab"
+                "EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
             )
             destination = root / destination_relative
             destination.parent.mkdir(parents=True)
@@ -383,8 +563,7 @@ class LabflowTests(unittest.TestCase):
             manifest = {
                 "lab_id": lab_id,
                 "approved_source": (
-                    "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/"
-                    "DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+                    "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
                 ),
                 "asset_count": 1,
                 "assets": [{
@@ -488,6 +667,7 @@ class LabflowTests(unittest.TestCase):
             self.assertEqual(migrated["gate_approvals"], {})
             self.assertFalse(migrated["brief_confirmation"]["confirmed"])
             self.assertFalse(migrated["design_approval"]["approved"])
+            self.assertIsNone(migrated["protected_baseline"])
             self.assertEqual(labflow.current_gate(migrated), 0)
             for key in labflow.default_evidence():
                 if key != "notes":

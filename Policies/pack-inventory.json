@@ -14,9 +14,9 @@
     },
     "ApprovedAssets": {
       "category": "direct_reuse",
-      "files": 759,
-      "bytes": 19055623,
-      "directory_digest_sha256": "68F8E898C160B97110D830A14ED02C00993E240B28339CDFEEFD4B2DFD19C3B4"
+      "files": 791,
+      "bytes": 51132744,
+      "directory_digest_sha256": "371168E69977525C0352E575849B8CE3A30FB109EFDA8F8377BD9B8743372DC5"
     },
     "ReusableFoundation/Gate5MinimalSlice": {
       "category": "controlled_immutable_copy",

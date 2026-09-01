@@ -17,6 +17,29 @@
   `labflow new --mode integrated-development`; reuse and Gate rules remain in
   force.
 
+## Two-level integrity policy
+
+Release-level frozen hashes in `Policies/pack-inventory.json` and
+`ReusableFoundation/Gate5MinimalSlice/manifest.json` are maintained only by the
+workflow maintainer. A rebuilding Agent must never edit, regenerate, or bypass
+them. Gate 0 begins only after that release-level Builder Boundary passes.
+
+After recording the observed Boundary PASS, the rebuilding Agent must run:
+
+```powershell
+python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>
+```
+
+This creates `BuildEvidence/<lab_id>/gate0-protected-baseline.json` exactly once
+and records its own SHA-256 in `workflow_state.json`. It snapshots the protected
+workflow, Common, reusable-foundation, approved-asset, knowledge, package, and
+project-setting roots for this run. The command is allowed only in Gate 0,
+refuses overwrite, and cannot be used to bless a failed release Boundary.
+Gates 1–10 compare current protected files against this Gate 0 snapshot and
+block on any added, removed, or changed protected file. The current Lab's
+`KnowledgeBase/rebuild-lessons/<lab_id>.md` is the sole planned exclusion
+because Gate 10 creates it; all older lessons remain protected.
+
 ## Category A: directly reusable
 
 These resources were validated as cross-Lab infrastructure and may be imported
@@ -31,6 +54,15 @@ This category includes pointer/drag/grab behavior, XR rig and controller-ray
 support, object identity/state, Capture/Restore/Reset, lifecycle, telemetry,
 assist grounding, status UI, validation builders, controller models, materials,
 audio, and general visual assets.
+
+Every core desktop interaction has a functionally equivalent XR path by
+default. Common desktop pointer/drag and the approved XRI
+Select/Trigger/Grab adapter must invoke the same Lab action handler and reach
+the same target, state transition, visible feedback, and success result. The
+physical gestures need not be identical. Gate 1 records this default without
+asking the User to design bindings. Ask only when supplied requirements demand
+different semantics or the Common/XRI baseline cannot express the action; each
+exception requires explicit User confirmation.
 
 The Gate 5 reusable foundation has stricter copy semantics than ordinary
 Category A assets. Run
@@ -49,14 +81,24 @@ be used whenever that capability appears. Category A permission alone is not a
 reason to omit the mandatory baseline.
 
 The room/environment shell is mandatory direct reuse. Every Lab must instantiate
-`ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab`
-inside its newly created scene, preserving its `.meta` and dependency closure.
+`ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab` inside its newly
+created scene, preserving its `.meta` and dependency closure. This is the
+validated modular EMVR room containing floor, wall, and roof geometry. The XRI
+`Teleportation Environment.prefab` contains only a sample ground and must not be
+used as the room shell.
 Record this decision in the Brief/design, but execute the approved-asset copy
 only during Gate 5 after Gate 4 approval. Gate 5 readiness verifies the import
 manifest and every source/copy hash.
 `new_scene` forbids donor Lab scene copying, including `DemoScene.unity`; it does
 not permit primitive-generated walls as a substitute. A missing or broken room
-Prefab is a foundation blocker.
+Prefab is a foundation blocker. The scene builder must fail before saving if
+the instantiated room lacks visible floor, wall, or roof geometry.
+
+World-space UI/status orientation is a mandatory build-time validation. Resolve
+the camera that actually renders Play Mode and require
+`dot(-surface.forward, normalize(camera.position - surface.position)) > 0` for
+Unity Canvas/TextMesh surfaces. The builder must fail before save otherwise;
+never rotate both the camera and UI as a compensating fix.
 
 The verified XR baseline is also mandatory direct reuse. Import and instantiate
 `Starter Assets/Prefabs/XR Interaction Setup.prefab` as the top-level XR setup

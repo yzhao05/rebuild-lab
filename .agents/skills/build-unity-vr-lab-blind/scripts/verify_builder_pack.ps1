@@ -27,8 +27,8 @@ $required = @(
     "Policies\gold-exclusions.json",
     "UnityProject\Packages\manifest.json",
     "UnityProject\LocalPackages\com.emvr.lab-common\package.json",
-    "ApprovedAssets\XRInteractionToolkitSamples\Starter Assets\DemoSceneAssets\Prefabs\Teleportation Environment.prefab",
-    "ApprovedAssets\XRInteractionToolkitSamples\Starter Assets\DemoSceneAssets\Prefabs\Teleportation Environment.prefab.meta",
+    "ApprovedAssets\EMVRRoom\Prefabs\Room_Big_Part_01.prefab",
+    "ApprovedAssets\EMVRRoom\Prefabs\Room_Big_Part_01.prefab.meta",
     "ApprovedAssets\XRInteractionToolkitSamples\Starter Assets\Prefabs\XR Interaction Setup.prefab",
     "ApprovedAssets\XRInteractionToolkitSamples\Starter Assets\Prefabs\XR Interaction Setup.prefab.meta",
     "ApprovedAssets\XRInteractionToolkitSamples\XR Device Simulator\XR Device Simulator.prefab",
@@ -69,6 +69,20 @@ if (Test-Path -LiteralPath $workspaceMarkerPath) {
 foreach ($relative in $required) {
     if (-not (Test-Path -LiteralPath (Join-Path $BuilderRoot $relative))) {
         $errors.Add("Missing required Builder Pack item: $relative")
+    }
+}
+
+$approvedRoomPath = Join-Path $BuilderRoot "ApprovedAssets\EMVRRoom\Prefabs\Room_Big_Part_01.prefab"
+if (Test-Path -LiteralPath $approvedRoomPath) {
+    $approvedRoomYaml = Get-Content -Raw -LiteralPath $approvedRoomPath
+    $roomMeshRendererCount = [regex]::Matches($approvedRoomYaml, '(?m)^MeshRenderer:$').Count
+    foreach ($requiredGeometry in @('Floor', 'Wall', 'Roof')) {
+        if ($approvedRoomYaml -notmatch "(?m)^\s*m_Name:\s*.*$requiredGeometry") {
+            $errors.Add("Mandatory EMVR room has no $requiredGeometry geometry: ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab")
+        }
+    }
+    if ($roomMeshRendererCount -lt 6) {
+        $errors.Add("Mandatory EMVR room is not a complete room shell; expected at least 6 MeshRenderers but found $roomMeshRendererCount.")
     }
 }
 

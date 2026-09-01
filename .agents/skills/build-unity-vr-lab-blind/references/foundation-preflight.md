@@ -43,9 +43,14 @@ Complete this preflight before creating or changing Lab C#.
     non-`.meta` source file exactly once with a matching SHA-256. Reject any
     unlisted source file. The actual copy and approved-room import happen only
     after Gate 4 approval, during Gate 5.
-12. When resuming, require `workflow_state.json` schema `1.8.0`. If `status`
+12. When resuming, require `workflow_state.json` schema `1.9.0`. If `status`
     reports an older schema, run `labflow migrate-state`; all prior approvals
     and evidence must be reviewed again from Gate 0.
+13. After the release Boundary actually passes and `boundary_verifier=passed`
+    is recorded, run `labflow capture-gate0-baseline --lab-id <lab_id>` once.
+    Require `BuildEvidence/<lab_id>/gate0-protected-baseline.json` and its
+    state-recorded SHA-256 to remain unchanged through Gate 10. Do not update
+    release hashes or recapture this baseline to absorb a later difference.
 
 Do not start Lab generation when any check fails. Report the first root failure
 and stop; do not edit the foundation or continue into cascaded errors.

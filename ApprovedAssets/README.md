@@ -5,6 +5,14 @@ reuse. They include models, Oculus hand assets, XR/XRI settings, XRI Starter
 Assets, XR Device Simulator assets, materials, audio, TextMesh Pro resources,
 and general prefabs.
 
+The mandatory room source is
+`EMVRRoom/Prefabs/Room_Big_Part_01.prefab`. Its approved GUID closure under
+`EMVRRoom/Meshes`, `EMVRRoom/Materials`, and `EMVRRoom/Textures` is extracted
+from the previously validated generic modular room. It contains no Lab formula,
+answer, step logic, controller script, or donor scene. The XRI
+`Teleportation Environment.prefab` remains an optional sample ground and is not
+an enclosed room.
+
 Import only the selected asset and its in-`ApprovedAssets` GUID dependency
 closure with the Skill's `import_approved_asset_closure.py`. The fixed current-
 run destination is

@@ -81,13 +81,22 @@ LabSpecs/<lab_id>/prior-lessons-review.md
 
 ```powershell
 python Tools/labflow/labflow.py record --lab-id <lab_id> --boundary-verifier passed --note "<observed PASS output>"
+python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>
 ```
+
+第二条命令也由 Agent 执行，只能在 Gate 0 成功创建一次。它把本次运行开始时的受保护文件状态保存到
+`BuildEvidence/<lab_id>/gate0-protected-baseline.json`。Gate 1–10 会持续与该文件比较；Agent 不能通过重建基线或修改发布哈希来接受后续变化。
 
 ## Gate 1：Brief 确认
 
 Agent 先从 User 上传的文档提取事实，再集中询问缺失的公式、单位、参数范围、
-任务、预期结果、对象行为、桌面/XR 操作、初始状态、第一步可见变化、重置、
+任务、预期结果、对象行为、桌面操作、初始状态、第一步可见变化、重置、
 遥测、Assist、房间和验收证据。User 审批完整 Brief 后记录 Gate 1。
+
+每个桌面核心交互默认由 Common/XRI 获得功能等价的 XR 路径，即同一对象、状态
+变化、可见反馈和成功结果。Gate 1 不要求 User 设计普通鼠标到 XR 按键映射；
+只有文档要求不同语义、User 主动要求例外或 Common 无法表达动作时才询问，并
+在 Brief 的 `desktop_to_xr_mapping.exceptions` 中记录。
 
 ## Gate 2：五份合同
 
@@ -112,6 +121,7 @@ python Tools/labflow/labflow.py validate --lab-id <lab_id>
 `design.md` 必须写明：
 
 - Mandatory Common 复用矩阵及场景接线；
+- 默认桌面/XR 等价路径及已确认例外（通常为无）；
 - 每个 Common、Unity、XRI API 的实际版本、程序集和准确签名；
 - 房间 Prefab、交互、状态、场景 Builder 失败策略和 Game View 布局；
 - 初始状态、第一步操作和操作后的准确可见状态；
@@ -126,7 +136,7 @@ python Tools/labflow/labflow.py validate --lab-id <lab_id>
 必须依次导入房间、完整 XR Interaction Setup 和 XR Device Simulator：
 
 ```powershell
-python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
 python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab"
 python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/XR Device Simulator/XR Device Simulator.prefab"
 ```

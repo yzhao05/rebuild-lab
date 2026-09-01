@@ -21,11 +21,45 @@ from typing import Any
 CONTRACT_KINDS = ("lab_spec", "objects", "steps", "rubric", "telemetry_map")
 LAB_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
 RESULT_VALUES = ("pending", "passed", "failed")
-CURRENT_STATE_SCHEMA = "1.8.0"
+CURRENT_STATE_SCHEMA = "1.9.0"
+PROTECTED_BASELINE_SCHEMA = "1.0.0"
 WORKFLOW_MODES = ("blind-rebuild", "integrated-development")
 REBUILD_WORKSPACE_PREFIX = "EMVR_Blind_Rebuild_"
 MASTER_PACK_DIRECTORY_NAME = "EMVR_Blind_BuilderPack"
 WORKSPACE_MARKER_SCHEMA = "1.1.0"
+PROTECTED_BASELINE_ROOTS = (
+    ".gitattributes",
+    ".gitignore",
+    "AGENTS.md",
+    "README.md",
+    "README_USER.md",
+    ".agents",
+    "Policies",
+    "Tools",
+    "LocalPackages",
+    "UnityProject/LocalPackages",
+    "OptionalIntegrations",
+    "ReusableFoundation",
+    "ApprovedAssets",
+    "KnowledgeBase",
+    "LabSpecs/templates",
+    "UnityProject/Packages",
+    "UnityProject/ProjectSettings",
+    "UnityProject/Assets/ApprovedReuse",
+    "UnityProject/Assets/Plugins",
+    "UnityProject/Assets/XR",
+    "UnityProject/Assets/XRI",
+    "UnityProject/Assets/.gitkeep",
+    "UnityProject/Assets/ApprovedReuse.meta",
+    "UnityProject/Assets/Editor.meta",
+    "UnityProject/Assets/Generated.meta",
+    "UnityProject/Assets/Plugins.meta",
+    "UnityProject/Assets/Scenes.meta",
+    "UnityProject/Assets/Scripts.meta",
+    "UnityProject/Assets/Tests.meta",
+    "UnityProject/Assets/XR.meta",
+    "UnityProject/Assets/XRI.meta",
+)
 GATE_NAMES = {
     0: "Boundary verified",
     1: "Brief confirmed",
@@ -184,6 +218,181 @@ def directory_digest(path: Path) -> str:
     return digest.hexdigest().upper()
 
 
+def protected_baseline_relative_path(lab_id: str) -> Path:
+    return Path("BuildEvidence") / lab_id / "gate0-protected-baseline.json"
+
+
+def protected_baseline_exclusions(lab_id: str) -> tuple[str, ...]:
+    # Gate 10 creates this one safe lesson after Gate 0. It must not invalidate
+    # the run baseline, while all pre-existing and cross-Lab lessons stay frozen.
+    return (f"KnowledgeBase/rebuild-lessons/{lab_id}.md",)
+
+
+def is_protected_baseline_excluded(relative: str, exclusions: set[str]) -> bool:
+    parts = Path(relative).parts
+    return (
+        relative in exclusions
+        or "__pycache__" in parts
+        or relative.endswith((".pyc", ".pyo"))
+    )
+
+
+def collect_protected_files(
+    root: Path,
+    scope_roots: tuple[str, ...] | list[str],
+    exclusions: tuple[str, ...] | list[str],
+    known_files: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    excluded = set(exclusions)
+    files: dict[str, dict[str, Any]] = {}
+    present_roots: list[str] = []
+    missing_roots: list[str] = []
+    for scope in scope_roots:
+        target = root / scope
+        if not fs_exists(target):
+            missing_roots.append(scope)
+            continue
+        present_roots.append(scope)
+        candidates = [target] if fs_is_file(target) else list(iter_files(target))
+        for candidate in candidates:
+            relative = candidate.relative_to(root).as_posix()
+            if is_protected_baseline_excluded(relative, excluded):
+                continue
+            stat = os.stat(native_path(candidate))
+            known = (known_files or {}).get(relative, {})
+            if (
+                known.get("size") == stat.st_size
+                and known.get("mtime_ns") == stat.st_mtime_ns
+                and isinstance(known.get("sha256"), str)
+            ):
+                digest = known["sha256"]
+            else:
+                digest = file_sha256(candidate)
+            files[relative] = {
+                "size": stat.st_size,
+                "mtime_ns": stat.st_mtime_ns,
+                "sha256": digest,
+            }
+    return {
+        "present_roots": sorted(present_roots),
+        "missing_roots": sorted(missing_roots),
+        "files": {key: files[key] for key in sorted(files)},
+    }
+
+
+def protected_baseline_errors(root: Path, state: dict[str, Any]) -> list[str]:
+    lab_id = str(state.get("lab_id", ""))
+    metadata = state.get("protected_baseline")
+    expected_relative = protected_baseline_relative_path(lab_id).as_posix()
+    if not isinstance(metadata, dict):
+        return [
+            "Gate 0 protected baseline has not been captured. After the release-level "
+            f"Builder Boundary passes, run `python Tools/labflow/labflow.py capture-gate0-baseline --lab-id {lab_id}`."
+        ]
+    if metadata.get("path") != expected_relative:
+        return ["Workflow state points to an unexpected Gate 0 protected-baseline path."]
+    baseline_path = root / expected_relative
+    if not fs_is_file(baseline_path):
+        return [f"Gate 0 protected baseline is missing: {expected_relative}"]
+    if file_sha256(baseline_path) != metadata.get("sha256"):
+        return ["Gate 0 protected-baseline file was changed after capture."]
+    try:
+        baseline = read_json(baseline_path)
+    except RuntimeError as error:
+        return [str(error)]
+    if baseline.get("schema_version") != PROTECTED_BASELINE_SCHEMA:
+        return ["Gate 0 protected-baseline schema is unsupported; do not regenerate it mid-run."]
+    if baseline.get("lab_id") != lab_id:
+        return ["Gate 0 protected baseline belongs to a different Lab ID."]
+    if baseline.get("scope_roots") != list(PROTECTED_BASELINE_ROOTS):
+        return ["Gate 0 protected-baseline scope differs from the current workflow definition."]
+    expected_exclusions = list(protected_baseline_exclusions(lab_id))
+    if baseline.get("excluded_paths") != expected_exclusions:
+        return ["Gate 0 protected-baseline exclusions differ from the current workflow definition."]
+
+    baseline_files = baseline.get("files", {})
+    if not isinstance(baseline_files, dict):
+        return ["Gate 0 protected baseline has an invalid files table."]
+    if baseline.get("file_count") != len(baseline_files):
+        return ["Gate 0 protected baseline file_count does not match its files table."]
+    current = collect_protected_files(
+        root, PROTECTED_BASELINE_ROOTS, expected_exclusions, baseline_files
+    )
+    errors: list[str] = []
+    if current["present_roots"] != baseline.get("present_roots"):
+        errors.append("Protected root presence changed after Gate 0 capture.")
+    if current["missing_roots"] != baseline.get("missing_roots"):
+        errors.append("Protected missing-root set changed after Gate 0 capture.")
+    current_files = current["files"]
+    for relative in sorted(set(baseline_files) - set(current_files)):
+        errors.append(f"Protected file was removed after Gate 0: {relative}")
+    for relative in sorted(set(current_files) - set(baseline_files)):
+        errors.append(f"Protected file was added after Gate 0: {relative}")
+    for relative in sorted(set(baseline_files) & set(current_files)):
+        baseline_entry = baseline_files[relative]
+        current_entry = current_files[relative]
+        if (
+            baseline_entry.get("size") != current_entry.get("size")
+            or baseline_entry.get("sha256") != current_entry.get("sha256")
+        ):
+            errors.append(f"Protected file changed after Gate 0: {relative}")
+    return errors
+
+
+def capture_gate0_protected_baseline(
+    root: Path, lab_id: str, state: dict[str, Any]
+) -> Path:
+    if current_gate(state) != 0:
+        raise RuntimeError("The protected baseline may be captured only during Gate 0.")
+    if state.get("protected_baseline") is not None:
+        raise RuntimeError("Gate 0 protected baseline is already registered and cannot be replaced.")
+    evidence = ensure_evidence(state)
+    if evidence.get("boundary_verifier") != "passed":
+        raise RuntimeError("Record a passed release-level Builder Boundary check before baseline capture.")
+    release_errors = foundation_errors(root)
+    if release_errors:
+        raise RuntimeError(
+            "Release-level Builder Boundary/foundation checks failed; Gate 0 cannot freeze a bad pack:\n- "
+            + "\n- ".join(release_errors)
+        )
+    relative = protected_baseline_relative_path(lab_id)
+    path = root / relative
+    if fs_exists(path):
+        raise RuntimeError(f"Refusing to overwrite existing Gate 0 baseline: {relative.as_posix()}")
+    exclusions = protected_baseline_exclusions(lab_id)
+    snapshot = collect_protected_files(root, PROTECTED_BASELINE_ROOTS, exclusions)
+    payload = {
+        "schema_version": PROTECTED_BASELINE_SCHEMA,
+        "lab_id": lab_id,
+        "captured_at": utc_now(),
+        "state_schema": CURRENT_STATE_SCHEMA,
+        "scope_roots": list(PROTECTED_BASELINE_ROOTS),
+        "excluded_paths": list(exclusions),
+        "present_roots": snapshot["present_roots"],
+        "missing_roots": snapshot["missing_roots"],
+        "file_count": len(snapshot["files"]),
+        "files": snapshot["files"],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    content = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    try:
+        with open(native_path(path), "x", encoding="utf-8", newline="\n") as stream:
+            stream.write(content)
+        state["protected_baseline"] = {
+            "path": relative.as_posix(),
+            "sha256": file_sha256(path),
+            "captured_at": payload["captured_at"],
+            "file_count": payload["file_count"],
+        }
+        save_state(root, lab_id, state)
+    except Exception:
+        if fs_is_file(path):
+            os.remove(native_path(path))
+        state["protected_baseline"] = None
+        raise
+    return path
+
+
 def mandatory_approved_assets(root: Path) -> list[str]:
     policy_path = root / "Policies" / "reuse-allowlist.json"
     if policy_path.exists():
@@ -192,9 +401,26 @@ def mandatory_approved_assets(root: Path) -> list[str]:
         if isinstance(configured, list) and configured:
             return [str(item) for item in configured]
     return [
-        "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/"
-        "DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+        "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
     ]
+
+
+def approved_room_asset_errors(root: Path) -> list[str]:
+    room = root / "ApprovedAssets" / "EMVRRoom" / "Prefabs" / "Room_Big_Part_01.prefab"
+    if not room.exists():
+        return []
+    text = room.read_text(encoding="utf-8-sig")
+    errors: list[str] = []
+    for geometry in ("Floor", "Wall", "Roof"):
+        if re.search(rf"^\s*m_Name:\s*.*{geometry}", text, flags=re.MULTILINE) is None:
+            errors.append(f"Mandatory EMVR room has no {geometry} geometry: {room.relative_to(root)}")
+    renderer_count = len(re.findall(r"^MeshRenderer:$", text, flags=re.MULTILINE))
+    if renderer_count < 6:
+        errors.append(
+            "Mandatory EMVR room is not a complete room shell; "
+            f"expected at least 6 MeshRenderers but found {renderer_count}."
+        )
+    return errors
 
 
 def foundation_errors(root: Path) -> list[str]:
@@ -330,6 +556,7 @@ def foundation_errors(root: Path) -> list[str]:
         required_path = root / required_asset
         if not required_path.exists() or not Path(str(required_path) + ".meta").exists():
             errors.append(f"Mandatory approved asset or its .meta is missing: {required_asset}")
+    errors.extend(approved_room_asset_errors(root))
     active_states = list((root / "LabSpecs").glob("*/workflow_state.json"))
     if len(active_states) > 1:
         errors.append(
@@ -853,7 +1080,7 @@ objects:
     object_type: "ExperimentRoot"
     role: "calculation-region"
     desktop_interaction: "none"
-    xr_interaction: "none"
+    xr_interaction: "equivalent_to_desktop_via_common_xri_mapping"
     visible_feedback: "status display shows ready"
 
 presets: []
@@ -862,16 +1089,23 @@ interaction_modes:
   desktop_mouse: true
   xr_device_simulator: true
   real_vr: true
+  desktop_to_xr_mapping:
+    policy: "equivalent_by_default"
+    semantics: "same target, state transition, visible feedback, and success result"
+    implementation: "Common desktop pointer/drag plus approved XRI Select/Trigger/Grab adapters"
+    user_input_required: false
+    exceptions: []
 
 environment:
   room_shell_strategy: "mandatory_approved_prefab"
-  room_shell_source: "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+  room_shell_source: "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
   copy_demo_scene: false
   allow_generated_primitive_room: false
   room_placement_and_adaptation: "replace_with_confirmed_placement_and_non_destructive_adaptation"
   visual_style_reference: "replace_with_confirmed_visual_style"
   lighting_requirement: "replace_with_confirmed_lighting"
   camera_and_ui_safe_area: "replace_with_confirmed_game_view_layout"
+  world_space_ui_front_face: "Use the actual Play Mode camera; for Unity Canvas/TextMesh require positive dot(-Transform.forward, normalized direction from surface to camera)."
 
 initial_and_action_states:
   authored_initial_state: "replace_with_exact_visible_initial_state"
@@ -938,10 +1172,11 @@ restricted old-Lab implementation details and answers.
 ## Environment decision
 
 - Output scene: `{scene}`
-- Mandatory room Prefab: `ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab`
-- Generated import path: `Assets/Generated/{lab_id}/ApprovedDependencies/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab`
+- Mandatory room Prefab: `ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab`
+- Generated import path: `Assets/Generated/{lab_id}/ApprovedDependencies/EMVRRoom/Prefabs/Room_Big_Part_01.prefab`
 - Import manifest path under `BuildEvidence/{lab_id}/approved-asset-imports/`:
 - Prefab placement and non-destructive adaptation:
+- Room floor/wall/roof validation before scene save:
 - Confirm that `DemoScene.unity` is not copied and primitive walls are not substituted:
 - Visual continuity, lighting, camera, and UI safe areas:
 - Explain why `new_scene` does not imply a generated primitive room:
@@ -963,6 +1198,8 @@ restricted old-Lab implementation details and answers.
 
 - Desktop mouse path:
 - XR Device Simulator path:
+- Desktop/XR default equivalence: same target, state transition, visible feedback, and success result through Common/XRI adapters
+- Confirmed mapping exceptions: none unless Gate 1 records one
 - Real VR path:
 - Visible feedback after each important action:
 
@@ -998,6 +1235,7 @@ restricted old-Lab implementation details and answers.
 
 - Required readable regions and minimum usable control size:
 - Camera framing and unobstructed experiment area:
+- Runtime camera and world-space UI front-face validation:
 - Initial/action/completed screenshots to review:
 '''
 
@@ -1335,6 +1573,7 @@ def command_new(args: argparse.Namespace) -> int:
         "design_approval": {"approved": False, "note": "", "approved_at": None},
         "gate_approvals": {},
         "evidence": default_evidence(),
+        "protected_baseline": None,
         "created_at": now,
         "updated_at": now,
     }
@@ -1461,9 +1700,22 @@ def brief_readiness_errors(root: Path, lab_id: str) -> list[str]:
         errors.append("Brief still contains generated placeholders.")
     if len(content.strip()) < 200:
         errors.append("Brief is too short.")
-    for required_section in ("environment:", "initial_and_action_states:", "reuse_requirements:"):
+    for required_section in (
+        "interaction_modes:",
+        "environment:",
+        "initial_and_action_states:",
+        "reuse_requirements:",
+    ):
         if required_section not in lowered:
             errors.append(f"Brief is missing required section: {required_section}")
+    if "desktop_to_xr_mapping:" not in lowered:
+        errors.append("Brief is missing the default desktop-to-XR mapping policy.")
+    if not re.search(
+        r"policy:\s*[\"']?equivalent_by_default[\"']?", content, flags=re.IGNORECASE
+    ):
+        errors.append("Brief must preserve `equivalent_by_default` desktop-to-XR mapping.")
+    if "exceptions:" not in lowered:
+        errors.append("Brief must record desktop-to-XR mapping exceptions, normally an empty list.")
     return errors
 
 
@@ -1491,7 +1743,7 @@ def design_readiness_errors(root: Path, lab_id: str) -> list[str]:
     ):
         if heading not in content:
             errors.append(f"design.md is missing required section: {heading}")
-    required_room = "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+    required_room = "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
     if required_room not in content:
         errors.append("design.md does not include the mandatory room Prefab path")
     if "UnityProject/LocalPackages/com.emvr.lab-common" not in content:
@@ -1510,7 +1762,11 @@ def design_readiness_errors(root: Path, lab_id: str) -> list[str]:
         "- Exact visible state after that action:",
         "- Desktop mouse path:",
         "- XR Device Simulator path:",
+        "- Desktop/XR default equivalence:",
+        "- Confirmed mapping exceptions:",
         "- Camera framing and unobstructed experiment area:",
+        "- Room floor/wall/roof validation before scene save:",
+        "- Runtime camera and world-space UI front-face validation:",
     )
     for prefix in required_values:
         matching = next((line for line in content.splitlines() if line.startswith(prefix)), None)
@@ -1521,12 +1777,16 @@ def design_readiness_errors(root: Path, lab_id: str) -> list[str]:
 
 def gate_readiness_errors(root: Path, state: dict[str, Any], gate: int) -> list[str]:
     lab_id = state["lab_id"]
+    baseline_errors = protected_baseline_errors(root, state)
     if gate == 0:
         errors = foundation_errors(root)
         errors.extend(prior_lessons_review_errors(root, lab_id))
         if ensure_evidence(state).get("boundary_verifier") != "passed":
             errors.append("Builder Boundary verifier has not been recorded as passed.")
+        errors.extend(baseline_errors)
         return errors
+    if baseline_errors:
+        return baseline_errors
     if gate == 1:
         return brief_readiness_errors(root, lab_id)
     if gate == 2:
@@ -1914,8 +2174,16 @@ def next_action(root: Path, state: dict[str, Any]) -> str:
             "progression response such as `继续`, `可以`, or `下一步` is sufficient. "
             "Make no next-gate changes while waiting."
         )
+    if gate == 0:
+        if ensure_evidence(state).get("boundary_verifier") != "passed":
+            return "Run the release-level Builder Boundary and record the observed PASS."
+        if not isinstance(state.get("protected_baseline"), dict):
+            return (
+                "Run `python Tools/labflow/labflow.py capture-gate0-baseline "
+                f"--lab-id {state['lab_id']}` once."
+            )
+        return "Complete the safe prior-lessons review, or report any protected-baseline blocker shown above."
     return {
-        0: "Complete Builder boundary/foundation verification in one work package.",
         1: "Complete the Brief interview and Brief file in one work package, then submit it once for approval.",
         2: "Complete and validate all five contracts in one work package, then submit Gate 2 once for approval.",
         3: "Complete the full design/reuse/environment review in one work package, then submit it once for approval.",
@@ -1989,6 +2257,7 @@ def command_status(args: argparse.Namespace) -> int:
         "contracts": {"ok": not errors, "errors": len(errors), "warnings": len(warnings)},
         "brief_confirmed": state.get("brief_confirmation", {}).get("confirmed", False),
         "design_approved": state.get("design_approval", {}).get("approved", False),
+        "protected_baseline": state.get("protected_baseline"),
         "evidence": state.get("evidence", {}),
         "next_action": next_action(root, state),
     }
@@ -2067,6 +2336,16 @@ def command_record(args: argparse.Namespace) -> int:
     save_state(root, lab_id, state)
     print(f"Evidence recorded for {lab_id}; stage is now {state['stage']}.")
     print(f"Next: {next_action(root, state)}")
+    return 0
+
+
+def command_capture_gate0_baseline(args: argparse.Namespace) -> int:
+    root = args.project_root.resolve()
+    lab_id = require_lab_id(args.lab_id)
+    state = load_current_state(root, lab_id)
+    path = capture_gate0_protected_baseline(root, lab_id, state)
+    print(f"Captured immutable Gate 0 run baseline: {path}")
+    print("Gate 1 through Gate 10 will compare protected files against this snapshot.")
     return 0
 
 
@@ -2175,8 +2454,8 @@ def command_migrate_state(args: argparse.Namespace) -> int:
             "migrated_at": utc_now(),
             "invalidated_gates": list(range(11)),
             "reason": (
-                "Workflow boundary, Gate 5 immutable-copy provenance, ordered evidence, "
-                "and evidence-freshness checks changed; all gates require fresh review."
+                "Gate 0 now captures a one-time protected run baseline in addition to "
+                "release-level frozen hashes; all gates require fresh review."
             ),
         }
     )
@@ -2191,6 +2470,7 @@ def command_migrate_state(args: argparse.Namespace) -> int:
         "note": "",
         "approved_at": None,
     }
+    state["protected_baseline"] = None
     for key in default_evidence():
         evidence[key] = "pending"
     evidence.pop("gate5_foundation_lab_output_digest", None)
@@ -2258,6 +2538,13 @@ def build_parser() -> argparse.ArgumentParser:
     record.add_argument("--playtest", choices=RESULT_VALUES)
     record.add_argument("--note")
     record.set_defaults(func=command_record)
+
+    capture_baseline = subparsers.add_parser(
+        "capture-gate0-baseline",
+        help="Freeze the per-run protected-file snapshot once during Gate 0 after Builder Boundary passes.",
+    )
+    capture_baseline.add_argument("--lab-id", required=True)
+    capture_baseline.set_defaults(func=command_capture_gate0_baseline)
 
     retrospective = subparsers.add_parser(
         "retrospective",

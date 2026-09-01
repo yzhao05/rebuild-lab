@@ -9,8 +9,17 @@ Gate 5 begins by materializing the protected
 `.agents/skills/build-unity-vr-lab-blind/scripts/materialize_gate5_foundation.py`.
 The mandatory room, XR Interaction Setup, and XR Device Simulator GUID closures
 are imported at the same gate, not earlier.
+The room source is the actual modular EMVR room under `ApprovedAssets/EMVRRoom`;
+the XRI Teleportation Environment sample ground is not accepted as a room.
+Gate 5 also rejects world-space UI viewed from its back by the runtime camera;
+for Unity Canvas/TextMesh the readable front normal is `-Transform.forward`.
 Its source and generated copy are immutable. The reusable foundation checkpoint
 must pass before target-domain code is added.
+
+Every core desktop interaction defaults to a functionally equivalent XR path
+through Common/XRI: same target, state transition, visible feedback, and
+success result. Gate 1 records that invariant automatically and asks the User
+only about an explicit semantic exception or an unsupported action.
 
 ## Gate sequence
 
@@ -42,7 +51,13 @@ After the Gate 0 verifier actually passes:
 
 ```powershell
 python Tools/labflow/labflow.py record --lab-id <lab_id> --boundary-verifier passed --note "<observed PASS output>"
+python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>
 ```
+
+The second command is Agent-owned, Gate-0-only, and create-once. It does not
+replace or update release frozen hashes. Gates 1–10 block if protected files no
+longer match `BuildEvidence/<lab_id>/gate0-protected-baseline.json`; do not
+recapture it to hide a difference.
 
 After each gate is complete and the user approves/progresses:
 
@@ -61,7 +76,7 @@ During Gate 5, after Gate 4 approval, import the approved asset GUID closure
 into the current Lab's generated directory. For the three mandatory Prefabs:
 
 ```powershell
-python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
 python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab"
 python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/XR Device Simulator/XR Device Simulator.prefab"
 python .agents/skills/build-unity-vr-lab-blind/scripts/materialize_gate5_foundation.py --lab-id <lab_id>

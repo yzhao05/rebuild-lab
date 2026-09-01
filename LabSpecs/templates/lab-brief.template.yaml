@@ -33,7 +33,7 @@ objects:
     role: "calculation-region"
     initial_state: "active"
     desktop_interaction: "none"
-    xr_interaction: "none"
+    xr_interaction: "equivalent_to_desktop_via_common_xri_mapping"
     visible_feedback: "status display shows ready"
 
 presets: []
@@ -42,21 +42,23 @@ interaction_modes:
   desktop_mouse: true
   xr_device_simulator: true
   real_vr: true
-  mouse_to_vr_mapping:
-    move: "mouse position controls pointer direction"
-    select: "left mouse button"
-    drag: "hold left mouse button"
-    release: "release left mouse button"
+  desktop_to_xr_mapping:
+    policy: "equivalent_by_default"
+    semantics: "same target, state transition, visible feedback, and success result"
+    implementation: "Common desktop pointer/drag plus approved XRI Select/Trigger/Grab adapters"
+    user_input_required: false
+    exceptions: []
 
 environment:
   room_shell_strategy: "mandatory_approved_prefab"
-  room_shell_source: "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+  room_shell_source: "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
   copy_demo_scene: false
   allow_generated_primitive_room: false
   room_placement_and_adaptation: "replace_with_confirmed_placement_and_non_destructive_adaptation"
   visual_style_reference: "replace_with_confirmed_visual_style"
   lighting_requirement: "replace_with_confirmed_lighting"
   camera_and_ui_safe_area: "replace_with_confirmed_game_view_layout"
+  world_space_ui_front_face: "Use the actual Play Mode camera; for Unity Canvas/TextMesh require positive dot(-Transform.forward, normalized direction from surface to camera)."
 
 initial_and_action_states:
   authored_initial_state: "replace_with_exact_visible_initial_state"

@@ -13,11 +13,17 @@ Cover:
 - formulas, units, sign conventions, assumptions, ranges, invalid input, and
   exact expected results;
 - object identity, initial state, allowed actions, feedback, and reset state;
-- equivalent desktop, XR simulator, and real-controller meanings;
-- clean scene layout, mandatory XRI `Teleportation Environment.prefab`
+- desktop actions. Automatically record the workflow default that every core
+  desktop action has an equivalent XR simulator/controller path with the same
+  target, state transition, visible feedback, and success result through the
+  Common/XRI adapters. Do not ask the user to design ordinary bindings; ask
+  only for a documented/requested semantic exception or when Common cannot
+  express the action;
+- clean scene layout, mandatory `EMVRRoom/Prefabs/Room_Big_Part_01.prefab`
   placement/adaptation and generated dependency destination, desired visual
   continuity, required approved models,
-  camera/XR rig, lighting, and UI safe areas;
+  camera/XR rig, lighting, UI safe areas, and the mandatory Unity world-space
+  readable-front rule (`-Transform.forward` toward the Play Mode camera);
 - authored initial visibility, hidden templates/loaders, the first required
   action, and exactly what must become visible after it;
 - telemetry order and assist grounding;
@@ -36,6 +42,7 @@ Core student flow
 Physics and presets
 Objects and feedback
 Desktop/XR interactions
+Default desktop-to-XR equivalence and confirmed exceptions (normally none)
 Clean-scene, mandatory room/XR Setup/XR Simulator Prefabs, camera/UI, and approved-asset plan
 Initial state and post-action visible state
 Mandatory Common/room/XR reuse audit

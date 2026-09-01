@@ -78,6 +78,14 @@ and the normalized future-facing lesson under
 `KnowledgeBase/rebuild-lessons/`; every later rebuild reviews those lessons at
 Gate 0.
 
+Integrity has two levels. Release frozen hashes remain maintainer-owned in
+`Policies/pack-inventory.json` and the Gate 5 manifest. After that release
+Boundary passes, the rebuilding Agent creates a one-time per-run snapshot with
+`python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>`.
+Gates 1–10 compare protected files against
+`BuildEvidence/<lab_id>/gate0-protected-baseline.json`; the Agent cannot update
+or overwrite the snapshot to accept a later change.
+
 Use one isolated Builder Pack copy per Lab run. `labflow new` refuses to start
 when another run's specifications, contracts, Unity output, or evidence remain.
 This prevents a rebuild Agent from seeing an earlier implementation.
@@ -104,6 +112,11 @@ the Skill's `import_approved_asset_closure.py`; generated copies belong only
 under `UnityProject/Assets/Generated/<lab_id>/ApprovedDependencies/`. Plan the
 mandatory room and verified XR Setup/Simulator baselines in Gate 1/3, but
 execute these copies only during Gate 5.
+
+Core desktop interactions use functionally equivalent XR behavior by default
+through Common/XRI. Gate 1 records the default automatically and requests User
+input only for an explicit semantic exception or an action the baseline cannot
+represent.
 
 At Gate 5, materialize the protected source separately:
 

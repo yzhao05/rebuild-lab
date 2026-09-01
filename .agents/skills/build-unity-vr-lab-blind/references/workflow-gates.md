@@ -90,12 +90,24 @@ exists, record `none available`. Confirm this Pack contains only the current run
 and no active legacy Agent bundle or example contracts.
 Record the observed boundary-script PASS with `record --boundary-verifier
 passed`; policy inspection alone is not sufficient.
+Immediately afterward, still in Gate 0, run
+`python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>`.
+This per-run baseline is created once, cannot overwrite an existing baseline,
+and is checked by every later gate. Never edit the release frozen hashes or
+recapture the baseline to accept a change. If a later comparison names a
+changed protected file, stop and report that foundation defect. Gate 10's new
+current-Lab lesson is the only planned baseline exclusion.
 
 ## 1. Brief confirmed
 
 Identity, learning goals, tasks, formulas/units, parameter ranges, expected
-results, object inventory, desktop/XR paths, lifecycle, and evidence are explicit
-and user-confirmed. Mandatory room and verified XR Prefab placement/adaptation, initial
+results, object inventory, desktop actions, lifecycle, and evidence are explicit
+and user-confirmed. Every core desktop action is automatically assigned the
+default Common/XRI-equivalent XR path with the same target, state transition,
+visible feedback, and success result. The User is asked about XR mapping only
+for an explicit semantic exception or an action the Common baseline cannot
+express; the Brief records exceptions, normally `none`. Mandatory room and
+verified XR Prefab placement/adaptation, initial
 visibility, first action, post-action visibility, and Game View layout are also
 explicit; `new_scene` is not treated as permission to generate a primitive room.
 
@@ -135,11 +147,13 @@ finish before any target-domain code is added:
    `materialize_gate5_foundation.py --lab-id <lab_id>`;
 2. verify the source/copy hashes and preserve
    `BuildEvidence/<lab_id>/gate5-foundation-import.json`;
-3. call the Common desktop pointer/drag, XR ray, object state, status,
+3. call the Common desktop pointer/drag and approved XR adapters as one
+   functionally equivalent input path, plus object state, status,
    telemetry, assist, lifecycle, and replacement-spawn APIs required by the
    design; do not copy or rewrite Common source;
 4. build a neutral validation unit in the new Lab scene containing the approved
-   room, the complete XR Interaction Setup (not a bare XR Origin), XR Device
+   room with active floor/wall/roof geometry, the complete XR Interaction Setup
+   (not a bare XR Origin), XR Device
    Simulator with validated Up/Down Y translation, controller rays configured
    through the Common tuner, exactly one XR UI EventSystem, one persistent
    interactable button, one active offstage neutral template, one visible
@@ -149,13 +163,16 @@ finish before any target-domain code is added:
    `InactiveReplacementTemplateIsRejected`,
    `PersistentButtonSpawnsActiveVisibleCollidableObject`, and
    `DuplicateActiveEventSystemsAreRejected`;
-6. observe button click -> visible object, desktop drag, state reset, XR
-   rig/rays present, clean Console, and fail-closed builder behavior; then record
-   `--gate5-foundation passed`.
+6. make the builder reject missing room geometry and a world-space Canvas or
+   TextMesh whose readable front normal (`-Transform.forward`) points away from
+   the actual runtime camera; observe the
+   room shell, non-mirrored UI, button click -> visible object, desktop drag,
+   state reset, XR rig/rays, clean Console, and fail-closed behavior in Game
+   View; then record `--gate5-foundation passed`.
 
 Checkpoint 5B then adds only the smallest target-domain closure: one domain
 object, one deterministic calculation, one visible result, one desktop
-interaction (plus the approved XR adapter), Common state/reset, one telemetry
+interaction with its default equivalent approved XR adapter, Common state/reset, one telemetry
 event, one assist-grounding result, and focused domain EditMode tests. It
 verifies the authored initial state and the state after the first
 spawn/load/action. Unity recompiles from a cleared Console with zero compiler
@@ -183,8 +200,10 @@ obscure the experiment. Unity MCP is not part of this gate.
 
 ## 7. Interaction and lifecycle passed
 
-Desktop and XR simulator paths work; real hardware is passed or explicitly
-deferred; Capture/Restore/Reset and Start/Lab/Back meet the Brief.
+Desktop and XR simulator paths work and produce the same target, state change,
+visible feedback, and success result except for explicitly confirmed mapping
+exceptions; real hardware is passed or explicitly deferred;
+Capture/Restore/Reset and Start/Lab/Back meet the Brief.
 
 ## 8. Acceptance package ready
 

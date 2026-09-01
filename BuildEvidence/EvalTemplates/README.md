@@ -5,6 +5,11 @@ Copy `templates/rebuild-eval.template.json` into
 screenshots and Console text in the same current-Lab evidence tree. Score the
 workflow, not only the final scene.
 
+Require `gate0_protected_baseline_captured=true` only when the release Builder
+Boundary passed first, `BuildEvidence/<lab_id>/gate0-protected-baseline.json`
+was created exactly once in Gate 0, and no later gate reported a protected-file
+difference. A recaptured baseline or Builder-edited release hash is a failure.
+
 Never overwrite an earlier accepted eval case; create a new version so workflow changes can be compared.
 
 Set the beginner-handoff checks to true only when every requested Unity action
@@ -12,6 +17,13 @@ includes its exact menu/tab/button location and success/failure evidence. A Test
 Runner handoff must explicitly identify `Window > General > Test Runner`,
 **EditMode**, the exact assembly and tests/count, and **Run Selected**; a later
 clarification prompted by the user does not make the original handoff complete.
+
+Set `default_desktop_xr_equivalence_preserved=true` only when each core desktop
+action and its XR adapter target the same object and produce the same state
+transition, visible feedback, and success result. Keep
+`desktop_xr_exceptions_explicitly_confirmed=true` when there are no exceptions
+or every exception has direct User confirmation; ordinary bindings must not be
+treated as missing Gate 1 input.
 
 For Gate 5, require the mandatory-room import manifest and verified source/copy
 hashes, the materializer manifest/evidence, an unchanged generated foundation

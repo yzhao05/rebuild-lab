@@ -107,12 +107,13 @@ the workspace switch a blocked Gate. Gate 0 begins after `labflow new` in the ch
 8. Create/update `BuildEvidence/<lab_id>/reuse-report.md` as soon as anything is
    reused. Never use another run's evidence file.
 
-After the verifier actually passes, record Gate 0 evidence before requesting
-approval:
-
+After the verifier actually passes, record Gate 0 evidence and create the
+one-time protected run baseline before requesting approval:
 ```powershell
 python Tools/labflow/labflow.py record --lab-id <lab_id> --boundary-verifier passed --note "<observed PASS output>"
+python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>
 ```
+Never edit release frozen hashes or recapture/overwrite this baseline; every later gate verifies it.
 
 Treat Unity MCP as disabled. Do not call Unity MCP tools or MCP-provided Skills,
 do not add `com.ivanmurzak.unity.mcp`, and do not set `UNITY_MCP_READY`. Use
@@ -256,14 +257,23 @@ integration root. All other Gate, reuse, evidence, and foundation rules apply.
 First extract every supported fact from user-provided conversation documents.
 Then interview the user only for unresolved observable learning goals, ordered
 tasks, formulas,
-units, parameter ranges, expected results, object behavior, desktop/XR paths,
+units, parameter ranges, expected results, object behavior, desktop actions and
+only exceptional XR semantics,
 reset/lifecycle behavior, telemetry, assist context, environment/room strategy,
 initial versus first-action visibility, UI/camera layout, and evidence. Ask no more
 than three related questions at once.
 
+Treat functional desktop-to-XR equivalence as the default, not a Gate 1 user
+input: the same target, state transition, visible feedback, and success result
+must be reachable through Common desktop pointer/drag and the approved XRI
+Select/Trigger/Grab adapter. Derive and record that default automatically. Ask
+the user about mapping only when an uploaded requirement conflicts with it, the
+user requests different semantics, or the Common/XRI baseline cannot represent
+the action. Record every confirmed exception explicitly; do not invent one.
+
 Always plan to reuse the mandatory room and verified XR baselines:
 
-- `ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab`;
+- `ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab`;
 - `ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab`;
 - `ApprovedAssets/XRInteractionToolkitSamples/XR Device Simulator/XR Device Simulator.prefab`.
 
@@ -335,7 +345,7 @@ Lab1-validated generic XR setup/simulator closures, then materialize the
 protected C# foundation. Run these exact commands from the Builder Pack root:
 
 ```powershell
-python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "XRInteractionToolkitSamples/Starter Assets/DemoSceneAssets/Prefabs/Teleportation Environment.prefab"
+python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
 ```
 
 ```powershell
@@ -359,7 +369,7 @@ interactable button, Common replacement spawner with an active offstage neutral
 template, a visible collidable spawned object, desktop drag, state/reset,
 status, telemetry, assist, and fail-closed build handling. Do not implement a
 parallel Lab-specific pointer, XR, button-wiring, replacement-spawn, state,
-status, telemetry, assist, or room system.
+status, telemetry, assist, or room system. Enforce the room-shell and runtime-camera/UI-front contracts in `references/workflow-gates.md`; never flip both the camera and UI.
 
 Instantiate `XR Interaction Setup.prefab` as the top-level setup; do not use
 the bare `XR Origin (XR Rig).prefab` as an equivalent baseline. Preserve the
@@ -461,7 +471,8 @@ Ask the user to open `UnityProject/`, then provide detailed instructions to:
 2. run the generated `Tools > EMVR > Labs > Build ...` menu;
 3. run `Tools > EMVR > Common > Validate Active Scene`;
 4. test the complete desktop path;
-5. test XR Device Simulator, then real hardware when available;
+5. test XR Device Simulator against the same target/state/feedback/result as
+   desktop except for confirmed exceptions, then real hardware when available;
 6. test Capture/Restore/Reset and Start/Lab/Back as applicable;
 7. verify the authored initial state and the visible state after every spawn/
    load/first required action;

@@ -25,7 +25,7 @@ class ApprovedAssetImporterTests(unittest.TestCase):
     @staticmethod
     def write_gate_five_state(root: Path, lab_id: str) -> None:
         state = {
-            "schema_version": "1.8.0",
+            "schema_version": "1.9.0",
             "lab_id": lab_id,
             "gate_approvals": {
                 str(gate): {"approved": True} for gate in range(5)

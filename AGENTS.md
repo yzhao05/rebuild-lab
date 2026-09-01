@@ -41,10 +41,21 @@ gate-local changes, and never approve for the user.
 Run the Skill's code inventory and read its mandatory reuse matrix before the
 Brief/design review. Every accepted Lab must wire the universal Common baseline;
 every capability present must use its designated Common implementation. Every
-new Lab scene must instantiate the approved XRI `Teleportation Environment`
-Prefab; copying `DemoScene.unity` or substituting generated Cube walls is
-forbidden. Require initial and post-first-action visible states, a fail-closed
-scene builder, and reviewed Game View layout before approval.
+core desktop interaction must receive an equivalent XR path by default through
+the Common/XRI input adapters: same target, state transition, visible feedback,
+and success result. Gate 1 must not ask the User to design ordinary mouse-to-XR
+bindings. Ask only when the supplied requirements demand a semantic exception
+or the Common mapping cannot express the action, and record that exception.
+Every
+new Lab scene must instantiate the approved EMVR
+`ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab`; the XRI
+`Teleportation Environment` is only a sample ground and is not a room.
+Copying a donor scene or substituting generated Cube walls is forbidden.
+Require the scene builder to reject a room instance without floor, wall, and
+roof geometry, and require the actual runtime camera to view the readable front
+of every world-space Canvas/TextMesh (`-Transform.forward` in Unity). Require initial and post-first-action visible
+states, a fail-closed scene builder, and reviewed Game View layout before
+approval.
 
 Use one isolated Builder Pack per Lab run. `labflow new` must refuse when any
 earlier active/run-specific specification, contract, Unity output, or evidence
@@ -68,6 +79,13 @@ or resume the single run in that child.
 Workspace creation/switching is pre-Gate setup, not a blocked Gate 0. Do not
 write Gate 0 artifacts in the master Pack; Gate 0 starts only after `labflow new`
 has initialized the marked child.
+
+Release frozen hashes are maintainer-owned and must not be edited by a rebuild
+Agent. In Gate 0, after recording an observed Builder Boundary PASS, run
+`python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>` once.
+Never overwrite or recapture it. Gates 1–10 must stop if `labflow` reports any
+protected file added, removed, or changed relative to that snapshot. The
+current Lab's Gate 10 lesson is the only planned exclusion.
 
 Gate 5 also has a protected reusable source at
 `ReusableFoundation/Gate5MinimalSlice/`. Copy it only with the Skill's
