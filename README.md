@@ -44,11 +44,21 @@ Run the boundary check before starting a rebuild:
 powershell -ExecutionPolicy Bypass -File .agents/skills/build-unity-vr-lab-blind/scripts/verify_builder_pack.ps1
 ```
 
-The committed `.gitattributes` forces portable LF checkout for integrity-tracked
-text files, so this byte-level boundary check remains valid after a Windows
-clone even when the user's global Git setting has `core.autocrlf=true`.
+The committed `.gitattributes` uses `* -text` to preserve all reviewed file
+bytes in Git, regardless of `core.autocrlf`. Existing LF/CRLF text and binary
+assets must not be mass-converted. GitHub does not require CRLF. Preserving
+bytes also keeps the frozen hashes valid in source ZIP/TAR downloads.
 The committed `.gitignore` keeps internal rebuild workspaces and generated
 Unity/Python/IDE files outside the maintained source revision.
+
+Publish the clean master, including hidden `.agents`, `.gitattributes` and
+`.gitignore`, rather than an active Lab workspace. For an existing repository,
+stage new files with `git add -A` and refresh tracked blobs with
+`git add --renormalize .` under the new attributes before reviewing/committing.
+Do this only in the clean publishing copy. Validate a fresh clone and source
+archive before upload. Downloaded root folders may have a branch suffix;
+rename the extracted master to `EMVR_Blind_BuilderPack` before creating a run.
+See README_USER.md for the download/upload steps.
 
 Open `UnityProject/` in Unity. The local package dependency is self-contained
 and points only to `../LocalPackages/com.emvr.lab-common`.
@@ -86,6 +96,14 @@ Gates 1–10 compare protected files against
 `BuildEvidence/<lab_id>/gate0-protected-baseline.json`; the Agent cannot update
 or overwrite the snapshot to accept a later change.
 
+For a maintainer-repaired pre-scaffold Gate 4 run, follow the compatibility
+receipt rules in `Policies/reuse-policy.md`. Preserve the original baseline,
+`BuildEvidence/<lab_id>/protected-maintenance/*.json` and the state
+`protected_maintenance` registrations. The Builder cannot issue, edit, remove,
+rehash or register receipts. Rerun Boundary, source-references and status;
+resume the same Gate 4 only when integrity passes. Prior approvals remain
+unchanged, and scaffold generation/Unity compile evidence are still required.
+
 Use one isolated Builder Pack copy per Lab run. `labflow new` refuses to start
 when another run's specifications, contracts, Unity output, or evidence remain.
 This prevents a rebuild Agent from seeing an earlier implementation.
@@ -106,6 +124,19 @@ master Pack. If this Pack is embedded in a host project to develop a genuinely
 new Lab rather than rebuild one, use `labflow new --mode
 integrated-development`; the internal child-location restriction does not apply
 in that mode.
+
+`labflow new` also creates the immutable
+`LabSpecs/<lab_id>/source-references.json` binding. It passes references to the
+original reusable code/assets without modifying their content and stores only
+repository-relative POSIX paths. On this machine or after a GitHub clone, the
+Agent resolves them from the currently opened Pack root with:
+
+```powershell
+python Tools/labflow/labflow.py source-references --lab-id <lab_id>
+```
+
+Absolute paths printed by that command are temporary diagnostics and must not
+be saved in project files.
 
 `ApprovedAssets/` is outside the Unity import root. Import selected assets with
 the Skill's `import_approved_asset_closure.py`; generated copies belong only

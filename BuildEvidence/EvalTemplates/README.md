@@ -10,6 +10,13 @@ Boundary passed first, `BuildEvidence/<lab_id>/gate0-protected-baseline.json`
 was created exactly once in Gate 0, and no later gate reported a protected-file
 difference. A recaptured baseline or Builder-edited release hash is a failure.
 
+Require the portable-source checks only when
+`LabSpecs/<lab_id>/source-references.json` matches the protected catalog and
+its state-recorded SHA-256 values, all source paths are repository-relative
+POSIX, all source access is read-only, and no persisted artifact contains the
+runtime resolver's machine-specific absolute paths. Those runtime paths may
+legitimately differ after a GitHub clone.
+
 Never overwrite an earlier accepted eval case; create a new version so workflow changes can be compared.
 
 Set the beginner-handoff checks to true only when every requested Unity action

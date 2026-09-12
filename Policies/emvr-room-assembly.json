@@ -1,0 +1,157 @@
+{
+  "schema_version": "1.0.0",
+  "layout_revision": "emvrlabs-room-v1",
+  "source_description": "EMVRLABS room-only modular assembly; translation normalized; no lab logic or donor scene",
+  "width": 15.0,
+  "depth": 18.0,
+  "modules": [
+    {
+      "prefab": "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab",
+      "guid": "8db5b99e1590340a4a7166fa4c9f9cf2",
+      "x": 7.5,
+      "yaw": 0,
+      "overrides": []
+    },
+    {
+      "prefab": "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_02.prefab",
+      "guid": "56f887c8f9289447895ae8a07be226ec",
+      "x": 4.5,
+      "yaw": 0,
+      "overrides": []
+    },
+    {
+      "prefab": "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_03.prefab",
+      "guid": "39b43e271567b4134a12f482c52c8a0f",
+      "x": 1.5,
+      "yaw": 0,
+      "overrides": [
+        {
+          "file_id": 427324,
+          "property": "m_LocalPosition.y",
+          "value": 2.98
+        },
+        {
+          "file_id": 479434,
+          "property": "m_LocalPosition.y",
+          "value": 2.95
+        },
+        {
+          "file_id": 493048,
+          "property": "m_LocalPosition.x",
+          "value": -0.018
+        },
+        {
+          "file_id": 493048,
+          "property": "m_LocalPosition.y",
+          "value": -0.8
+        },
+        {
+          "file_id": 10820366,
+          "property": "m_Color.b",
+          "value": 0.9811321
+        },
+        {
+          "file_id": 10820366,
+          "property": "m_Color.g",
+          "value": 0.9691131
+        },
+        {
+          "file_id": 10820366,
+          "property": "m_Color.r",
+          "value": 0.93948025
+        },
+        {
+          "file_id": 10820366,
+          "property": "m_Intensity",
+          "value": 5.0
+        },
+        {
+          "file_id": 10822286,
+          "property": "m_Color.b",
+          "value": 0.9811321
+        },
+        {
+          "file_id": 10822286,
+          "property": "m_Color.g",
+          "value": 0.9744549
+        },
+        {
+          "file_id": 10822286,
+          "property": "m_Color.r",
+          "value": 0.9579922
+        },
+        {
+          "file_id": 10822286,
+          "property": "m_Intensity",
+          "value": 5.0
+        },
+        {
+          "file_id": 10830590,
+          "property": "m_Color.b",
+          "value": 0.9811321
+        },
+        {
+          "file_id": 10830590,
+          "property": "m_Color.g",
+          "value": 0.9744549
+        },
+        {
+          "file_id": 10830590,
+          "property": "m_Color.r",
+          "value": 0.9579922
+        },
+        {
+          "file_id": 10830590,
+          "property": "m_Intensity",
+          "value": 5.0
+        },
+        {
+          "file_id": 10897880,
+          "property": "m_Range",
+          "value": 6.1
+        },
+        {
+          "file_id": 10897880,
+          "property": "m_Color.a",
+          "value": 1.0
+        },
+        {
+          "file_id": 10897880,
+          "property": "m_Color.b",
+          "value": 0.9764151
+        },
+        {
+          "file_id": 10897880,
+          "property": "m_Color.g",
+          "value": 0.9764151
+        },
+        {
+          "file_id": 10897880,
+          "property": "m_Color.r",
+          "value": 1.0
+        },
+        {
+          "file_id": 10897880,
+          "property": "m_Intensity",
+          "value": 5.0
+        }
+      ]
+    },
+    {
+      "prefab": "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_02.prefab",
+      "guid": "56f887c8f9289447895ae8a07be226ec",
+      "x": -1.5,
+      "yaw": 0,
+      "overrides": []
+    },
+    {
+      "prefab": "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab",
+      "guid": "8db5b99e1590340a4a7166fa4c9f9cf2",
+      "x": -7.5,
+      "yaw": 180,
+      "overrides": []
+    }
+  ],
+  "reference_base": "builder_pack_root",
+  "path_format": "repository_relative_posix"
+}

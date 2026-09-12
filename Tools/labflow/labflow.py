@@ -10,23 +10,107 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import sys
+from collections import Counter
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 
 CONTRACT_KINDS = ("lab_spec", "objects", "steps", "rubric", "telemetry_map")
 LAB_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
 RESULT_VALUES = ("pending", "passed", "failed")
-CURRENT_STATE_SCHEMA = "1.9.0"
+CURRENT_STATE_SCHEMA = "2.0.0"
 PROTECTED_BASELINE_SCHEMA = "1.0.0"
+PROTECTED_MAINTENANCE_SCHEMA = "1.0.0"
+PROTECTED_MAINTENANCE_PROFILE = "gate4_pre_scaffold_tooling_v1"
+# This compatibility profile covers workflow tooling/instructions only. It never
+# authorizes changing reusable implementation, assets, packages, or Lab inputs.
+PROTECTED_MAINTENANCE_PATHS = frozenset((
+    "Tools/labflow/labflow.py",
+    "Tools/labflow/test_labflow.py",
+    "AGENTS.md",
+    "Policies/reuse-policy.md",
+    "Policies/reuse-allowlist.json",
+    ".agents/skills/build-unity-vr-lab-blind/SKILL.md",
+    ".agents/skills/build-unity-vr-lab-blind/references/workflow-gates.md",
+    ".agents/skills/build-unity-vr-lab-blind/references/foundation-preflight.md",
+    ".agents/skills/build-unity-vr-lab-blind/references/project-map.md",
+    "README.md",
+    "README_USER.md",
+    "KnowledgeBase/docs/lab-workflow-mvp.md",
+    "KnowledgeBase/docs/user-rebuild-workflow.md",
+))
+ROOM_MAINTENANCE_PROFILE = "gate5_room_assembly_guidance_v1"
+ROOM_MAINTENANCE_PATHS = frozenset((
+    "Tools/labflow/labflow.py",
+    "Tools/labflow/test_labflow.py",
+    "AGENTS.md",
+    "Policies/reuse-policy.md",
+    ".agents/skills/build-unity-vr-lab-blind/references/mandatory-reuse-matrix.md",
+))
+PROTECTED_MAINTENANCE_PROFILES = {
+    PROTECTED_MAINTENANCE_PROFILE: (4, PROTECTED_MAINTENANCE_PATHS),
+    ROOM_MAINTENANCE_PROFILE: (5, ROOM_MAINTENANCE_PATHS),
+}
+XR_MAINTENANCE_PROFILE = "gate5_xr_reuse_defaults_v1"
+PROTECTED_MAINTENANCE_PROFILES[XR_MAINTENANCE_PROFILE] = (5, ROOM_MAINTENANCE_PATHS)
+EMVRLABS_ROOM_PROFILE = "gate5_emvrlabs_room_sources_v1"
+EMVRLABS_ROOM_ADDITIONS = frozenset((
+    "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_02.prefab",
+    "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_02.prefab.meta",
+    "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_03.prefab",
+    "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_03.prefab.meta",
+    "ApprovedAssets/EMVRRoom/Meshes/Light_01.FBX",
+    "ApprovedAssets/EMVRRoom/Meshes/Light_01.FBX.meta",
+    "Policies/emvr-room-assembly.json",
+))
+EMVRLABS_ROOM_PATHS = ROOM_MAINTENANCE_PATHS | EMVRLABS_ROOM_ADDITIONS | frozenset((
+    "Policies/reuse-allowlist.json",
+    "Policies/pack-inventory.json",
+    ".agents/skills/build-unity-vr-lab-blind/SKILL.md",
+    ".agents/skills/build-unity-vr-lab-blind/scripts/verify_builder_pack.ps1",
+))
+PROTECTED_MAINTENANCE_PROFILES[EMVRLABS_ROOM_PROFILE] = (5, EMVRLABS_ROOM_PATHS)
+LIGHTING_MAINTENANCE_PROFILE = "gate5_full_room_lighting_v1"
+LIGHTING_ADDITIONS = frozenset((
+    "Policies/emvr-room-lighting.json",
+    "Policies/EMVRRoomLightingReference/LightingData.asset",
+    "Policies/EMVRRoomLightingReference/LightingData.asset.meta",
+    "ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting",
+    "ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting.meta",
+))
+LIGHTING_PATHS = ROOM_MAINTENANCE_PATHS | LIGHTING_ADDITIONS | frozenset((
+    "Policies/reuse-allowlist.json", "Policies/pack-inventory.json",
+    ".agents/skills/build-unity-vr-lab-blind/SKILL.md",
+    ".agents/skills/build-unity-vr-lab-blind/scripts/verify_builder_pack.ps1",
+))
+PROTECTED_MAINTENANCE_PROFILES[LIGHTING_MAINTENANCE_PROFILE] = (5, LIGHTING_PATHS)
+GIT_DISTRIBUTION_PROFILE = "gate5_git_byte_preservation_v1"
+GIT_DISTRIBUTION_PATHS = frozenset((
+    ".gitattributes", "Tools/labflow/labflow.py", "Tools/labflow/test_labflow.py",
+    ".agents/skills/build-unity-vr-lab-blind/scripts/verify_builder_pack.ps1",
+    "AGENTS.md", "Policies/reuse-policy.md", "README.md", "README_USER.md",
+))
+PROTECTED_MAINTENANCE_PROFILES[GIT_DISTRIBUTION_PROFILE] = (5, GIT_DISTRIBUTION_PATHS)
+SOURCE_REFERENCE_SCHEMA = "1.0.0"
+SOURCE_REFERENCE_CATALOG = "Policies/reuse-source-references.json"
+REQUIRED_SOURCE_REFERENCE_IDS = (
+    "common_package",
+    "gate5_foundation",
+    "approved_assets",
+    "mandatory_room",
+    "xr_interaction_setup",
+    "xr_device_simulator",
+    "conditional_reusable_code_archive",
+)
 WORKFLOW_MODES = ("blind-rebuild", "integrated-development")
 REBUILD_WORKSPACE_PREFIX = "EMVR_Blind_Rebuild_"
 MASTER_PACK_DIRECTORY_NAME = "EMVR_Blind_BuilderPack"
-WORKSPACE_MARKER_SCHEMA = "1.1.0"
+WORKSPACE_MARKER_SCHEMA = "1.2.0"
 PROTECTED_BASELINE_ROOTS = (
     ".gitattributes",
     ".gitignore",
@@ -193,6 +277,9 @@ def validate_workspace_mode(root: Path, lab_id: str, workflow_mode: str) -> None
         or marker.get("lab_id") != lab_id
         or marker.get("required_master_directory_name") != MASTER_PACK_DIRECTORY_NAME
         or marker.get("required_directory_name") != expected_name
+        or marker.get("reference_base") != "builder_pack_root"
+        or marker.get("path_format") != "repository_relative_posix"
+        or marker.get("absolute_paths_persisted") is not False
     ):
         raise RuntimeError("Blind rebuild workspace marker does not match the requested Lab ID.")
 
@@ -216,6 +303,220 @@ def directory_digest(path: Path) -> str:
         lines.append(f"{relative}\t{file_sha256(file_path)}")
     digest.update("\n".join(lines).encode("utf-8"))
     return digest.hexdigest().upper()
+
+
+def source_reference_relative_path(lab_id: str) -> Path:
+    return Path("LabSpecs") / lab_id / "source-references.json"
+
+
+def portable_repository_path_error(value: Any, label: str) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return f"{label} must be a non-empty repository-relative path."
+    if value != value.strip() or "\\" in value:
+        return f"{label} must use normalized repository-relative POSIX syntax: {value!r}"
+    if value.startswith(("/", "//")) or re.match(r"^[A-Za-z]:", value):
+        return f"{label} must not contain an absolute path: {value}"
+    parts = PurePosixPath(value).parts
+    if not parts or any(part in ("", ".", "..") for part in parts):
+        return f"{label} must not contain empty, dot, or parent traversal segments: {value}"
+    if PurePosixPath(value).as_posix() != value:
+        return f"{label} is not a normalized repository-relative POSIX path: {value}"
+    return None
+
+
+def source_catalog_errors(root: Path, catalog: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if catalog.get("schema_version") != SOURCE_REFERENCE_SCHEMA:
+        errors.append("Reusable source-reference catalog schema is unsupported.")
+    if catalog.get("reference_base") != "builder_pack_root":
+        errors.append("Reusable source references must resolve from builder_pack_root.")
+    if catalog.get("path_format") != "repository_relative_posix":
+        errors.append("Reusable source references must use repository_relative_posix paths.")
+    if catalog.get("absolute_paths_persisted") is not False:
+        errors.append("Reusable source references must forbid persisted absolute paths.")
+    if catalog.get("source_access") != "read_only":
+        errors.append("Reusable source-reference catalog must keep source_access read_only.")
+
+    sources = catalog.get("sources")
+    if not isinstance(sources, list) or not sources:
+        return errors + ["Reusable source-reference catalog contains no sources."]
+    source_ids: list[str] = []
+    root_resolved = root.resolve()
+    for index, source in enumerate(sources):
+        label = f"source[{index}]"
+        if not isinstance(source, dict):
+            errors.append(f"{label} must be an object.")
+            continue
+        source_id = source.get("source_id")
+        if not isinstance(source_id, str) or not source_id:
+            errors.append(f"{label} has no source_id.")
+        else:
+            source_ids.append(source_id)
+        if source.get("access") != "read_only":
+            errors.append(f"{label} ({source_id}) must remain read_only.")
+        if not isinstance(source.get("transfer_mode"), str) or not source.get("transfer_mode"):
+            errors.append(f"{label} ({source_id}) has no transfer_mode.")
+
+        source_path = source.get("path")
+        path_error = portable_repository_path_error(source_path, f"{label}.path")
+        if path_error:
+            errors.append(path_error)
+        else:
+            target = (root / Path(*PurePosixPath(source_path).parts)).resolve()
+            if target != root_resolved and root_resolved not in target.parents:
+                errors.append(f"{label}.path escapes the Builder Pack: {source_path}")
+            elif source.get("source_kind") == "file" and not target.is_file():
+                errors.append(f"Reusable source file is missing: {source_path}")
+            elif source.get("source_kind") == "directory" and not target.is_dir():
+                errors.append(f"Reusable source directory is missing: {source_path}")
+            elif source.get("source_kind") not in ("file", "directory"):
+                errors.append(f"{label} ({source_id}) has an invalid source_kind.")
+
+        for key in ("tool", "integrity_reference"):
+            if key not in source:
+                continue
+            referenced = source.get(key)
+            reference_error = portable_repository_path_error(
+                referenced, f"{label}.{key}"
+            )
+            if reference_error:
+                errors.append(reference_error)
+                continue
+            referenced_path = (
+                root / Path(*PurePosixPath(str(referenced)).parts)
+            ).resolve()
+            if referenced_path != root_resolved and root_resolved not in referenced_path.parents:
+                errors.append(f"{label}.{key} escapes the Builder Pack: {referenced}")
+            elif not referenced_path.is_file():
+                errors.append(f"Referenced source-control file is missing: {referenced}")
+
+    duplicates = sorted({item for item in source_ids if source_ids.count(item) > 1})
+    if duplicates:
+        errors.append("Reusable source-reference catalog has duplicate IDs: " + ", ".join(duplicates))
+    missing_ids = sorted(set(REQUIRED_SOURCE_REFERENCE_IDS) - set(source_ids))
+    if missing_ids:
+        errors.append("Reusable source-reference catalog is missing required IDs: " + ", ".join(missing_ids))
+    return errors
+
+
+def load_source_reference_catalog(root: Path) -> tuple[Path, dict[str, Any]]:
+    catalog_path = root / SOURCE_REFERENCE_CATALOG
+    if not catalog_path.is_file():
+        raise RuntimeError(
+            f"Reusable source-reference catalog is missing: {SOURCE_REFERENCE_CATALOG}"
+        )
+    catalog = read_json(catalog_path)
+    errors = source_catalog_errors(root, catalog)
+    if errors:
+        raise RuntimeError("Reusable source-reference catalog is invalid:\n- " + "\n- ".join(errors))
+    return catalog_path, catalog
+
+
+def source_reference_payload(root: Path, lab_id: str) -> dict[str, Any]:
+    catalog_path, catalog = load_source_reference_catalog(root)
+    return {
+        "schema_version": SOURCE_REFERENCE_SCHEMA,
+        "lab_id": lab_id,
+        "catalog_path": SOURCE_REFERENCE_CATALOG,
+        "catalog_sha256": file_sha256(catalog_path),
+        "reference_base": "builder_pack_root",
+        "path_format": "repository_relative_posix",
+        "absolute_paths_persisted": False,
+        "source_access": "read_only",
+        "runtime_resolution": (
+            "Resolve each source path against the current Builder Pack root; "
+            "never persist a machine-specific absolute path."
+        ),
+        "integrity_enforcement": list(catalog.get("integrity_enforcement", [])),
+        "sources": catalog["sources"],
+    }
+
+
+def ensure_source_reference_manifest(root: Path, lab_id: str) -> dict[str, Any]:
+    relative = source_reference_relative_path(lab_id)
+    path = root / relative
+    expected = source_reference_payload(root, lab_id)
+    if path.exists():
+        if read_json(path) != expected:
+            raise RuntimeError(
+                "Existing per-Lab source-reference manifest differs from the current "
+                f"read-only catalog: {relative.as_posix()}"
+            )
+    else:
+        write_json(path, expected)
+    return {
+        "path": relative.as_posix(),
+        "sha256": file_sha256(path),
+        "catalog_path": SOURCE_REFERENCE_CATALOG,
+        "catalog_sha256": expected["catalog_sha256"],
+        "reference_base": "builder_pack_root",
+        "path_format": "repository_relative_posix",
+        "source_access": "read_only",
+    }
+
+
+def source_reference_errors(root: Path, state: dict[str, Any]) -> list[str]:
+    if state.get("schema_version") != CURRENT_STATE_SCHEMA:
+        return []
+    lab_id = str(state.get("lab_id", ""))
+    expected_relative = source_reference_relative_path(lab_id).as_posix()
+    metadata = state.get("source_references")
+    if not isinstance(metadata, dict):
+        return ["Workflow state does not contain the immutable reusable source-reference binding."]
+    if metadata.get("path") != expected_relative:
+        return ["Workflow state points to an unexpected reusable source-reference manifest."]
+    manifest_path = root / expected_relative
+    if not manifest_path.is_file():
+        return [f"Reusable source-reference manifest is missing: {expected_relative}"]
+    errors: list[str] = []
+    if file_sha256(manifest_path) != metadata.get("sha256"):
+        errors.append("Per-Lab reusable source-reference manifest changed after creation.")
+    try:
+        actual = read_json(manifest_path)
+        expected = source_reference_payload(root, lab_id)
+    except RuntimeError as error:
+        return errors + [str(error)]
+    if actual != expected:
+        errors.append(
+            "Per-Lab reusable source references differ from the protected repository-relative catalog."
+        )
+    if metadata.get("catalog_path") != SOURCE_REFERENCE_CATALOG:
+        errors.append("Workflow state uses an unexpected source-reference catalog path.")
+    if metadata.get("catalog_sha256") != expected.get("catalog_sha256"):
+        errors.append("Workflow state source-reference catalog hash does not match the current catalog.")
+    if metadata.get("reference_base") != "builder_pack_root":
+        errors.append("Workflow state source-reference base must be builder_pack_root.")
+    if metadata.get("path_format") != "repository_relative_posix":
+        errors.append("Workflow state source-reference paths are not repository-relative POSIX paths.")
+    if metadata.get("source_access") != "read_only":
+        errors.append("Workflow state does not preserve read-only reusable source access.")
+    return errors
+
+
+def resolved_source_references(root: Path, state: dict[str, Any]) -> dict[str, Any]:
+    errors = source_reference_errors(root, state)
+    if errors:
+        raise RuntimeError("Reusable source-reference validation failed:\n- " + "\n- ".join(errors))
+    manifest = read_json(root / state["source_references"]["path"])
+    return {
+        "lab_id": state["lab_id"],
+        "manifest": state["source_references"]["path"],
+        "reference_base": "builder_pack_root",
+        "resolved_builder_pack_root": str(root.resolve()),
+        "absolute_paths_persisted": False,
+        "sources": [
+            {
+                "source_id": source["source_id"],
+                "repository_relative_path": source["path"],
+                "resolved_runtime_path": str(
+                    (root / Path(*PurePosixPath(source["path"]).parts)).resolve()
+                ),
+                "access": source["access"],
+                "transfer_mode": source["transfer_mode"],
+            }
+            for source in manifest["sources"]
+        ],
+    }
 
 
 def protected_baseline_relative_path(lab_id: str) -> Path:
@@ -280,6 +581,91 @@ def collect_protected_files(
     }
 
 
+def protected_maintenance_relative_path(lab_id: str, sequence: int) -> Path:
+    return Path("BuildEvidence") / lab_id / "protected-maintenance" / f"{sequence:04d}.json"
+
+
+def maintained_protected_files(
+    root: Path, state: dict[str, Any], baseline_files: dict[str, Any]
+) -> tuple[dict[str, Any], list[str]]:
+    """Verify maintainer-issued receipts; never discover or accept drift itself.
+
+    Issuance is deliberately absent from the Builder CLI. Receipts and their
+    state registrations are maintainer-owned, like the original baseline lock.
+    """
+    effective = dict(baseline_files)
+    registrations = state.get("protected_maintenance", [])
+    if not isinstance(registrations, list):
+        return effective, ["Protected maintenance registrations must be a list."]
+    lab_id = state.get("lab_id")
+    baseline_sha256 = state.get("protected_baseline", {}).get("sha256")
+    previous_sha256 = baseline_sha256
+    for sequence, metadata in enumerate(registrations, 1):
+        label = f"Protected maintenance receipt {sequence}"
+        relative = protected_maintenance_relative_path(lab_id, sequence).as_posix()
+        if not isinstance(metadata, dict) or metadata.get("path") != relative:
+            return effective, [f"{label} has an unexpected repository-relative path."]
+        path = root / relative
+        if not fs_is_file(path) or file_sha256(path) != metadata.get("sha256"):
+            return effective, [f"{label} is missing or changed after registration."]
+        try:
+            receipt = read_json(path)
+        except (RuntimeError, OSError) as error:
+            return effective, [f"{label}: {error}"]
+        if not isinstance(receipt, dict):
+            return effective, [f"{label} must be a JSON object."]
+        profile = receipt.get("profile")
+        if not isinstance(profile, str) or profile not in PROTECTED_MAINTENANCE_PROFILES:
+            return effective, [f"{label} has an unknown compatibility profile."]
+        applied_gate, allowed_paths = PROTECTED_MAINTENANCE_PROFILES[profile]
+        binding = {
+            "schema_version": PROTECTED_MAINTENANCE_SCHEMA,
+            "profile": profile,
+            "lab_id": lab_id,
+            "sequence": sequence,
+            "baseline_sha256": baseline_sha256,
+            "previous_receipt_sha256": previous_sha256,
+            "source_references_sha256": state.get("source_references", {}).get("sha256"),
+            "applied_at_gate": applied_gate,
+        }
+        if any(receipt.get(key) != value for key, value in binding.items()):
+            return effective, [f"{label} has an invalid Lab/baseline/source/profile/chain binding."]
+        for key in ("authorization_note", "reason", "validation_summary", "created_at"):
+            if not isinstance(receipt.get(key), str) or not receipt[key].strip():
+                return effective, [f"{label} requires {key}."]
+        if not re.fullmatch(r"[0-9A-F]{64}", str(receipt.get("reviewed_state_sha256", ""))):
+            return effective, [f"{label} requires the reviewed pre-maintenance state SHA-256."]
+        changes = receipt.get("changes")
+        if not isinstance(changes, list) or not changes:
+            return effective, [f"{label} requires explicit file changes."]
+        seen: set[str] = set()
+        for change in changes:
+            if not isinstance(change, dict):
+                return effective, [f"{label} has an invalid file change."]
+            relative = change.get("path")
+            if not isinstance(relative, str) or relative not in allowed_paths:
+                return effective, [f"{label} names a file outside the tooling compatibility profile."]
+            permitted_additions = {EMVRLABS_ROOM_PROFILE: EMVRLABS_ROOM_ADDITIONS,
+                                   LIGHTING_MAINTENANCE_PROFILE: LIGHTING_ADDITIONS}.get(profile, frozenset())
+            addition = relative in permitted_additions and relative not in effective
+            if relative in seen or (relative not in effective and not addition):
+                return effective, [f"{label} has a duplicate or non-existing protected file: {relative}"]
+            seen.add(relative)
+            old = effective.get(relative, {"sha256": None, "size": None})
+            if addition and ("before_sha256" not in change or "before_size" not in change):
+                return effective, [f"{label} requires explicit absent-file metadata: {relative}"]
+            if change.get("before_sha256") != old.get("sha256") or change.get("before_size") != old.get("size"):
+                return effective, [f"{label} does not match the previous frozen bytes: {relative}"]
+            digest, size = change.get("after_sha256"), change.get("after_size")
+            if not isinstance(digest, str) or not re.fullmatch(r"[0-9A-F]{64}", digest) or type(size) is not int or size < 0:
+                return effective, [f"{label} has invalid replacement metadata: {relative}"]
+            if digest == old.get("sha256"):
+                return effective, [f"{label} includes a change with identical content: {relative}"]
+            effective[relative] = {"sha256": digest, "size": size}
+        previous_sha256 = metadata["sha256"]
+    return effective, []
+
+
 def protected_baseline_errors(root: Path, state: dict[str, Any]) -> list[str]:
     lab_id = str(state.get("lab_id", ""))
     metadata = state.get("protected_baseline")
@@ -315,8 +701,13 @@ def protected_baseline_errors(root: Path, state: dict[str, Any]) -> list[str]:
         return ["Gate 0 protected baseline has an invalid files table."]
     if baseline.get("file_count") != len(baseline_files):
         return ["Gate 0 protected baseline file_count does not match its files table."]
+    expected_files, maintenance_errors = maintained_protected_files(root, state, baseline_files)
+    if maintenance_errors:
+        return maintenance_errors
+    # Verify bytes even if size/mtime match. An approved replacement is a new
+    # exact hash expectation, never an exclusion from subsequent checks.
     current = collect_protected_files(
-        root, PROTECTED_BASELINE_ROOTS, expected_exclusions, baseline_files
+        root, PROTECTED_BASELINE_ROOTS, expected_exclusions
     )
     errors: list[str] = []
     if current["present_roots"] != baseline.get("present_roots"):
@@ -324,12 +715,12 @@ def protected_baseline_errors(root: Path, state: dict[str, Any]) -> list[str]:
     if current["missing_roots"] != baseline.get("missing_roots"):
         errors.append("Protected missing-root set changed after Gate 0 capture.")
     current_files = current["files"]
-    for relative in sorted(set(baseline_files) - set(current_files)):
+    for relative in sorted(set(expected_files) - set(current_files)):
         errors.append(f"Protected file was removed after Gate 0: {relative}")
-    for relative in sorted(set(current_files) - set(baseline_files)):
+    for relative in sorted(set(current_files) - set(expected_files)):
         errors.append(f"Protected file was added after Gate 0: {relative}")
-    for relative in sorted(set(baseline_files) & set(current_files)):
-        baseline_entry = baseline_files[relative]
+    for relative in sorted(set(expected_files) & set(current_files)):
+        baseline_entry = expected_files[relative]
         current_entry = current_files[relative]
         if (
             baseline_entry.get("size") != current_entry.get("size")
@@ -349,6 +740,12 @@ def capture_gate0_protected_baseline(
     evidence = ensure_evidence(state)
     if evidence.get("boundary_verifier") != "passed":
         raise RuntimeError("Record a passed release-level Builder Boundary check before baseline capture.")
+    reference_errors = source_reference_errors(root, state)
+    if reference_errors:
+        raise RuntimeError(
+            "Reusable source references are invalid; Gate 0 cannot freeze them:\n- "
+            + "\n- ".join(reference_errors)
+        )
     release_errors = foundation_errors(root)
     if release_errors:
         raise RuntimeError(
@@ -420,7 +817,76 @@ def approved_room_asset_errors(root: Path) -> list[str]:
             "Mandatory EMVR room is not a complete room shell; "
             f"expected at least 6 MeshRenderers but found {renderer_count}."
         )
+    if "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_02.prefab" in mandatory_approved_assets(root):
+        recipe_path = root / "Policies/emvr-room-assembly.json"
+        if not recipe_path.is_file():
+            return errors + ["The approved EMVRLABS room assembly recipe is missing."]
+        recipe = read_json(recipe_path)
+        inventory = read_json(root / "Policies/pack-inventory.json")
+        frozen = inventory.get("sections", {}).get("EMVRRoomAssembly", {})
+        if frozen.get("path") != "Policies/emvr-room-assembly.json" or frozen.get("sha256") != file_sha256(recipe_path):
+            errors.append("The EMVRLABS room assembly differs from the frozen release recipe.")
+        modules = recipe.get("modules", [])
+        expected_parts = [1, 2, 3, 2, 1]
+        if (recipe.get("schema_version") != "1.0.0" or recipe.get("layout_revision") != "emvrlabs-room-v1"
+                or recipe.get("reference_base") != "builder_pack_root" or recipe.get("path_format") != "repository_relative_posix"
+                or recipe.get("width") != 15 or recipe.get("depth") != 18
+                or not isinstance(modules, list) or len(modules) != 5):
+            return errors + ["The EMVRLABS room must use the reviewed five-module 15 x 18 m assembly."]
+        for index, part in enumerate(expected_parts):
+            module = modules[index]
+            relative = f"ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_{part:02}.prefab"
+            if not isinstance(module, dict) or module.get("prefab") != relative:
+                errors.append("The EMVRLABS room recipe has an unexpected module source.")
+                continue
+            meta = root / (relative + ".meta")
+            if not meta.is_file() or f"guid: {module.get('guid')}" not in meta.read_text(encoding="utf-8-sig"):
+                errors.append("The EMVRLABS room module GUID does not match its approved asset.")
     return errors
+
+
+def room_lighting_profile_errors(root: Path) -> list[str]:
+    profile_path = root / "Policies/emvr-room-lighting.json"
+    required = "ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting" in mandatory_approved_assets(root)
+    if not profile_path.is_file():
+        return ["The immutable full room lighting profile is missing."] if required else []
+    profile = read_json(profile_path)
+    frozen = read_json(root / "Policies/pack-inventory.json").get("sections", {}).get("EMVRRoomLighting", {})
+    if (frozen.get("path") != "Policies/emvr-room-lighting.json"
+            or frozen.get("sha256") != file_sha256(profile_path)):
+        return ["The full room lighting defaults differ from the frozen release."]
+    errors = []
+    if (profile.get("access") != "read_only" or profile.get("reference_base") != "builder_pack_root"
+            or profile.get("path_format") != "repository_relative_posix"):
+        errors.append("Full room lighting must remain read-only with repository-relative POSIX references.")
+    files = profile.get("source_files", [])
+    if {entry.get("path") for entry in files} != set(LIGHTING_ADDITIONS) - {"Policies/emvr-room-lighting.json"}:
+        errors.append("Full room lighting requires all four frozen source/archive files.")
+    for entry in files:
+        relative = entry.get("path")
+        if relative not in LIGHTING_ADDITIONS:
+            errors.append("Lighting source reference is outside the frozen bundle.")
+            continue
+        path = root / relative
+        if not path.is_file() or file_sha256(path) != entry.get("sha256") or path.stat().st_size != entry.get("size"):
+            errors.append(f"Read-only lighting source/archive changed: {relative}.")
+        if path.is_file() and path.suffix == ".lighting" and b"\r" in path.read_bytes():
+            errors.append("Published RoomLighting must use LF line endings for Unity serialization; maintainer repair required.")
+    return errors
+
+
+def git_byte_preservation_errors(root: Path) -> list[str]:
+    """Reject Git content transformations of any frozen file, including overrides."""
+    path = root / ".gitattributes"
+    if not path.is_file():
+        return ["Missing .gitattributes byte-preservation policy."]
+    rules = [line.split("#", 1)[0].split() for line in path.read_text(encoding="utf-8-sig").splitlines()]
+    rules = [rule for rule in rules if rule]
+    if (["*", "-text"] not in rules
+            or any(len(rule) < 2 or any(attribute not in ("-text", "binary") for attribute in rule[1:])
+                   for rule in rules)):
+        return [".gitattributes must preserve '* -text' without content-transforming overrides so frozen hashes survive Git checkout and archives."]
+    return []
 
 
 def foundation_errors(root: Path) -> list[str]:
@@ -447,6 +913,7 @@ def foundation_errors(root: Path) -> list[str]:
         ".gitattributes",
         ".gitignore",
         "Policies/reuse-allowlist.json",
+        "Policies/reuse-source-references.json",
         "Policies/gold-exclusions.json",
         "Policies/pack-inventory.json",
         "AGENTS.md",
@@ -470,16 +937,14 @@ def foundation_errors(root: Path) -> list[str]:
         if not (root / relative).exists():
             errors.append(f"Required Builder foundation item is missing: {relative}")
 
-    attributes_path = root / ".gitattributes"
-    if attributes_path.exists():
-        attribute_rules = {
-            line.split("#", 1)[0].strip()
-            for line in attributes_path.read_text(encoding="utf-8-sig").splitlines()
-        }
-        if "* text=auto eol=lf" not in attribute_rules:
-            errors.append(
-                ".gitattributes must enforce '* text=auto eol=lf' so frozen hashes survive Git checkout"
-            )
+    source_catalog_path = root / SOURCE_REFERENCE_CATALOG
+    if source_catalog_path.is_file():
+        try:
+            errors.extend(source_catalog_errors(root, read_json(source_catalog_path)))
+        except RuntimeError as error:
+            errors.append(str(error))
+
+    errors.extend(git_byte_preservation_errors(root))
 
     if (root / "KnowledgeBase" / "EMVR-Agent-Knowledge").exists():
         errors.append("Unsafe legacy Agent knowledge bundle was not moved to the restricted archive")
@@ -557,6 +1022,7 @@ def foundation_errors(root: Path) -> list[str]:
         if not required_path.exists() or not Path(str(required_path) + ".meta").exists():
             errors.append(f"Mandatory approved asset or its .meta is missing: {required_asset}")
     errors.extend(approved_room_asset_errors(root))
+    errors.extend(room_lighting_profile_errors(root))
     active_states = list((root / "LabSpecs").glob("*/workflow_state.json"))
     if len(active_states) > 1:
         errors.append(
@@ -739,6 +1205,281 @@ def approved_asset_import_errors(root: Path, lab_id: str) -> list[str]:
                     + path.relative_to(destination_root).as_posix()
                 )
     return errors
+
+
+def room_prefab_instance_errors(scene_text: str, modules: list[dict[str, Any]]) -> list[str]:
+    """Read serialized linked instances; never rewrite the Unity scene."""
+    expected = Counter(module["guid"] for module in modules)
+    labels = {module["guid"]: Path(module["prefab"]).name for module in modules}
+    actual: Counter[str] = Counter()
+    errors: list[str] = []
+    for block in re.split(r"(?=^--- !u!)", scene_text, flags=re.MULTILINE):
+        if not block.startswith("--- !u!1001 "):
+            continue
+        source = re.search(r"m_SourcePrefab:\s*\{[^}]*guid:\s*([a-f0-9]{32})", block)
+        if not source or source[1] not in expected:
+            continue
+        guid = source[1]
+        actual[guid] += 1
+        # Original Part 03 lights are 1.5; the frozen scene overrides are 5.
+        for setting in next(m for m in modules if m["guid"] == guid).get("overrides", []):
+            if setting.get("property") != "m_Intensity":
+                continue
+            values = re.findall(
+                rf"target:\s*\{{fileID:\s*{setting['file_id']},\s*guid:\s*{guid},[^}}]*\}}"
+                r"\s*\n\s*propertyPath:\s*m_Intensity\s*\n\s*value:\s*([^\r\n]+)", block)
+            try:
+                valid = len(values) == 1 and abs(float(values[0]) - float(setting["value"])) <= 0.00001
+            except ValueError:
+                valid = False
+            if not valid:
+                errors.append(f"Room light {setting['file_id']} requires frozen instance intensity {setting['value']}.")
+        for field in ("m_RemovedComponents", "m_RemovedGameObjects", "m_AddedComponents", "m_AddedGameObjects"):
+            value = re.search(rf"^\s*{field}:\s*([^\r\n]*)", block, flags=re.MULTILINE)
+            if value and value[1].strip() != "[]":
+                errors.append(f"Read-only room module has altered children/components: {labels[guid]} ({field}).")
+        if re.search(r"propertyPath:\s*m_(?:IsActive|Enabled)\s*\r?\n\s*value:\s*0\s*(?:\r?\n|$)", block):
+            errors.append(f"A room module or its content is disabled: {labels[guid]}.")
+        for scale in re.findall(r"propertyPath:\s*m_LocalScale\.[xyz]\s*\r?\n\s*value:\s*([^\r\n]+)", block):
+            try:
+                unit_scale = abs(float(scale) - 1.0) <= 0.00001
+            except ValueError:
+                unit_scale = False
+            if not unit_scale:
+                errors.append(f"Read-only room module has a scale override: {labels[guid]}.")
+    for guid, count in expected.items():
+        if actual[guid] != count:
+            errors.append(f"Complete room requires {count} linked {labels[guid]} instance(s); saved scene has {actual[guid]}. Rebuild the full frozen assembly.")
+    return errors
+
+
+XR_DEFAULT_SOURCES = (
+    ("XR Interaction Setup", "895f6f3c2d334633b5800312285058d2", 4134505312059479865, 7313654230448209575),
+    ("XR Device Simulator", "18ddb545287c546e19cc77dc9fbb2189", 6598815579406187027, 6598815579406187037),
+)
+
+
+def xr_scene_default_errors(scene_text: str) -> list[str]:
+    """Require complete linked XR defaults; only whole-setup placement may vary."""
+    blocks = re.split(r"(?=^--- !u!)", scene_text, flags=re.MULTILINE)
+    errors = []
+    for name, guid, transform_id, object_id in XR_DEFAULT_SOURCES:
+        instances = [b for b in blocks if b.startswith("--- !u!1001 ")
+                     and re.search(rf"m_SourcePrefab:\s*\{{[^}}]*guid:\s*{guid}\b", b)]
+        if len(instances) != 1:
+            errors.append(f"Gate 5 requires exactly one linked complete {name}; found {len(instances)}.")
+        for block in instances:
+            for field in ("m_RemovedComponents", "m_RemovedGameObjects", "m_AddedComponents", "m_AddedGameObjects"):
+                match = re.search(rf"^\s*{field}: *([^\r\n]*)", block, re.MULTILINE)
+                if match and match[1].strip() != "[]":
+                    errors.append(f"Read-only {name} has altered contents: {field}.")
+            for modification in re.split(r"(?=^    - target:)", block, flags=re.MULTILINE)[1:]:
+                target = re.search(r"target:\s*\{fileID:\s*(-?\d+),\s*guid:\s*([a-f0-9]{32})", modification)
+                prop = re.search(r"propertyPath: ([^\r\n]+)", modification)
+                value = re.search(r"^      value: *([^\r\n]*)", modification, re.MULTILINE)
+                if not target or not prop or not value:
+                    errors.append(f"Malformed {name} instance override.")
+                    continue
+                field, raw = prop[1].strip(), value[1].strip()
+                valid = target[2] == guid and int(target[1]) == object_id and field == "m_Name" and raw == name
+                if target[2] == guid and int(target[1]) == transform_id:
+                    try:
+                        number = float(raw)
+                        valid = (math.isfinite(number) and
+                                 (re.fullmatch(r"m_Local(?:Position\.[xyz]|Rotation\.[xyzw]|EulerAnglesHint\.[xyz])", field) is not None
+                                  or field == "m_RootOrder" and number >= 0
+                                  or field in ("m_LocalScale.x", "m_LocalScale.y", "m_LocalScale.z") and abs(number - 1) <= 0.00001))
+                    except ValueError:
+                        valid = False
+                if not valid:
+                    errors.append(f"{name} changes protected XR content: {field}; retain approved bindings, controller poses and ray origins.")
+    for label, guid, defaults in (
+        ("Common XR ray tuner", "e2bbcbd14c6b470187c4ca91c6d1759e",
+         {"sphereCastRadius": 0.06, "minimumRayDistance": 20, "controllerRaysOnly": 1, "enableMouseLeftDebugSelect": 0}),
+        ("Common desktop pointer", "89ed2d21dd9de8f40841aeb37dd363ff", {"showPointerRay": 0}),
+    ):
+        components = [b for b in blocks if b.startswith("--- !u!114 ") and re.search(rf"m_Script:\s*\{{[^}}]*guid:\s*{guid}\b", b)]
+        if len(components) != 1:
+            errors.append(f"Gate 5 requires one {label}; found {len(components)}.")
+        for block in components:
+            for field, expected in {"m_Enabled": 1, **defaults}.items():
+                match = re.search(rf"^  {field}: ([^\r\n]+)", block, re.MULTILINE)
+                try:
+                    valid = match is not None and abs(float(match[1]) - expected) <= 0.00001
+                except ValueError:
+                    valid = False
+                if not valid:
+                    errors.append(f"{label} requires default {field}={expected}.")
+    for block in blocks:
+        if block.startswith("--- !u!114 ") and "stripped" not in block.splitlines()[0] and re.search(
+                r"m_Script:\s*\{[^}]*guid:\s*(?:5b34befe5d0cbb642bb5d09104a47160|6803edce0201f574f923fd9d10e5b30a)\b", block):
+            errors.append("XR simulator/ray component was added outside the complete approved Prefab; reuse the linked setup.")
+    return errors
+
+
+def xr_duplicate_implementation_errors(source: str) -> list[str]:
+    """Mechanical guard for known duplicate patterns; semantic code review is also required."""
+    code = re.sub(r'//[^\n]*|/\*.*?\*/|@?"(?:""|\\.|[^"\\])*"', ' ', source, flags=re.DOTALL)
+    patterns = (
+        r"\bclass\s+(?:XRDeviceSimulator|XRRayInteractor|ActionBasedController|EmVrXrRayRuntimeTuner|EmVrMousePointer)\b",
+        r"\bAddComponent\s*<\s*(?:[\w.]+\.)?(?:XRDeviceSimulator|XRRayInteractor|ActionBasedController|XROrigin)\s*>",
+        r"\b(?:rayOriginTransform|lineOriginTransform|lineOriginOffset|keyboardYTranslateAction)\s*=",
+        r"\bInputSystem\s*\.\s*(?:AddDevice|QueueStateEvent|QueueDeltaStateEvent)\s*\(",
+    )
+    return ["Lab code duplicates or overrides protected XR behavior; call approved Common/XRI sources instead."
+            for pattern in patterns if re.search(pattern, code)]
+
+
+def xr_reuse_errors(root: Path, state: dict[str, Any]) -> list[str]:
+    scene = str(state.get("scene", f"Assets/Scenes/{state['lab_id']}.unity"))
+    validate_scene_path(scene)
+    path = root / "UnityProject" / scene
+    errors = xr_scene_default_errors(path.read_text(encoding="utf-8-sig")) if path.is_file() else ["The default XR scene has not been built and saved."]
+    class_name = pascal_name(state["lab_id"])
+    for directory in (root / "UnityProject/Assets/Scripts/EMVR/Labs" / class_name,
+                      root / "UnityProject/Assets/Editor" / class_name):
+        for source in directory.rglob("*.cs"):
+            errors.extend(f"{source.relative_to(root).as_posix()}: {error}" for error in xr_duplicate_implementation_errors(source.read_text(encoding="utf-8-sig")))
+    return errors
+
+
+def room_environment_lighting_errors(scene_text: str) -> list[str]:
+    """Check Gate 5 environment defaults without changing scene or asset bytes."""
+    blocks = re.split(r"(?=^--- !u!)", scene_text, flags=re.MULTILINE)
+    settings = [b for b in blocks if b.startswith("--- !u!104 ")]
+    if len(settings) != 1:
+        return ["Room lighting requires one saved RenderSettings block."]
+    defaults = {"m_AmbientMode": 3, "m_AmbientIntensity": 1,
+                "m_ReflectionIntensity": 1, "m_DefaultReflectionMode": 1, "m_Fog": 0}
+    errors = []
+    for field, expected in defaults.items():
+        match = re.search(rf"^  {field}: ([^\r\n]+)", settings[0], re.MULTILINE)
+        try:
+            valid = match is not None and abs(float(match[1]) - expected) <= 0.00001
+        except ValueError:
+            valid = False
+        if not valid:
+            errors.append(f"Gate 5 room lighting requires {field}={expected}.")
+    for field in ("m_SkyboxMaterial", "m_CustomReflection", "m_Sun"):
+        if not re.search(rf"^  {field}: \{{fileID: 0\}}\s*$", settings[0], re.MULTILINE):
+            errors.append(f"Gate 5 room lighting requires an empty {field} reference.")
+    for field, rgb in {"m_AmbientSkyColor": (0.13116321, 0.15650724, 0.212264115),
+                       "m_AmbientEquatorColor": (0.1400303, 0.21646784, 0.27205884),
+                       "m_AmbientGroundColor": (0.048010383, 0.112683475, 0.17647058)}.items():
+        match = re.search(rf"^  {field}: \{{r: ([^,]+), g: ([^,]+), b: ([^,]+), a: ([^}}]+)\}}", settings[0], re.MULTILINE)
+        try:
+            valid = match is not None and all(abs(float(v) - e) <= 0.00001 for v, e in zip(match.groups(), (*rgb, 1)))
+        except ValueError:
+            valid = False
+        if not valid:
+            errors.append(f"Gate 5 room lighting requires the reviewed {field}.")
+    if any(b.startswith("--- !u!108 ") and re.search(r"^  m_Type: 1\s*$", b, re.MULTILINE) for b in blocks):
+        errors.append("Gate 5 room lighting must not add a standalone Directional Light.")
+    return errors
+
+
+def execution_lighting_errors(root: Path, lab_id: str, profile: dict, reference) -> list[str]:
+    """Native current-Lab execution settings preserve frozen photometric values."""
+    path = root / "UnityProject/Assets/Scenes" / require_lab_id(lab_id) / "RoomLighting_Execution.lighting"
+    meta = Path(str(path) + ".meta")
+    provenance_path = Path(str(path) + ".provenance.json")
+    if not all(p.is_file() for p in (path, meta, provenance_path)):
+        return ["Use the current-Lab Generate Lighting And Save menu to create source-bound OnDemand execution settings."]
+    text = re.sub(r"\r?\n {4,}(?=\S)", " ", path.read_text(encoding="utf-8-sig"))
+    guid = re.search(r"^guid: ([a-f0-9]{32})$", meta.read_text(encoding="utf-8-sig"), re.MULTILINE)
+    file_id = re.search(r"^--- !u!850595691 &(-?\d+)", text, re.MULTILINE)
+    errors = []
+    if (not reference or not guid or not file_id or reference[2] != guid[1]
+            or int(reference[1]) != int(file_id[1]) or guid[1] == profile["settings_guid"]):
+        errors.append("The scene must reference its own native RoomLighting_Execution asset with its correct GUID/fileID.")
+    try:
+        provenance = read_json(provenance_path)
+        source = next(e for e in profile["source_files"] if e["path"] == profile["settings_asset"])
+        expected = dict(source_path=profile["settings_asset"], source_sha256=source["sha256"],
+                        source_guid=profile["settings_guid"], execution_guid=guid[1] if guid else None)
+        if provenance != expected:
+            errors.append("Execution lighting provenance does not match the immutable approved source and generated GUID.")
+    except (OSError, ValueError, KeyError, StopIteration):
+        errors.append("Execution lighting provenance is missing or invalid.")
+    for field, expected in profile["lighting_settings"].items():
+        if field in ("m_Name", "serializedVersion"):
+            continue  # Native object identity/schema; all authored light values remain checked.
+        found = re.findall(rf"^  {re.escape(field)}: ([^\r\n]*)", text, re.MULTILINE)
+        valid = len(found) == 1
+        if valid:
+            values = dict(re.findall(r"(\w+):\s*([^,}\s]+)", found[0])) if isinstance(expected, dict) else {field: found[0]}
+            for key, value in (expected.items() if isinstance(expected, dict) else [(field, expected)]):
+                try:
+                    valid = valid and (abs(float(values[key]) - value) <= 0.000001 if isinstance(value, (int, float))
+                                       else values.get(key) == str(value))
+                except (ValueError, KeyError):
+                    valid = False
+        if not valid:
+            errors.append(f"Execution LightingSettings differs from the frozen source field {field}.")
+    return errors
+
+
+def full_room_lighting_scene_errors(root: Path, state: dict[str, Any], scene_text: str) -> list[str]:
+    profile_path = root / "Policies/emvr-room-lighting.json"
+    if not profile_path.is_file():
+        return []  # Older fixture/release compatibility; foundation validates required profile presence.
+    profile = read_json(profile_path)
+    errors = []
+    settings = re.search(r"^--- !u!104 [^\n]*\n(.*?)(?=^--- !u!|\Z)", scene_text, re.MULTILINE | re.DOTALL)
+    if not settings:
+        return ["Full lighting requires saved RenderSettings."]
+    for field, expected in profile["render_settings"].items():
+        if field in ("m_ObjectHideFlags", "m_IndirectSpecularColor"):
+            continue  # Editor flags and derived native probe output are not authored defaults.
+        match = re.search(rf"^  {re.escape(field)}: (\{{[^}}]*\}}|[^\r\n]+)", settings[1], re.MULTILINE)
+        valid = match is not None
+        if match:
+            values = dict(re.findall(r"(\w+):\s*([^,}\s]+)", match[1])) if isinstance(expected, dict) else {field: match[1]}
+            for key, value in (expected.items() if isinstance(expected, dict) else [(field, expected)]):
+                try:
+                    valid = valid and (abs(float(values[key]) - value) <= 0.00001 if isinstance(value, (int, float)) else values.get(key) == str(value))
+                except (ValueError, KeyError):
+                    valid = False
+        if not valid:
+            errors.append(f"Full room environment differs from the reviewed workflow default {field}.")
+    lighting = re.search(r"m_LightingSettings:\s*\{fileID:\s*(-?\d+),\s*guid:\s*([a-f0-9]{32})", scene_text)
+    if profile.get("execution_settings"):
+        errors.extend(execution_lighting_errors(root, state["lab_id"], profile, lighting))
+    elif not lighting or int(lighting[1]) != profile["settings_file_id"] or lighting[2] != profile["settings_guid"]:
+        errors.append("Scene must reference the imported immutable original RoomLighting.lighting asset. "
+                      "The Editor builder must assign the verified import automatically before saving; "
+                      "do not ask the user to create settings or manually repair the reference.")
+    # Save/checkout timestamps are not GI validity evidence. Check the saved
+    # reference and output ownership here; native completion/visual proof is separate.
+    data = re.search(r"m_LightingDataAsset:\s*\{fileID:\s*(-?\d+),\s*guid:\s*([a-f0-9]{32})", scene_text)
+    if not data or int(data[1]) == 0:
+        errors.append("Window > Rendering > Lighting > Generate Lighting, wait, then save.")
+    elif data[2] == profile["historical_lighting_data"]["guid"]:
+        errors.append("Historical scene-bound LightingData is read-only reference only; generate data for this scene.")
+    else:
+        directory = root / "UnityProject/Assets/Scenes" / require_lab_id(state["lab_id"])
+        matches = [p for p in directory.glob("*.asset.meta") if f"guid: {data[2]}" in p.read_text(encoding="utf-8-sig") and p.with_suffix("").is_file()]
+        if len(matches) != 1:
+            errors.append("LightingData must resolve to this Lab's generated scene-lighting directory.")
+    return errors
+
+
+def room_scene_reuse_errors(root: Path, state: dict[str, Any]) -> list[str]:
+    recipe_path = root / "Policies/emvr-room-assembly.json"
+    if not recipe_path.is_file():
+        return ["The read-only full-room assembly recipe is missing."]
+    recipe = read_json(recipe_path)
+    modules = recipe.get("modules", []) if isinstance(recipe, dict) else []
+    if len(modules) != 5 or any(not isinstance(m, dict) or not m.get("guid") or not m.get("prefab") for m in modules):
+        return ["The full-room assembly must contain all five reviewed modules."]
+    scene = str(state.get("scene", f"Assets/Scenes/{state['lab_id']}.unity"))
+    validate_scene_path(scene)
+    path = root / "UnityProject" / scene
+    if not path.is_file():
+        return ["The full-room scene has not been built and saved in Unity."]
+    scene_text = path.read_text(encoding="utf-8-sig")
+    return (room_prefab_instance_errors(scene_text, modules) + room_environment_lighting_errors(scene_text)
+            + full_room_lighting_scene_errors(root, state, scene_text))
 
 
 def require_current_state_schema(state: dict[str, Any]) -> None:
@@ -969,6 +1710,9 @@ def default_contracts(lab_id: str, title: str, domain: str, scene: str) -> dict[
             "title": title,
             "domain": domain,
             "unity_scene": scene,
+            "reuse_source_reference_manifest": (
+                f"LabSpecs/{lab_id}/source-references.json"
+            ),
             "entry_step_id": "S1",
             "learning_goals": ["Replace with an observable learning goal before implementation."],
             "assist_contract": {
@@ -1056,6 +1800,10 @@ status: "draft"
 source_material:
   handbook: ""
   additional_notes: []
+  reusable_source_reference_manifest: "LabSpecs/{lab_id}/source-references.json"
+  reusable_source_reference_base: "builder_pack_root"
+  reusable_source_access: "read_only"
+  persisted_absolute_source_paths: false
 
 learning_goals:
   - "Replace with an observable learning goal."
@@ -1099,11 +1847,12 @@ interaction_modes:
 environment:
   room_shell_strategy: "mandatory_approved_prefab"
   room_shell_source: "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
+  room_assembly_recipe: "Policies/emvr-room-assembly.json"
   copy_demo_scene: false
   allow_generated_primitive_room: false
   room_placement_and_adaptation: "replace_with_confirmed_placement_and_non_destructive_adaptation"
   visual_style_reference: "replace_with_confirmed_visual_style"
-  lighting_requirement: "replace_with_confirmed_lighting"
+  lighting_requirement: "EMVRLABS default: four room point lights at intensity 5; Flat ambient intensity 1; apply reuse-policy room lighting settings"
   camera_and_ui_safe_area: "replace_with_confirmed_game_view_layout"
   world_space_ui_front_face: "Use the actual Play Mode camera; for Unity Canvas/TextMesh require positive dot(-Transform.forward, normalized direction from surface to camera)."
 
@@ -1154,6 +1903,16 @@ List every universal and capability-triggered row from the mandatory reuse
 matrix, its exact scene wiring, and planned evidence.
 Canonical source: `UnityProject/LocalPackages/com.emvr.lab-common/`.
 
+## Portable reusable source references
+
+- Per-Lab manifest: `LabSpecs/{lab_id}/source-references.json`
+- Catalog: `Policies/reuse-source-references.json`
+- Resolution base: Builder Pack root (`builder_pack_root`)
+- Persisted path format: repository-relative POSIX
+- Persisted absolute paths: forbidden
+- Reusable source access: read-only; call or copy only through the declared transfer mode
+- Runtime absolute paths are diagnostic output only and must never be written into Lab artifacts
+
 ## API signature audit
 
 For every Common, Unity, and XRI API that Lab-specific code will call, record
@@ -1172,7 +1931,8 @@ restricted old-Lab implementation details and answers.
 ## Environment decision
 
 - Output scene: `{scene}`
-- Mandatory room Prefab: `ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab`
+- Mandatory room Prefabs: `ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab`, Part 02 and Part 03
+- Frozen room assembly: `Policies/emvr-room-assembly.json` (five linked modules and room-only overrides)
 - Generated import path: `Assets/Generated/{lab_id}/ApprovedDependencies/EMVRRoom/Prefabs/Room_Big_Part_01.prefab`
 - Import manifest path under `BuildEvidence/{lab_id}/approved-asset-imports/`:
 - Prefab placement and non-destructive adaptation:
@@ -1326,6 +2086,16 @@ def reuse_report_text(lab_id: str) -> str:
 Lab ID: `{lab_id}`
 
 Status: initialized; update provenance during each Gate.
+
+## Immutable source-reference binding
+
+- Manifest: `LabSpecs/{lab_id}/source-references.json`
+- Catalog: `Policies/reuse-source-references.json`
+- Persisted paths: repository-relative POSIX only
+- Original source access/content: read-only and unchanged
+
+Record which declared reference and transfer mode supplied each reused item.
+Never copy the runtime resolver's absolute path into this evidence file.
 
 ## Mandatory Common and room reuse
 
@@ -1535,6 +2305,7 @@ def command_new(args: argparse.Namespace) -> int:
     files = [
         lab_dir / "brief.yaml",
         lab_dir / "design.md",
+        root / source_reference_relative_path(lab_id),
         root / prior_lessons_review_relative_path(lab_id),
         state_path(root, lab_id),
     ]
@@ -1558,6 +2329,7 @@ def command_new(args: argparse.Namespace) -> int:
     reuse_relative, validation_relative = evidence_relative_paths(lab_id)
     write_text(root / reuse_relative, reuse_report_text(lab_id))
     write_text(root / validation_relative, validation_report_text(lab_id))
+    source_reference_metadata = ensure_source_reference_manifest(root, lab_id)
 
     now = utc_now()
     state = {
@@ -1574,11 +2346,16 @@ def command_new(args: argparse.Namespace) -> int:
         "gate_approvals": {},
         "evidence": default_evidence(),
         "protected_baseline": None,
+        "source_references": source_reference_metadata,
         "created_at": now,
         "updated_at": now,
     }
     write_json(state_path(root, lab_id), state)
     print(f"Created workflow for {lab_id}")
+    print(
+        "Created immutable repository-relative source references at "
+        f"{source_reference_relative_path(lab_id).as_posix()}"
+    )
     print(
         "Complete Gate 0 by reviewing every safe prior lesson under "
         "KnowledgeBase/rebuild-lessons, especially build-experience, without reading "
@@ -1701,6 +2478,7 @@ def brief_readiness_errors(root: Path, lab_id: str) -> list[str]:
     if len(content.strip()) < 200:
         errors.append("Brief is too short.")
     for required_section in (
+        "source_material:",
         "interaction_modes:",
         "environment:",
         "initial_and_action_states:",
@@ -1716,6 +2494,15 @@ def brief_readiness_errors(root: Path, lab_id: str) -> list[str]:
         errors.append("Brief must preserve `equivalent_by_default` desktop-to-XR mapping.")
     if "exceptions:" not in lowered:
         errors.append("Brief must record desktop-to-XR mapping exceptions, normally an empty list.")
+    expected_manifest = source_reference_relative_path(lab_id).as_posix()
+    if expected_manifest not in content:
+        errors.append("Brief does not identify its per-Lab reusable source-reference manifest.")
+    if "reusable_source_reference_base: \"builder_pack_root\"" not in content:
+        errors.append("Brief must resolve reusable sources from builder_pack_root.")
+    if "reusable_source_access: \"read_only\"" not in content:
+        errors.append("Brief must keep reusable sources read-only.")
+    if "persisted_absolute_source_paths: false" not in content:
+        errors.append("Brief must forbid persisted absolute reusable-source paths.")
     return errors
 
 
@@ -1733,6 +2520,7 @@ def design_readiness_errors(root: Path, lab_id: str) -> list[str]:
         errors.append("design.md still contains unresolved placeholders.")
     for heading in (
         "## Mandatory Common reuse audit",
+        "## Portable reusable source references",
         "## API signature audit",
         "## Prior rebuild lessons applied",
         "## Environment decision",
@@ -1748,6 +2536,19 @@ def design_readiness_errors(root: Path, lab_id: str) -> list[str]:
         errors.append("design.md does not include the mandatory room Prefab path")
     if "UnityProject/LocalPackages/com.emvr.lab-common" not in content:
         errors.append("design.md does not identify the canonical Common package path")
+    if source_reference_relative_path(lab_id).as_posix() not in content:
+        errors.append("design.md does not identify its per-Lab source-reference manifest")
+    for required_reference_text in (
+        "Policies/reuse-source-references.json",
+        "repository-relative POSIX",
+        "Persisted absolute paths: forbidden",
+        "Reusable source access: read-only",
+    ):
+        if required_reference_text not in content:
+            errors.append(
+                "design.md is missing reusable-source reference rule: "
+                + required_reference_text
+            )
     if "ReusableFoundation/Gate5MinimalSlice" not in content:
         errors.append("design.md does not identify the protected Gate 5 reusable foundation")
     if f"Assets/Generated/{lab_id}/Gate5Foundation/" not in content:
@@ -1778,15 +2579,17 @@ def design_readiness_errors(root: Path, lab_id: str) -> list[str]:
 def gate_readiness_errors(root: Path, state: dict[str, Any], gate: int) -> list[str]:
     lab_id = state["lab_id"]
     baseline_errors = protected_baseline_errors(root, state)
+    reference_errors = source_reference_errors(root, state)
     if gate == 0:
         errors = foundation_errors(root)
         errors.extend(prior_lessons_review_errors(root, lab_id))
+        errors.extend(reference_errors)
         if ensure_evidence(state).get("boundary_verifier") != "passed":
             errors.append("Builder Boundary verifier has not been recorded as passed.")
         errors.extend(baseline_errors)
         return errors
-    if baseline_errors:
-        return baseline_errors
+    if baseline_errors or reference_errors:
+        return baseline_errors + reference_errors
     if gate == 1:
         return brief_readiness_errors(root, lab_id)
     if gate == 2:
@@ -1811,6 +2614,8 @@ def gate_readiness_errors(root: Path, state: dict[str, Any], gate: int) -> list[
     if gate == 5:
         missing = gate5_materialization_errors(root, lab_id)
         missing.extend(approved_asset_import_errors(root, lab_id))
+        missing.extend(room_scene_reuse_errors(root, state))
+        missing.extend(xr_reuse_errors(root, state))
         missing.extend(gate5_evidence_freshness_errors(root, state))
         if evidence.get("gate5_foundation") != "passed":
             missing.append(
@@ -2041,6 +2846,12 @@ def command_scaffold(args: argparse.Namespace) -> int:
     require_gate_approved(state, 3)
     if current_gate(state) != 4:
         raise RuntimeError(f"Scaffolding belongs to Gate 4, but current gate is {current_gate(state)}.")
+    integrity_errors = protected_baseline_errors(root, state) + source_reference_errors(root, state)
+    if integrity_errors:
+        raise RuntimeError(
+            "Scaffold blocked by protected run integrity:\n- "
+            + "\n- ".join(integrity_errors)
+        )
     errors, _warnings, _bundle = validate_contracts(root, lab_id)
     if errors:
         raise RuntimeError("Contracts are invalid. Run validate before scaffold.")
@@ -2065,6 +2876,13 @@ Generated files:
 
 - `{runtime.relative_to(root).as_posix()}`
 - `{editor.relative_to(root).as_posix()}`
+
+Reusable source references:
+
+- Manifest: `{source_reference_relative_path(lab_id).as_posix()}`
+- Resolve it at runtime with `python Tools/labflow/labflow.py source-references --lab-id {lab_id}`.
+- The displayed absolute paths are temporary diagnostics. Never save them in source,
+  contracts, evidence, or scene-building code. Reusable sources remain read-only.
 
 Unity beginner handoff requirements:
 
@@ -2122,7 +2940,9 @@ print success. Never adopt an existing scene that lacks the generated marker
 root. Do not declare the lab complete yet.
 ''')
     state["stage"] = "scaffold_ready"
-    state["generated_files"] = [str(runtime.relative_to(root)), str(editor.relative_to(root)), str(guide.relative_to(root))]
+    state["generated_files"] = [
+        path.relative_to(root).as_posix() for path in (runtime, editor, guide)
+    ]
     ensure_evidence(state)["scaffold_compile"] = "pending"
     save_state(root, lab_id, state)
     print(f"Scaffold generated for {lab_id}.")
@@ -2183,6 +3003,8 @@ def next_action(root: Path, state: dict[str, Any]) -> str:
                 f"--lab-id {state['lab_id']}` once."
             )
         return "Complete the safe prior-lessons review, or report any protected-baseline blocker shown above."
+    if protected_baseline_errors(root, state) or source_reference_errors(root, state):
+        return "Stop and report the protected run integrity errors to the maintainer; preserve the original Gate 0 baseline."
     return {
         1: "Complete the Brief interview and Brief file in one work package, then submit it once for approval.",
         2: "Complete and validate all five contracts in one work package, then submit Gate 2 once for approval.",
@@ -2258,6 +3080,8 @@ def command_status(args: argparse.Namespace) -> int:
         "brief_confirmed": state.get("brief_confirmation", {}).get("confirmed", False),
         "design_approved": state.get("design_approval", {}).get("approved", False),
         "protected_baseline": state.get("protected_baseline"),
+        "protected_maintenance": state.get("protected_maintenance", []),
+        "source_references": state.get("source_references"),
         "evidence": state.get("evidence", {}),
         "next_action": next_action(root, state),
     }
@@ -2306,6 +3130,8 @@ def command_record(args: argparse.Namespace) -> int:
     if args.gate5_foundation == "passed":
         materialization_errors = gate5_materialization_errors(root, lab_id)
         materialization_errors.extend(approved_asset_import_errors(root, lab_id))
+        materialization_errors.extend(room_scene_reuse_errors(root, state))
+        materialization_errors.extend(xr_reuse_errors(root, state))
         if materialization_errors:
             raise RuntimeError(
                 "Cannot record Gate 5 foundation as passed:\n- "
@@ -2445,6 +3271,7 @@ def command_migrate_state(args: argparse.Namespace) -> int:
     workflow_mode = str(state.get("workflow_mode", "blind-rebuild"))
     validate_workspace_mode(root, lab_id, workflow_mode)
     state["workflow_mode"] = workflow_mode
+    state["source_references"] = ensure_source_reference_manifest(root, lab_id)
 
     evidence = ensure_evidence(state)
     state.setdefault("migration_history", []).append(
@@ -2454,8 +3281,8 @@ def command_migrate_state(args: argparse.Namespace) -> int:
             "migrated_at": utc_now(),
             "invalidated_gates": list(range(11)),
             "reason": (
-                "Gate 0 now captures a one-time protected run baseline in addition to "
-                "release-level frozen hashes; all gates require fresh review."
+                "Gate 0 now binds immutable repository-relative reusable-source references "
+                "and captures a one-time protected run baseline; all gates require fresh review."
             ),
         }
     )
@@ -2486,12 +3313,24 @@ def command_migrate_state(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_source_references(args: argparse.Namespace) -> int:
+    root = args.project_root.resolve()
+    lab_id = require_lab_id(args.lab_id)
+    state = load_current_state(root, lab_id)
+    validate_workspace_mode(root, lab_id, str(state.get("workflow_mode", "blind-rebuild")))
+    print(json.dumps(resolved_source_references(root, state), ensure_ascii=False, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Contract-first workflow for Summer26 Unity VR labs.")
     parser.add_argument("--project-root", type=Path, default=Path(__file__).resolve().parents[2], help="Builder Pack root (defaults to this repository).")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    new = subparsers.add_parser("new", help="Create a brief, design review, state, and five contracts.")
+    new = subparsers.add_parser(
+        "new",
+        help="Create a brief, portable read-only source references, design review, state, and five contracts.",
+    )
     new.add_argument("--lab-id", required=True)
     new.add_argument("--title", required=True)
     new.add_argument("--domain", required=True)
@@ -2518,6 +3357,16 @@ def build_parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("status", help="Show workflow gates, evidence, and next action.")
     status.add_argument("--lab-id", required=True)
     status.set_defaults(func=command_status)
+
+    source_references = subparsers.add_parser(
+        "source-references",
+        help=(
+            "Validate the immutable per-Lab reference manifest and print runtime-only "
+            "absolute paths resolved from the current Builder Pack root."
+        ),
+    )
+    source_references.add_argument("--lab-id", required=True)
+    source_references.set_defaults(func=command_source_references)
 
     migrate_state = subparsers.add_parser(
         "migrate-state",

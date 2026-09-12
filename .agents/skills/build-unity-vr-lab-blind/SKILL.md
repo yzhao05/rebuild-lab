@@ -81,7 +81,9 @@ perform only child creation and handoff: do not write Gate 0 artifacts or call
 the workspace switch a blocked Gate. Gate 0 begins after `labflow new` in the child.
 
 ## Verify the boundary first
-1. Confirm the working root contains `Policies/reuse-allowlist.json`.
+1. Confirm the working root contains `Policies/reuse-allowlist.json` and
+   `Policies/reuse-source-references.json`. The latter is the authoritative,
+   read-only catalog of reusable source/code/asset references.
 2. Run `scripts/verify_builder_pack.ps1`.
 3. Read `Policies/reuse-policy.md` and
    [references/reuse-categories.md](references/reuse-categories.md).
@@ -115,6 +117,14 @@ python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>
 ```
 Never edit release frozen hashes or recapture/overwrite this baseline; every later gate verifies it.
 
+For a maintainer-repaired pre-scaffold Gate 4 run, follow the compatibility
+receipt rules in `Policies/reuse-policy.md`. Preserve the original baseline,
+`BuildEvidence/<lab_id>/protected-maintenance/*.json` and the state
+`protected_maintenance` registrations. The Builder cannot issue, edit, remove,
+rehash or register receipts. Rerun Boundary, source-references and status;
+resume the same Gate 4 only when integrity passes. Prior approvals remain
+unchanged, and scaffold generation/Unity compile evidence are still required.
+
 Treat Unity MCP as disabled. Do not call Unity MCP tools or MCP-provided Skills,
 do not add `com.ivanmurzak.unity.mcp`, and do not set `UNITY_MCP_READY`. Use
 filesystem work plus the user-owned Unity validation handoff instead.
@@ -141,6 +151,14 @@ Lab-specific Unity files declared in its implementation handoff, and
 `UnityProject/Assets/Generated/<lab_id>/ApprovedDependencies/`; this generated
 copy is current-Lab output, while the approved source remains read-only. Read
 Category A/B/C resources without changing their source.
+
+`labflow new` creates `LabSpecs/<lab_id>/source-references.json` from the
+protected catalog and locks its SHA-256 in `workflow_state.json`. This manifest
+transfers references to the original reusable code/assets without altering
+their content. Treat both the referenced sources and this generated manifest
+as immutable after creation. Persist only repository-relative POSIX paths; do
+not write drive letters, UNC paths, or any machine-specific absolute path into
+Lab code, contracts, scenes, specifications, or evidence.
 
 The only reusable C# foundation-copy mechanism is the Gate 5 materializer. It verifies
 and copies `ReusableFoundation/Gate5MinimalSlice/Source/` byte-for-byte into
@@ -243,8 +261,14 @@ After PASS, give the user the exact absolute child path
 the workspace. Continue there and have the Agent run:
 ```powershell
 python Tools/labflow/labflow.py new --mode blind-rebuild --lab-id <lab_id> --title "<title>" --domain <domain> --scene Assets/Scenes/<Output>.unity
+python Tools/labflow/labflow.py source-references --lab-id <lab_id>
 python Tools/labflow/labflow.py status --lab-id <lab_id>
 ```
+The `source-references` command validates the immutable manifest and resolves
+its entries from the currently opened Builder Pack root. Its absolute paths
+are runtime-only diagnostic output for the Agent and must not be copied into a
+file. After a GitHub clone, rerun this command; never edit paths to match the
+new machine.
 The workflow creates a new scene and never copies a donor scene. `labflow new`
 requires no other run output. Never overwrite/delete an existing destination or
 use the master Pack, its parent/sibling, another name, or a prior run; report a
@@ -273,11 +297,15 @@ the action. Record every confirmed exception explicitly; do not invent one.
 
 Always plan to reuse the mandatory room and verified XR baselines:
 
-- `ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab`;
+- `ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab`, Part 02 and Part 03, composed using frozen `Policies/emvr-room-assembly.json`;
 - `ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab`;
 - `ApprovedAssets/XRInteractionToolkitSamples/XR Device Simulator/XR Device Simulator.prefab`.
 
 Record these sources and their intended generated paths in the Brief/design,
+using `LabSpecs/<lab_id>/source-references.json` as the binding to the original
+read-only sources. The referenced bytes must remain unchanged. Resolve paths
+from the current Builder Pack root rather than copying an absolute path from a
+different machine.
 but do not copy them during Gate 1. The actual imports belong to Gate 5 so one response
 does not perform work from multiple gates. At Gate 5, instantiate the result under
 `Assets/Generated/<lab_id>/ApprovedDependencies/` in a new Lab scene. Preserve
@@ -346,6 +374,9 @@ protected C# foundation. Run these exact commands from the Builder Pack root:
 
 ```powershell
 python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
+python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "EMVRRoom/Prefabs/Room_Big_Part_02.prefab"
+python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "EMVRRoom/Prefabs/Room_Big_Part_03.prefab"
+python .agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py --lab-id <lab_id> --source "EMVRRoom/Lighting/RoomLighting.lighting"
 ```
 
 ```powershell
@@ -370,6 +401,60 @@ template, a visible collidable spawned object, desktop drag, state/reset,
 status, telemetry, assist, and fail-closed build handling. Do not implement a
 parallel Lab-specific pointer, XR, button-wiring, replacement-spawn, state,
 status, telemetry, assist, or room system. Enforce the room-shell and runtime-camera/UI-front contracts in `references/workflow-gates.md`; never flip both the camera and UI.
+
+Room lighting must use the complete, immutable
+`Policies/emvr-room-lighting.json` and the imported original `RoomLighting.lighting`.
+Preserve all room Parts and lighting source/import bytes. Apply its original
+values using the published LF-serialized RoomLighting asset. Its LF serialization
+is a maintainer-owned release normalization (2026-09-12); all values and GUIDs
+are preserved. Source/import equality remains byte-exact, with no EOL exception
+and no Builder-owned normalization or manifest rehash. Apply its original
+RenderSettings except the user-approved Flat ambient RGB lift (original x1.5,
+2026-09-12). Use the profile's `render_settings` as current defaults and retain
+`original_render_settings` as provenance only. Reference its LightingSettings asset (realtime GI on, baked
+GI off); never replace them with Unity defaults or guessed brightness values.
+Historical `Policies/EMVRRoomLightingReference/LightingData.asset` is read-only
+reference data tied to old scene objects; never import/assign it to a new scene.
+The user-invoked Editor Build must automatically bind and validate current-Lab
+execution settings, save the assembled scene and verify protected source bytes.
+Finish with the manual Lighting-window handoff; do not automatically bake in Build.
+Keep a generation-only recovery menu using the same adapter/save protection.
+Declare generated `UnityProject/Assets/Scenes/<lab_id>/` lighting output in the
+implementation handoff. Build success is not GI completion or Gate 5 acceptance.
+
+Every Gate 5A user-facing reply must include this ordered lighting procedure:
+
+1. Exit Play Mode.
+2. Run the current Lab's Build menu once. For `ece329_electric_field_0`:
+   `Tools > EMVR > Labs > Build Ece329 Electric Field 0`.
+3. `Window > Rendering > Lighting > Generate Lighting, wait, then save.`
+
+Use the actual generated Build menu name for another Lab. This supersedes the
+older lighting-only one-line handoff and the instruction to omit Build when a
+settings reference exists. Keep the normal reply concise; keep asset/reference
+checks internal and add diagnostics only for an actual failure or user request.
+Generate after that Build and save after completion. Do not ask for another Build
+after generation unless content changes; a later Build requires regeneration.
+
+For the observed native workflow=0 import mismatch, use reuse-policy's current-scene
+execution adapter: clone via Unity's native APIs into the declared Lab lighting output,
+disable Auto Generate only there, validate all source parameters/provenance and reference
+that execution asset. Keep the original source/import bytes intact. Reuse the
+user-verified source-cache retirement and exact-path save guard from reuse-policy
+as mandatory defaults; do not rewrite or replace available code without an
+explicit user change request. This supersedes
+earlier direct-reference wording; it does not authorize arbitrary replacement settings.
+Follow `Policies/reuse-policy.md` "Gate 5 lighting handoff": require automatic
+reference assignment, save protection and manual generation sequence defined there. Check
+completion, the target scene and its saved data reference; failures remain pending. Never ask users to create or drag in
+LightingSettings. Report build, interaction readiness, GI generation and
+visual acceptance separately. Generate only after the last required Build;
+after the prescribed Build has completed, generation-only recovery may retry GI
+without another rebuild. Never reject GI solely because LightingData has an older file timestamp
+than the scene. Saving and Git checkout can change these times. A valid saved reference
+still requires native completion and visual evidence. Every later rebuild requires
+new lighting generation. Keep Auto Generate and
+all source defaults unchanged; do not claim READY means the lighting passed.
 
 Instantiate `XR Interaction Setup.prefab` as the top-level setup; do not use
 the bare `XR Origin (XR Rig).prefab` as an equivalent baseline. Preserve the

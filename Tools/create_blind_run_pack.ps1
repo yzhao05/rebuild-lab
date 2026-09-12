@@ -123,11 +123,14 @@ try {
     }
 
     $marker = [ordered]@{
-        schema_version = "1.1.0"
+        schema_version = "1.2.0"
         workflow_mode = "blind-rebuild"
         lab_id = $LabId
         required_master_directory_name = "EMVR_Blind_BuilderPack"
         required_directory_name = "EMVR_Blind_Rebuild_$LabId"
+        reference_base = "builder_pack_root"
+        path_format = "repository_relative_posix"
+        absolute_paths_persisted = $false
     } | ConvertTo-Json
     Set-Content -LiteralPath (Join-Path $Destination ".emvr-workspace.json") -Value $marker -Encoding utf8
 

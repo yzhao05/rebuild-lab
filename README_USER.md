@@ -1,5 +1,27 @@
 # EMVR Unity VR Lab 自动重建：用户使用说明
 
+## GitHub 上传与下载
+
+GitHub 不要求 CRLF。本发布包通过 `.gitattributes` 的 `* -text` 保留每个文件的
+原始字节，使 clone、Download ZIP 和本地文件使用相同哈希。不要批量转换 LF/CRLF，
+也不要在下载后修改冻结哈希。Unity 光照设置文件保持已发布的 LF。
+
+上传请使用干净发布包，包含隐藏的 `.agents`、`.gitattributes`、`.gitignore`；
+不要上传当前 Lab 的运行记录、场景、保护基线、维护凭证或 Unity 缓存。
+建议仓库名为 `EMVR_Blind_BuilderPack`。若更新已有仓库，维护方应在干净发布副本
+中执行 `git add -A` 和 `git add --renormalize .`，检查暂存差异后再提交，确保旧
+索引也按保留字节规则重新写入。不要只提交 `.gitattributes` 而保留旧转换后的文件。
+
+下载时可用 Git clone 或 Download ZIP。ZIP 解压后的目录可能带 `-main` 等后缀，
+请将主目录重命名为 `EMVR_Blind_BuilderPack`。在该目录运行边界检查：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .agents/skills/build-unity-vr-lab-blind/scripts/verify_builder_pack.ps1
+```
+
+看到 PASS 后再让 Builder 创建新的独立 Lab。出现哈希错误时保留错误信息并交给
+维护方处理，不要重采基线或修改资源文件来绕过检查。
+
 本文面向使用 AI 重建 EMVR Unity VR Lab 的用户。即使你没有使用过 Unity，
 也可以按本文操作。AI 必须在每次需要你操作 Unity 时给出准确的菜单位置、点击
 顺序、成功标准和失败截图要求。
@@ -188,6 +210,18 @@ python Tools/labflow/labflow.py new --mode blind-rebuild --lab-id <lab_id> --tit
 
 这些命令通常由 AI 执行，用户不需要手动输入。
 
+初始化时 AI 还会生成
+`LabSpecs/<lab_id>/source-references.json`，把原始可复用代码和资源以“只读引用”
+交给当前 Lab。文件中只保存相对于当前 Builder Pack 根目录的路径，不保存
+`C:\`、`D:\`、`E:\` 等本机绝对地址。仓库从 GitHub 克隆到另一台电脑后，
+AI 会运行下面的解析命令，无需用户改路径：
+
+```powershell
+python Tools/labflow/labflow.py source-references --lab-id <lab_id>
+```
+
+命令显示的绝对路径只用于当次诊断，不能写回源码、场景、合同或证据文件。
+
 ## 6. 每个 Gate 的作用
 
 ### Gate 0：边界与历史经验检查
@@ -197,6 +231,7 @@ python Tools/labflow/labflow.py new --mode blind-rebuild --lab-id <lab_id> --tit
 AI 会：
 
 - 运行 Builder Boundary；
+- 验证只读源码引用清单、相对路径和清单哈希；
 - 检查 Common、本地 Unity 包路径、MCP 禁用状态和单运行边界；
 - 记录发布边界 PASS 后，由 AI 执行 `python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>`，一次性保存本次运行的受保护文件基线；
 - 阅读允许使用的跨 Lab 构建经验；
@@ -207,6 +242,12 @@ AI 会：
 
 发布包固定哈希只允许工作流维护端更新。Gate 0 基线保存在
 `BuildEvidence/<lab_id>/gate0-protected-baseline.json`，不能覆盖或重新生成；Gate 1–10 发现受保护文件相对基线有新增、删除或变化时会停止。
+
+Gate 4 尚未生成脚手架时，用户授权的维护方可登记逐文件旧／新哈希维护凭据，
+保留原基线和 Gate 0–3 审批。Builder 不得签发、修改、删除或重新登记凭据，
+也不得修改 state 中的 `protected_maintenance`。维护完成后重新执行
+Boundary、source-references 和 status，完整性通过即可在原 Gate 4 继续；
+仍须生成脚手架并取得 Unity 零错误证据。规则见 `Policies/reuse-policy.md`。
 
 ### Gate 1：确认实验 Brief
 

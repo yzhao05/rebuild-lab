@@ -51,6 +51,66 @@ new Lab scene must instantiate the approved EMVR
 `ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab`; the XRI
 `Teleportation Environment` is only a sample ground and is not a room.
 Copying a donor scene or substituting generated Cube walls is forbidden.
+Use the complete EMVRLABS room in frozen `Policies/emvr-room-assembly.json`:
+two Part 01, two Part 02, one Part 03, with its module placements and room-only
+floor/light instance overrides. Two Part 01 copies alone form a smaller room
+and do not reproduce the approved EMVRLABS room. Import all three Prefabs by
+GUID closure. Preserve source/imported bytes, links and positive unit scale;
+apply only recipe-listed instance overrides. Validate the 15 x 18 m extent,
+actual floor support, joins and both sides of the room before saving.
+All room Parts, meshes, materials, textures, .meta files and their generated
+imports are read-only to the workflow. The full assembly recipe is read-only
+as well. Never regenerate, unpack, simplify, replace, delete or edit a Part or
+its dependencies; never edit source/import hashes to accept drift. Reuse all
+five recipe instances every time: Part 01 x2, Part 02 x2, Part 03 x1. Apply only
+the frozen recipe's existing instance settings and whole-room placement.
+Importing all source files is not proof of complete scene reuse: Gate 5 must
+also check the saved scene's exact linked-instance counts and reject removed,
+added, disabled or rescaled module content. Do not accept a partial room.
+All room Parts, meshes, materials, textures, .meta files and their generated
+imports are read-only to the workflow. The full assembly recipe is read-only
+as well. Never regenerate, unpack, simplify, replace, delete or edit a Part or
+its dependencies; never edit source/import hashes to accept drift. Reuse all
+five recipe instances every time: Part 01 x2, Part 02 x2, Part 03 x1. Apply only
+the frozen recipe's existing instance settings and whole-room placement.
+Importing all source files is not proof of complete scene reuse: Gate 5 must
+also check the saved scene's exact linked-instance counts and reject removed,
+added, disabled or rescaled module content. Do not accept a partial room.
+XR is a required default, not optional sample
+code: obey `Policies/reuse-policy.md` "Gate 5 XR defaults and ownership".
+Reuse complete Setup/Simulator Prefabs and Common components; never fork or
+reimplement available simulator, controller tracking, ray or input code.
+Only an explicit user request may initiate a documented change; routine Lab
+approval is not permission. Preserve source/import bytes and ray/model poses.
+Gate 5 defaults to four original Part 03 point lights at intensity 5.0 using
+existing frozen overrides, Flat ambient intensity 1.0 and the exact environment
+settings in `Policies/reuse-policy.md`; add no Directional Light. Apply scene
+settings before visual validation and keep room asset/recipe bytes unchanged.
+Use read-only `Policies/emvr-room-lighting.json` and import the complete original
+`ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting`, including its GI values.
+Follow reuse-policy's current-scene lighting compatibility adapter: preserve the
+imported source, derive native RoomLighting_Execution for the current Lab, enforce
+OnDemand there, and validate source provenance plus all original light parameters.
+The native execution asset replaces the direct imported-settings scene reference;
+this exception does not authorize editing source/import assets or room Parts.
+Historical LightingData is sealed reference-only; regenerate current-scene GI
+data in Unity after rebuilding, preserving all source/setting/Part bytes.
+Gate 5 requires current lighting data and observed visual validation, not only
+matching direct-light intensity. Follow reuse-policy's validated execution adapter,
+source-cache retirement and exact-path save guard as mandatory defaults; do not
+rewrite them without an explicit user change request. Build assigns settings and
+saves the scene, then hands off manual lighting generation. Keep Auto Generate off;
+never generate on import/startup/Play. A null saved LightingData reference blocks
+acceptance; an older file timestamp alone does not prove stale GI. Only an explicit
+user request initiates changes to these defaults.
+The user-approved brighter default (2026-09-12) uses original Flat ambient RGB
+x1.5: (0.13116321, 0.15650724, 0.212264115). Use the frozen lighting profile's
+render_settings for scenes; original_render_settings is provenance only. Original
+LightingSettings, all room Parts/recipe and four point lights at 5 remain unchanged.
+The published RoomLighting text uses canonical LF (maintainer normalization,
+2026-09-12); original values/GUID and metadata are retained. Source and imported
+copies must still match byte-for-byte. Builder must never normalize a copy,
+accept an EOL-only mismatch, or refresh import/release hashes on its own.
 Require the scene builder to reject a room instance without floor, wall, and
 roof geometry, and require the actual runtime camera to view the readable front
 of every world-space Canvas/TextMesh (`-Transform.forward` in Unity). Require initial and post-first-action visible
@@ -87,6 +147,24 @@ Never overwrite or recapture it. Gates 1–10 must stop if `labflow` reports any
 protected file added, removed, or changed relative to that snapshot. The
 current Lab's Gate 10 lesson is the only planned exclusion.
 
+For a maintainer-repaired pre-scaffold Gate 4 run, follow the compatibility
+receipt rules in `Policies/reuse-policy.md`. Preserve the original baseline,
+`BuildEvidence/<lab_id>/protected-maintenance/*.json` and the state
+`protected_maintenance` registrations. The Builder cannot issue, edit, remove,
+rehash or register receipts. Rerun Boundary, source-references and status;
+resume the same Gate 4 only when integrity passes. Prior approvals remain
+unchanged, and scaffold generation/Unity compile evidence are still required.
+For a maintainer-reviewed pending Gate 5 room-assembly correction, the separate
+`gate5_room_assembly_guidance_v1` receipt profile permits only its five named
+tooling/instruction files. The same immutable-baseline and maintainer-only
+issuance rules apply. It does not change approved assets, reusable code,
+source-reference bindings, prior approvals, or grant any Gate 5 evidence.
+For a maintainer-reviewed pending Gate 5 room-assembly correction, the separate
+`gate5_room_assembly_guidance_v1` receipt profile permits only its five named
+tooling/instruction files. The same immutable-baseline and maintainer-only
+issuance rules apply. It does not change approved assets, reusable code,
+source-reference bindings, prior approvals, or grant any Gate 5 evidence.
+
 Gate 5 also has a protected reusable source at
 `ReusableFoundation/Gate5MinimalSlice/`. Copy it only with the Skill's
 `materialize_gate5_foundation.py` into
@@ -98,7 +176,23 @@ API, or behavior defect is a protected-foundation blocker owned by the user.
 Unity MCP is disabled for this workflow. Do not call Unity MCP tools or its
 generated Skills, add its package dependency, restore its active NuGet DLLs, or
 set `UNITY_MCP_READY`. Hand Unity-owned actions and observations to the user.
-Assume the user has never used Unity. Every handoff must give a numbered click
+
+Every Gate 5A user-facing reply must include this ordered lighting procedure:
+
+1. Exit Play Mode.
+2. Run the current Lab's Build menu once. For `ece329_electric_field_0`:
+   `Tools > EMVR > Labs > Build Ece329 Electric Field 0`.
+3. `Window > Rendering > Lighting > Generate Lighting, wait, then save.`
+
+Use the actual generated Build menu name for another Lab. This supersedes the
+older lighting-only one-line handoff and the instruction to omit Build when a
+settings reference exists. Keep the normal reply concise; keep asset/reference
+checks internal and add diagnostics only for an actual failure or user request.
+Generate after that Build and save after completion. Do not ask for another Build
+after generation unless content changes; a later Build requires regeneration.
+
+For other Unity actions,
+assume the user has never used Unity. Every handoff must give a numbered click
 path with the exact Unity top-menu location, tab/window position, target name,
 button, success result, failure screenshot/text, and actions to avoid. Read the
 Skill's `references/unity-beginner-handoff.md`; never say only `run Test Runner`,
@@ -145,6 +239,17 @@ that exact KnowledgeBase file, and previous lessons remain read-only.
 
 ## Protected workflow foundation
 
+Git distribution must preserve the reviewed bytes of every file. Keep the root
+`.gitattributes` rule `* -text` and its binary declarations; do not add newline,
+encoding, content-filter or archive-substitution overrides. Do not mass-convert
+files to LF or CRLF, modify source hashes, or recapture a run baseline after
+cloning. The published LightingSettings remains LF. Verify Boundary after clone
+or ZIP extraction; preserve the master folder name `EMVR_Blind_BuilderPack`.
+Publishing guidance is in README_USER.md. The maintainer-only
+`gate5_git_byte_preservation_v1` receipt profile permits its eight named
+tooling/instruction files at pending Gate 5; it never permits asset changes or
+baseline replacement and grants no gate evidence.
+
 During a Lab rebuild, treat the workflow foundation as user-owned and read-only.
 This includes `.gitattributes`, `.gitignore`, `AGENTS.md`, `.agents/`, `Policies/`, `Tools/`, `LocalPackages/`,
 `UnityProject/LocalPackages/`, `OptionalIntegrations/`,
@@ -152,6 +257,13 @@ This includes `.gitattributes`, `.gitignore`, `AGENTS.md`, `.agents/`, `Policies
 `UnityProject/Packages/`, `UnityProject/ProjectSettings/`, and pre-existing
 shared content under `UnityProject/Assets/` such as `ApprovedReuse/` and
 `Plugins/`.
+
+Before reading or transferring reusable implementation, validate
+`Policies/reuse-source-references.json` and the current
+`LabSpecs/<lab_id>/source-references.json` with `labflow source-references`.
+The catalog, per-Lab manifest, and every referenced source are read-only. Use
+only the declared transfer mode. Persist repository-relative POSIX paths only;
+the resolver's absolute output is temporary and must not enter generated files.
 
 The Builder Agent may write only the current Lab's specification, five
 non-example contracts, declared Lab-specific Unity output files, and
@@ -176,3 +288,9 @@ missing requirement by locating a Gold scene or source file.
 
 Never hand-edit a `.unity` scene YAML file. Generate scenes through an Editor
 builder and ask the user to perform Unity-owned Play Mode checks.
+
+The maintainer-only `gate5_emvrlabs_room_sources_v1` profile registers the
+explicit room-source expansion during pending Gate 5. It permits only its
+named tooling/inventory files and seven named additions. Original snapshots,
+earlier receipts, source-reference bindings and approvals remain unchanged.
+Builder cannot issue or modify maintenance receipts.

@@ -14,9 +14,9 @@
     },
     "ApprovedAssets": {
       "category": "direct_reuse",
-      "files": 791,
-      "bytes": 51132744,
-      "directory_digest_sha256": "371168E69977525C0352E575849B8CE3A30FB109EFDA8F8377BD9B8743372DC5"
+      "files": 799,
+      "bytes": 51307340,
+      "directory_digest_sha256": "B4F85A872A325323B81DE38A19B6FC50BF2797DE7F00709E2146A0EBC3042258"
     },
     "ReusableFoundation/Gate5MinimalSlice": {
       "category": "controlled_immutable_copy",
@@ -50,6 +50,16 @@
     "LabInterfaceContracts": {
       "category": "single_run_generated_input",
       "integrity": "per_run_generated"
+    },
+    "EMVRRoomAssembly": {
+      "path": "Policies/emvr-room-assembly.json",
+      "sha256": "6941DF22DC7B29223F2BBFE4C37372BD6C9C17C46A76A4C4EECEBDB01CFBC148",
+      "layout_revision": "emvrlabs-room-v1"
+    },
+    "EMVRRoomLighting": {
+      "path": "Policies/emvr-room-lighting.json",
+      "sha256": "1A22ABBE2E8C1F87307655224412F4BBC83C65C7376D5966BF01DDB76770B270",
+      "revision": "emvrlabs-ambient-lift-v3"
     }
   },
   "boundary_verification": "run .agents/skills/build-unity-vr-lab-blind/scripts/verify_builder_pack.ps1"

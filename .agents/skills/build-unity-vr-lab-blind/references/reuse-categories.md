@@ -12,6 +12,13 @@ capability-triggered requirements in
 [mandatory-reuse-matrix.md](mandatory-reuse-matrix.md). Record wiring and
 evidence for every mandatory row in the current design.
 
+Obtain Category A/B source locations only from the current immutable
+`LabSpecs/<lab_id>/source-references.json`, generated from
+`Policies/reuse-source-references.json`. Resolve repository-relative paths
+against the current Builder Pack root. Never alter a referenced source or save
+the runtime resolver's absolute path; use the declared reference/import/copy
+mode so source bytes stay unchanged.
+
 The protected Gate 5 foundation is Category A with controlled-copy semantics,
 not an editable Category B example. Run `materialize_gate5_foundation.py`; it
 copies the manifest-verified source byte-for-byte into the current Lab. Do not

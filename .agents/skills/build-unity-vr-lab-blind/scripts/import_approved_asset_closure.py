@@ -19,7 +19,7 @@ from pathlib import Path
 
 
 LAB_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
-CURRENT_STATE_SCHEMA = "1.9.0"
+CURRENT_STATE_SCHEMA = "2.0.0"
 GUID_PATTERN = re.compile(r"\bguid:\s*([0-9a-fA-F]{32})\b", re.IGNORECASE)
 TEXT_EXTENSIONS = {
     ".anim", ".asmdef", ".asmref", ".asset", ".compute", ".controller", ".cs",

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import argparse
+import copy
 import importlib.util
 import json
 import os
 import shutil
 import tempfile
 import unittest
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from unittest import mock
 
 
@@ -17,7 +19,526 @@ labflow = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(labflow)
 
 
+def make_source_reference_fixture(root: Path, lab_id: str = "lab_example") -> dict:
+    sources = []
+    for source_id in labflow.REQUIRED_SOURCE_REFERENCE_IDS:
+        relative = f"Sources/{source_id}"
+        (root / relative).mkdir(parents=True, exist_ok=True)
+        sources.append(
+            {
+                "source_id": source_id,
+                "source_kind": "directory",
+                "path": relative,
+                "access": "read_only",
+                "transfer_mode": "reference_only",
+            }
+        )
+    catalog = {
+        "schema_version": labflow.SOURCE_REFERENCE_SCHEMA,
+        "reference_base": "builder_pack_root",
+        "path_format": "repository_relative_posix",
+        "absolute_paths_persisted": False,
+        "source_access": "read_only",
+        "integrity_enforcement": ["per_lab_reference_manifest_sha256"],
+        "sources": sources,
+    }
+    labflow.write_json(root / labflow.SOURCE_REFERENCE_CATALOG, catalog)
+    metadata = labflow.ensure_source_reference_manifest(root, lab_id)
+    state = {
+        "schema_version": labflow.CURRENT_STATE_SCHEMA,
+        "lab_id": lab_id,
+        "source_references": metadata,
+    }
+    return state
+
+
+def make_scaffold_fixture(root: Path) -> dict:
+    """Create an isolated Gate 4 test run with real reference/baseline locks."""
+    state = make_source_reference_fixture(root)
+    state.update(
+        workflow_mode="integrated-development",
+        scene="Assets/Scenes/LabExample.unity",
+        stage="design_approved",
+        gate_approvals={},
+        evidence=labflow.default_evidence(),
+        protected_baseline=None,
+        design_approval={"approved": True},
+    )
+    labflow.write_text(root / "Tools/labflow/labflow.py", "# fixture tool\n")
+    state["evidence"]["boundary_verifier"] = "passed"
+    with mock.patch.object(labflow, "foundation_errors", return_value=[]):
+        labflow.capture_gate0_protected_baseline(root, "lab_example", state)
+    state["gate_approvals"] = {
+        str(gate): {"approved": True, "note": "unit-test fixture"}
+        for gate in range(4)
+    }
+    labflow.save_state(root, "lab_example", state)
+    return state
+
+
+def add_maintenance_fixture(root: Path, state: dict) -> Path:
+    """Model explicit maintainer issuance, never automatic drift acceptance."""
+    baseline = labflow.read_json(root / state["protected_baseline"]["path"])
+    effective, errors = labflow.maintained_protected_files(root, state, baseline["files"])
+    assert not errors
+    previous = state.get("protected_maintenance", [])
+    sequence = len(previous) + 1
+    relative = "Tools/labflow/labflow.py"
+    old = effective[relative]
+    (root / relative).write_text(f"# maintenance {sequence}\n", encoding="utf-8")
+    path = root / labflow.protected_maintenance_relative_path(state["lab_id"], sequence)
+    receipt = {
+        "schema_version": labflow.PROTECTED_MAINTENANCE_SCHEMA,
+        "profile": labflow.PROTECTED_MAINTENANCE_PROFILE,
+        "lab_id": state["lab_id"],
+        "sequence": sequence,
+        "baseline_sha256": state["protected_baseline"]["sha256"],
+        "previous_receipt_sha256": previous[-1]["sha256"] if previous else state["protected_baseline"]["sha256"],
+        "source_references_sha256": state["source_references"]["sha256"],
+        "reviewed_state_sha256": labflow.file_sha256(labflow.state_path(root, state["lab_id"])),
+        "applied_at_gate": 4,
+        "authorization_note": "Unit-test maintainer authorization fixture",
+        "reason": "Test a reviewed tooling replacement",
+        "validation_summary": "Isolated test fixture",
+        "created_at": labflow.utc_now(),
+        "changes": [{"path": relative, "before_sha256": old["sha256"], "before_size": old["size"], "after_sha256": labflow.file_sha256(root / relative), "after_size": (root / relative).stat().st_size}],
+    }
+    labflow.write_json(path, receipt)
+    state["protected_maintenance"] = previous + [{"path": path.relative_to(root).as_posix(), "sha256": labflow.file_sha256(path)}]
+    labflow.save_state(root, state["lab_id"], state)
+    return path
+
+
 class LabflowTests(unittest.TestCase):
+    def full_lighting_fixture(self, root):
+        files = []
+        for relative in sorted(labflow.LIGHTING_ADDITIONS - {"Policies/emvr-room-lighting.json"}):
+            labflow.write_text(root / relative, "immutable lighting fixture\n")
+            files.append({"path": relative, "sha256": labflow.file_sha256(root / relative), "size": (root / relative).stat().st_size})
+        profile = {"access": "read_only", "reference_base": "builder_pack_root", "path_format": "repository_relative_posix",
+                   "source_files": files, "render_settings": {"m_AmbientIntensity": 1, "m_AmbientSkyColor": {"r": 0.1, "g": 0.2, "b": 0.3, "a": 1}},
+                   "settings_guid": "a" * 32, "settings_file_id": 42, "historical_lighting_data": {"guid": "b" * 32}}
+        labflow.write_json(root / "Policies/emvr-room-lighting.json", profile)
+        labflow.write_json(root / "Policies/pack-inventory.json", {"sections": {"EMVRRoomLighting": {
+            "path": "Policies/emvr-room-lighting.json", "sha256": labflow.file_sha256(root / "Policies/emvr-room-lighting.json")}}})
+        return profile
+
+    def test_full_lighting_sources_archive_and_profile_are_immutable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile = self.full_lighting_fixture(root)
+            self.assertEqual(labflow.room_lighting_profile_errors(root), [])
+            for entry in profile["source_files"]:
+                path = root / entry["path"]
+                original = path.read_bytes()
+                path.write_bytes(original + b"drift")
+                self.assertTrue(labflow.room_lighting_profile_errors(root))
+                path.write_bytes(original)
+            path = root / "Policies/emvr-room-lighting.json"
+            path.write_text(path.read_text(encoding="utf-8") + " ", encoding="utf-8")
+            self.assertTrue(labflow.room_lighting_profile_errors(root))
+
+    def test_lighting_release_rejects_crlf_even_with_matching_frozen_hashes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile = self.full_lighting_fixture(root)
+            relative = "ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting"
+            path = root / relative
+            self.assertEqual(labflow.room_lighting_profile_errors(root), [])
+            path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+            entry = next(e for e in profile["source_files"] if e["path"] == relative)
+            entry.update(sha256=labflow.file_sha256(path), size=path.stat().st_size)
+            profile_path = root / "Policies/emvr-room-lighting.json"
+            labflow.write_json(profile_path, profile, force=True)
+            inventory_path = root / "Policies/pack-inventory.json"
+            inventory = labflow.read_json(inventory_path)
+            inventory["sections"]["EMVRRoomLighting"]["sha256"] = labflow.file_sha256(profile_path)
+            labflow.write_json(inventory_path, inventory, force=True)
+            self.assertTrue(any("LF line endings" in e for e in labflow.room_lighting_profile_errors(root)))
+
+    def test_full_lighting_requires_original_settings_and_current_scene_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.full_lighting_fixture(root)
+            state = {"lab_id": "lab_example"}
+            scene = ("--- !u!104 &2\nRenderSettings:\n  m_AmbientIntensity: 1\n"
+                     "  m_AmbientSkyColor: {r: 0.1, g: 0.2, b: 0.3, a: 1}\n"
+                     "--- !u!157 &3\nLightmapSettings:\n"
+                     f"  m_LightingSettings: {{fileID: 42, guid: {'a' * 32}, type: 2}}\n"
+                     f"  m_LightingDataAsset: {{fileID: 112000000, guid: {'c' * 32}, type: 2}}\n")
+            self.assertTrue(labflow.full_room_lighting_scene_errors(root, state, scene))
+            data = root / "UnityProject/Assets/Scenes/lab_example/LightingData.asset"
+            labflow.write_text(data, "fixture representing current-scene output")
+            labflow.write_text(Path(str(data) + ".meta"), "guid: " + "c" * 32)
+            self.assertEqual(labflow.full_room_lighting_scene_errors(root, state, scene), [])
+            # Saving a successfully generated scene makes it newer than its data.
+            saved = root / "UnityProject/Assets/Scenes/lab_example.unity"
+            labflow.write_text(saved, scene)
+            os.utime(data, (1000000000, 1000000000))
+            os.utime(saved, (1100000000, 1100000000))
+            self.assertLess(data.stat().st_mtime, saved.stat().st_mtime)
+            self.assertEqual(labflow.full_room_lighting_scene_errors(root, state,
+                saved.read_text(encoding="utf-8")), [])
+            # Data existence (even newer) cannot compensate for a null scene reference.
+            os.utime(data, (1200000000, 1200000000))
+            null_scene = scene.replace("fileID: 112000000, guid: " + "c" * 32 + ", type: 2", "fileID: 0")
+            self.assertEqual(labflow.full_room_lighting_scene_errors(root, state, null_scene),
+                ["Window > Rendering > Lighting > Generate Lighting, wait, then save."])
+            for old, new in (("a" * 32, "d" * 32), ("c" * 32, "b" * 32), ("c" * 32, "e" * 32),
+                             ("fileID: 112000000", "fileID: 0"), ("m_AmbientIntensity: 1", "m_AmbientIntensity: 2"),
+                             ("r: 0.1", "r: nan")):
+                self.assertTrue(labflow.full_room_lighting_scene_errors(root, state, scene.replace(old, new)))
+            self.assertTrue(labflow.full_room_lighting_scene_errors(root, {"lab_id": "other_lab"}, scene))
+
+    def test_required_full_lighting_profile_cannot_be_omitted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            labflow.write_json(root / "Policies/reuse-allowlist.json", {"mandatory_assets": ["ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting"]})
+            self.assertTrue(labflow.room_lighting_profile_errors(root))
+
+    def test_execution_lighting_requires_source_binding_and_unchanged_light_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile = self.full_lighting_fixture(root)
+            profile['settings_asset'] = 'ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting'
+            profile['execution_settings'] = {'mode': 'native_on_demand'}
+            profile['lighting_settings'] = {'serializedVersion': 6, 'm_Name': 'original',
+                'm_GIWorkflowMode': 1, 'm_EnableRealtimeLightmaps': 1, 'm_EnableBakedLightmaps': 0,
+                'm_CompAOExponent': 6, 'm_LightmapParameters': {'fileID': 15204, 'guid': '0' * 32, 'type': 0}}
+            path = root / 'UnityProject/Assets/Scenes/lab_example/RoomLighting_Execution.lighting'
+            reference = [None, '1234', 'd' * 32]
+            self.assertTrue(labflow.execution_lighting_errors(root, 'lab_example', profile, reference))
+            native = ('--- !u!850595691 &1234\nLightingSettings:\n  serializedVersion: 7\n'
+                      '  m_Name: RoomLighting_Execution\n  m_GIWorkflowMode: 1\n'
+                      '  m_EnableRealtimeLightmaps: 1\n  m_EnableBakedLightmaps: 0\n'
+                      '  m_CompAOExponent: 6\n  m_LightmapParameters: {fileID: 15204, guid: ' + '0' * 32 + ',\n    type: 0}\n')
+            labflow.write_text(path, native)
+            labflow.write_text(Path(str(path) + '.meta'), 'guid: ' + 'd' * 32 + '\n')
+            source = next(e for e in profile['source_files'] if e['path'] == profile['settings_asset'])
+            provenance = dict(source_path=profile['settings_asset'], source_sha256=source['sha256'],
+                              source_guid='a' * 32, execution_guid='d' * 32)
+            evidence = Path(str(path) + '.provenance.json')
+            labflow.write_json(evidence, provenance)
+            self.assertEqual(labflow.execution_lighting_errors(root, 'lab_example', profile, reference), [])
+            path.write_bytes(native.replace('\n', '\r\n').encode())
+            self.assertEqual(labflow.execution_lighting_errors(root, 'lab_example', profile, reference), [])
+            for old, new in [('m_GIWorkflowMode: 1', 'm_GIWorkflowMode: 0'),
+                             ('m_EnableRealtimeLightmaps: 1', 'm_EnableRealtimeLightmaps: 0'),
+                             ('m_CompAOExponent: 6', 'm_CompAOExponent: 7'),
+                             ('m_CompAOExponent: 6', 'm_CompAOExponent: nan'),
+                             ('m_CompAOExponent: 6', 'm_CompAOExponent: 6\n  m_CompAOExponent: 6'),
+                             ('fileID: 15204', 'fileID: 15205')]:
+                path.write_text(native.replace(old, new), encoding='utf-8')
+                self.assertTrue(labflow.execution_lighting_errors(root, 'lab_example', profile, reference))
+            path.write_text(native, encoding='utf-8')
+            for wrong in [None, [None, '0', 'd' * 32], [None, '1234', 'a' * 32]]:
+                self.assertTrue(labflow.execution_lighting_errors(root, 'lab_example', profile, wrong))
+            for key in provenance:
+                bad = dict(provenance, **{key: 'wrong'})
+                labflow.write_json(evidence, bad, force=True)
+                self.assertTrue(labflow.execution_lighting_errors(root, 'lab_example', profile, reference))
+
+    def xr_defaults_fixture(self):
+        blocks = []
+        for index, (name, guid, transform_id, _) in enumerate(labflow.XR_DEFAULT_SOURCES):
+            blocks.append(f"--- !u!1001 &{index + 100}\nPrefabInstance:\n  m_Modification:\n"
+                          f"    - target: {{fileID: {transform_id}, guid: {guid},\n        type: 3}}\n"
+                          "      propertyPath: m_LocalPosition.z\n      value: -2.5\n"
+                          "      objectReference: {fileID: 0}\n"
+                          "    m_RemovedComponents: []\n    m_RemovedGameObjects: []\n"
+                          "    m_AddedComponents: []\n    m_AddedGameObjects: []\n"
+                          f"  m_SourcePrefab: {{fileID: 100100000, guid: {guid}, type: 3}}\n")
+        blocks.append("--- !u!114 &200\nMonoBehaviour:\n  m_Enabled: 1\n"
+                      "  m_Script: {fileID: 11500000, guid: e2bbcbd14c6b470187c4ca91c6d1759e, type: 3}\n"
+                      "  sphereCastRadius: 0.06\n  minimumRayDistance: 20\n"
+                      "  controllerRaysOnly: 1\n  enableMouseLeftDebugSelect: 0\n")
+        blocks.append("--- !u!114 &201\nMonoBehaviour:\n  m_Enabled: 1\n"
+                      "  m_Script: {fileID: 11500000, guid: 89ed2d21dd9de8f40841aeb37dd363ff, type: 3}\n"
+                      "  showPointerRay: 0\n")
+        return blocks
+
+    def test_xr_requires_complete_instances_and_default_common_components(self):
+        blocks = self.xr_defaults_fixture()
+        scene = "".join(blocks)
+        self.assertEqual(labflow.xr_scene_default_errors(scene), [])
+        self.assertEqual(labflow.xr_scene_default_errors(scene.replace("\n", "\r\n")), [])
+        for i in range(4):
+            self.assertTrue(labflow.xr_scene_default_errors("".join(blocks[:i] + blocks[i+1:])))
+            self.assertTrue(labflow.xr_scene_default_errors(scene + blocks[i]))
+        for old, new in (("showPointerRay: 0", "showPointerRay: 1"),
+                         ("enableMouseLeftDebugSelect: 0", "enableMouseLeftDebugSelect: 1"),
+                         ("minimumRayDistance: 20", "minimumRayDistance: nan"),
+                         ("m_Enabled: 1", "m_Enabled: 0")):
+            self.assertTrue(labflow.xr_scene_default_errors(scene.replace(old, new)))
+
+    def test_xr_rejects_child_origin_binding_scale_and_content_changes(self):
+        scene = "".join(self.xr_defaults_fixture())
+        for field in ("m_RayOriginTransform", "m_LineOriginTransform", "m_KeyboardYTranslateAction", "m_LocalScale.x", "m_IsActive"):
+            altered = scene.replace("m_LocalPosition.z", field).replace("value: -2.5", "value: 0")
+            self.assertTrue(labflow.xr_scene_default_errors(altered), field)
+        for field in ("m_RemovedComponents", "m_RemovedGameObjects", "m_AddedComponents", "m_AddedGameObjects"):
+            self.assertTrue(labflow.xr_scene_default_errors(scene.replace(field + ": []", field + ":\n    - {fileID: 42}")))
+        altered = scene.replace("fileID: 4134505312059479865", "fileID: 42", 1)
+        self.assertTrue(labflow.xr_scene_default_errors(altered))
+        extra = "--- !u!114 &400\nMonoBehaviour:\n  m_Script: {fileID: 11500000, guid: 6803edce0201f574f923fd9d10e5b30a, type: 3}\n"
+        self.assertTrue(labflow.xr_scene_default_errors(scene + extra))
+        self.assertEqual(labflow.xr_scene_default_errors(scene + extra.replace("&400", "&400 stripped")), [])
+
+    def test_xr_duplicate_guard_allows_composition_but_rejects_reimplementation_patterns(self):
+        for code in ("class XRDeviceSimulator {}", "rig.AddComponent<XRRayInteractor>();",
+                     "ray.rayOriginTransform = camera.transform;", "visual.lineOriginOffset = 1;",
+                     "InputSystem.QueueStateEvent(device, state);", "rig.AddComponent<Unity.XR.CoreUtils.XROrigin>();"):
+            self.assertTrue(labflow.xr_duplicate_implementation_errors(code), code)
+        for code in ("var tuner = systems.AddComponent<EmVrXrRayRuntimeTuner>();",
+                     "tuner.sphereCastRadius = 0.06f;", "var origin = ray.rayOriginTransform;",
+                     '// ray.rayOriginTransform = camera;\nvar x = "InputSystem.AddDevice(foo)";'):
+            self.assertEqual(labflow.xr_duplicate_implementation_errors(code), [])
+
+    def room_lighting_fixture(self):
+        return ("--- !u!104 &2\nRenderSettings:\n"
+                "  m_AmbientMode: 3\n  m_AmbientIntensity: 1\n"
+                "  m_AmbientSkyColor: {r: 0.13116321, g: 0.15650724, b: 0.212264115, a: 1}\n"
+                "  m_AmbientEquatorColor: {r: 0.1400303, g: 0.21646784, b: 0.27205884, a: 1}\n"
+                "  m_AmbientGroundColor: {r: 0.048010383, g: 0.112683475, b: 0.17647058, a: 1}\n"
+                "  m_DefaultReflectionMode: 1\n  m_ReflectionIntensity: 1\n  m_Fog: 0\n"
+                "  m_SkyboxMaterial: {fileID: 0}\n  m_CustomReflection: {fileID: 0}\n  m_Sun: {fileID: 0}\n")
+
+    def test_room_light_overrides_cannot_fall_back_to_prefab_or_change_intensity(self):
+        modules, blocks = self.full_room_fixture()
+        modules[2]["overrides"] = [{"file_id": n, "property": "m_Intensity", "value": 5}
+                                   for n in (10820366, 10822286, 10830590, 10897880)]
+        overrides = [f"    - target: {{fileID: {s['file_id']}, guid: {modules[2]['guid']}, type: 3}}\n"
+                     "      propertyPath: m_Intensity\n      value: 5\n      objectReference: {fileID: 0}\n"
+                     for s in modules[2]["overrides"]]
+        def scene(values):
+            parts = blocks.copy()
+            parts[2] = parts[2].replace("    m_RemovedComponents", "".join(values) + "    m_RemovedComponents")
+            return "".join(parts)
+        self.assertEqual(labflow.room_prefab_instance_errors(scene(overrides), modules), [])
+        for index in range(4):
+            for value in ("1.5", "0", "nan", "invalid"):
+                altered = overrides.copy()
+                altered[index] = altered[index].replace("value: 5", "value: " + value)
+                self.assertTrue(labflow.room_prefab_instance_errors(scene(altered), modules))
+            self.assertTrue(labflow.room_prefab_instance_errors(scene(overrides[:index] + overrides[index + 1:]), modules))
+        self.assertTrue(labflow.room_prefab_instance_errors(scene(overrides + overrides[:1]), modules))
+
+    def test_room_environment_accepts_brighter_defaults_and_rejects_old_scene_or_drift(self):
+        scene = self.room_lighting_fixture()
+        self.assertEqual(labflow.room_environment_lighting_errors(scene), [])
+        self.assertEqual(labflow.room_environment_lighting_errors(scene.replace("\n", "\r\n")), [])
+        for old, new in (("m_AmbientMode: 3", "m_AmbientMode: 0"),
+                         ("m_AmbientIntensity: 1", "m_AmbientIntensity: 2"),
+                         ("m_ReflectionIntensity: 1", "m_ReflectionIntensity: nan"),
+                         ("m_DefaultReflectionMode: 1", "m_DefaultReflectionMode: 0"),
+                         ("m_Fog: 0", "m_Fog: 1"),
+                         ("r: 0.13116321", "r: 0.5"), ("a: 1", "a: 0"),
+                         ("r: 0.13116321, g: 0.15650724, b: 0.212264115",
+                          "r: 0.08744214, g: 0.10433816, b: 0.14150941"),
+                         ("m_SkyboxMaterial: {fileID: 0}", "m_SkyboxMaterial: {fileID: 42}"),
+                         ("m_CustomReflection: {fileID: 0}", ""), ("m_Sun: {fileID: 0}", "")):
+            with self.subTest(field=old):
+                self.assertTrue(labflow.room_environment_lighting_errors(scene.replace(old, new)))
+        self.assertTrue(labflow.room_environment_lighting_errors(""))
+        self.assertTrue(labflow.room_environment_lighting_errors(scene + scene))
+        self.assertTrue(labflow.room_environment_lighting_errors(scene + "--- !u!108 &42\nLight:\n  m_Type: 1\n"))
+
+    def full_room_fixture(self):
+        modules = [{"guid": str(n) * 32, "prefab": f"ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_{n:02}.prefab"}
+                   for n in (1, 2, 3, 2, 1)]
+        blocks = [f"--- !u!1001 &{i + 100}\nPrefabInstance:\n  m_Modification:\n"
+                  "    m_RemovedComponents: []\n    m_RemovedGameObjects: []\n"
+                  "    m_AddedComponents: []\n    m_AddedGameObjects: []\n"
+                  f"  m_SourcePrefab: {{fileID: 100100000, guid: {m['guid']}, type: 3}}\n"
+                  for i, m in enumerate(modules)]
+        return modules, blocks
+
+    def test_full_room_requires_exact_linked_instance_counts(self):
+        modules, blocks = self.full_room_fixture()
+        self.assertEqual(labflow.room_prefab_instance_errors("".join(blocks), modules), [])
+        for broken in (blocks[:1], blocks[:2], blocks[:-1], blocks + blocks[:1],
+                       [b.replace("!u!1001", "!u!1") for b in blocks]):
+            self.assertTrue(labflow.room_prefab_instance_errors("".join(broken), modules))
+
+    def test_readonly_room_rejects_removed_added_disabled_or_scaled_content(self):
+        modules, blocks = self.full_room_fixture()
+        scene = "".join(blocks)
+        for field in ("m_RemovedComponents", "m_RemovedGameObjects", "m_AddedComponents", "m_AddedGameObjects"):
+            with self.subTest(field=field):
+                broken = scene.replace(field + ": []", field + ":\n    - {fileID: 42}", 1)
+                self.assertTrue(labflow.room_prefab_instance_errors(broken, modules))
+        for field, value in (("m_IsActive", "0"), ("m_Enabled", "0"), ("m_LocalScale.x", "0"),
+                             ("m_LocalScale.y", "2"), ("m_LocalScale.z", "-1")):
+            with self.subTest(field=field, value=value):
+                modification = f"    - propertyPath: {field}\n      value: {value}\n"
+                broken = scene.replace("    m_RemovedComponents", modification + "    m_RemovedComponents", 1)
+                self.assertTrue(labflow.room_prefab_instance_errors(broken, modules))
+
+    def test_room_scene_check_reads_saved_scene_and_refuses_missing_scene(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = {"lab_id": "lab_example", "scene": "Assets/Scenes/lab_example.unity"}
+            modules, blocks = self.full_room_fixture()
+            labflow.write_json(root / "Policies/emvr-room-assembly.json", {"modules": modules})
+            self.assertTrue(labflow.room_scene_reuse_errors(root, state))
+            path = root / "UnityProject" / state["scene"]
+            labflow.write_text(path, self.room_lighting_fixture() + "".join(blocks))
+            before = path.read_bytes()
+            self.assertEqual(labflow.room_scene_reuse_errors(root, state), [])
+            self.assertEqual(path.read_bytes(), before)
+
+    def test_record_foundation_cannot_pass_with_incomplete_room(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = make_scaffold_fixture(root)
+            state["stage"] = "scaffold_compiled"
+            state["gate_approvals"]["4"] = {"approved": True}
+            state["evidence"]["scaffold_compile"] = "passed"
+            labflow.save_state(root, "lab_example", state)
+            modules, blocks = self.full_room_fixture()
+            labflow.write_json(root / "Policies/emvr-room-assembly.json", {"modules": modules})
+            labflow.write_text(root / "UnityProject" / state["scene"], "".join(blocks[:1]))
+            state_path = labflow.state_path(root, "lab_example")
+            before = state_path.read_bytes()
+            args = argparse.Namespace(project_root=root, lab_id="lab_example", note="fixture observation",
+                                      boundary_verifier=None, scaffold_compile=None, gate5_foundation="passed",
+                                      domain_slice=None, domain_compile=None, compile=None, scene_built=None, playtest=None)
+            with mock.patch.object(labflow, "gate5_materialization_errors", return_value=[]), mock.patch.object(labflow, "approved_asset_import_errors", return_value=[]):
+                with self.assertRaisesRegex(RuntimeError, "Complete room requires"):
+                    labflow.command_record(args)
+            self.assertEqual(state_path.read_bytes(), before)
+
+    def source_expansion_fixture(self, root):
+        (root / "ApprovedAssets").mkdir()
+        state = make_scaffold_fixture(root)
+        receipt_path = add_maintenance_fixture(root, state)
+        receipt = labflow.read_json(receipt_path)
+        receipt.update(profile=labflow.EMVRLABS_ROOM_PROFILE, applied_at_gate=5)
+        relative = "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_02.prefab"
+        asset = root / relative
+        labflow.write_text(asset, "reviewed module bytes\n")
+        receipt["changes"].append({"path": relative, "before_sha256": None, "before_size": None,
+                                   "after_sha256": labflow.file_sha256(asset), "after_size": asset.stat().st_size})
+        labflow.write_json(receipt_path, receipt, force=True)
+        state["protected_maintenance"][-1]["sha256"] = labflow.file_sha256(receipt_path)
+        return state, receipt_path, asset
+
+    def test_room_source_additions_preserve_baseline_and_remain_protected(self):
+        for defect in (None, "changed", "removed", "extra"):
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                state, receipt, asset = self.source_expansion_fixture(root)
+                original_sha = state["protected_baseline"]["sha256"]
+                self.assertEqual(labflow.protected_baseline_errors(root, state), [])
+                if defect == "changed":
+                    asset.write_text("drift", encoding="utf-8")
+                elif defect == "removed":
+                    asset.unlink()
+                elif defect == "extra":
+                    (asset.parent / "unreviewed.prefab").write_text("extra", encoding="utf-8")
+                if defect:
+                    self.assertTrue(labflow.protected_baseline_errors(root, state))
+                self.assertEqual(labflow.file_sha256(root / state["protected_baseline"]["path"]), original_sha)
+
+    def test_room_source_additions_reject_unapproved_paths_or_fake_prior_bytes(self):
+        for defect in ("path", "old_profile", "fake_prior", "missing_absence"):
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                state, path, asset = self.source_expansion_fixture(root)
+                receipt = labflow.read_json(path)
+                change = receipt["changes"][-1]
+                if defect == "path":
+                    change["path"] = "ApprovedAssets/unreviewed.prefab"
+                elif defect == "old_profile":
+                    receipt["profile"] = labflow.ROOM_MAINTENANCE_PROFILE
+                elif defect == "fake_prior":
+                    change["before_sha256"] = "A" * 64
+                else:
+                    del change["before_size"]
+                labflow.write_json(path, receipt, force=True)
+                state["protected_maintenance"][-1]["sha256"] = labflow.file_sha256(path)
+                self.assertTrue(labflow.protected_baseline_errors(root, state))
+
+    def test_room_maintenance_chains_after_gate4_without_rewriting_baseline(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = make_scaffold_fixture(root)
+            baseline_path = root / state["protected_baseline"]["path"]
+            original = baseline_path.read_bytes()
+            first = add_maintenance_fixture(root, state)
+            first_bytes = first.read_bytes()
+            second = add_maintenance_fixture(root, state)
+            receipt = labflow.read_json(second)
+            receipt.update(profile=labflow.ROOM_MAINTENANCE_PROFILE, applied_at_gate=5)
+            labflow.write_json(second, receipt, force=True)
+            state["protected_maintenance"][-1]["sha256"] = labflow.file_sha256(second)
+            self.assertEqual(labflow.protected_baseline_errors(root, state), [])
+            self.assertEqual(baseline_path.read_bytes(), original)
+            self.assertEqual(first.read_bytes(), first_bytes)
+
+    def test_room_maintenance_rejects_wrong_gate_unknown_profile_and_asset_changes(self) -> None:
+        for defect in ("gate", "profile", "unhashable_profile", "asset"):
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                state = make_scaffold_fixture(root)
+                path = add_maintenance_fixture(root, state)
+                receipt = labflow.read_json(path)
+                receipt.update(profile=labflow.ROOM_MAINTENANCE_PROFILE, applied_at_gate=5)
+                if defect == "gate":
+                    receipt["applied_at_gate"] = 4
+                elif defect == "profile":
+                    receipt["profile"] = "accept_any_drift"
+                elif defect == "unhashable_profile":
+                    receipt["profile"] = []
+                else:
+                    receipt["changes"][0]["path"] = "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab"
+                labflow.write_json(path, receipt, force=True)
+                state["protected_maintenance"][0]["sha256"] = labflow.file_sha256(path)
+                self.assertTrue(labflow.protected_baseline_errors(root, state))
+
+    def test_source_references_are_portable_read_only_and_content_locked(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "first_clone"
+            root.mkdir()
+            state = make_source_reference_fixture(root)
+            self.assertEqual([], labflow.source_reference_errors(root, state))
+            persisted = (root / state["source_references"]["path"]).read_text(
+                encoding="utf-8"
+            )
+            self.assertNotIn(str(root), persisted)
+            self.assertNotRegex(persisted, r"[A-Za-z]:[\\/]")
+
+            resolved_first = labflow.resolved_source_references(root, state)
+            moved = Path(directory) / "github_clone"
+            root.rename(moved)
+            resolved_moved = labflow.resolved_source_references(moved, state)
+            self.assertNotEqual(
+                resolved_first["resolved_builder_pack_root"],
+                resolved_moved["resolved_builder_pack_root"],
+            )
+            self.assertEqual(
+                [item["repository_relative_path"] for item in resolved_first["sources"]],
+                [item["repository_relative_path"] for item in resolved_moved["sources"]],
+            )
+
+            manifest_path = moved / state["source_references"]["path"]
+            manifest = labflow.read_json(manifest_path)
+            manifest["sources"][0]["access"] = "write"
+            labflow.write_json(manifest_path, manifest, force=True)
+            self.assertTrue(labflow.source_reference_errors(moved, state))
+
+    def test_source_catalog_rejects_absolute_and_parent_paths(self) -> None:
+        root = Path("E:/portable-test-root")
+        for invalid in (
+            "E:/other/source",
+            "../source",
+            "/source",
+            r"Sources\source",
+        ):
+            self.assertIsNotNone(
+                labflow.portable_repository_path_error(invalid, "source.path")
+            )
+
     def test_generated_brief_locks_room_ui_and_default_desktop_xr_mapping(self) -> None:
         brief = labflow.brief_text(
             "lab_example",
@@ -84,11 +605,14 @@ class LabflowTests(unittest.TestCase):
             (valid / ".emvr-workspace.json").write_text(
                 json.dumps(
                     {
-                        "schema_version": "1.1.0",
+                        "schema_version": "1.2.0",
                         "workflow_mode": "blind-rebuild",
                         "lab_id": "lab_example",
                         "required_master_directory_name": "EMVR_Blind_BuilderPack",
                         "required_directory_name": "EMVR_Blind_Rebuild_lab_example",
+                        "reference_base": "builder_pack_root",
+                        "path_format": "repository_relative_posix",
+                        "absolute_paths_persisted": False,
                     }
                 ),
                 encoding="utf-8",
@@ -133,7 +657,7 @@ class LabflowTests(unittest.TestCase):
             errors = labflow.foundation_errors(root)
             self.assertTrue(any("Maintainer-only material" in item for item in errors))
 
-    def test_foundation_requires_portable_lf_checkout_rule(self) -> None:
+    def test_foundation_requires_byte_preserving_checkout_rule(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / ".gitattributes").write_text("* text=auto\n", encoding="utf-8")
@@ -143,6 +667,36 @@ class LabflowTests(unittest.TestCase):
             self.assertTrue(
                 any("frozen hashes survive Git checkout" in item for item in errors)
             )
+
+    def test_git_byte_policy_rejects_conversion_overrides(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / ".gitattributes"
+            self.assertTrue(labflow.git_byte_preservation_errors(root))
+            path.write_text("# frozen bytes\n* -text\n*.png binary\n", encoding="utf-8")
+            self.assertEqual(labflow.git_byte_preservation_errors(root), [])
+            for rule in ("*.meta text eol=lf", "*.bat text eol=crlf", "* text=auto",
+                         "*.asset filter=lfs", "*.md ident", "*.md export-subst"):
+                with self.subTest(rule=rule):
+                    path.write_text("* -text\n" + rule + "\n", encoding="utf-8")
+                    self.assertTrue(labflow.git_byte_preservation_errors(root))
+
+    def test_git_distribution_receipt_is_limited_to_tooling(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = make_scaffold_fixture(root)
+            baseline = (root / state["protected_baseline"]["path"]).read_bytes()
+            path = add_maintenance_fixture(root, state)
+            receipt = labflow.read_json(path)
+            receipt.update(profile=labflow.GIT_DISTRIBUTION_PROFILE, applied_at_gate=5)
+            labflow.write_json(path, receipt, force=True)
+            state["protected_maintenance"][-1]["sha256"] = labflow.file_sha256(path)
+            self.assertEqual(labflow.protected_baseline_errors(root, state), [])
+            self.assertEqual((root / state["protected_baseline"]["path"]).read_bytes(), baseline)
+            receipt["changes"][0]["path"] = "ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting"
+            labflow.write_json(path, receipt, force=True)
+            state["protected_maintenance"][-1]["sha256"] = labflow.file_sha256(path)
+            self.assertTrue(labflow.protected_baseline_errors(root, state))
 
     def test_foundation_requires_repository_ignore_rules(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -161,6 +715,9 @@ class LabflowTests(unittest.TestCase):
         self.assertIn("[System.IO.Directory]::CreateDirectory", script)
         self.assertIn("[System.IO.File]::Copy", script)
         self.assertNotIn("Copy-Item", script)
+        self.assertIn('schema_version = "1.2.0"', script)
+        self.assertIn('path_format = "repository_relative_posix"', script)
+        self.assertIn('absolute_paths_persisted = $false', script)
 
     def test_scene_path_is_confined_to_assets_scenes(self) -> None:
         self.assertEqual(
@@ -230,13 +787,14 @@ class LabflowTests(unittest.TestCase):
             protected.parent.mkdir(parents=True)
             protected.write_text("version one\n", encoding="utf-8")
             (root / "KnowledgeBase" / "rebuild-lessons").mkdir(parents=True)
-            state = {
-                "schema_version": labflow.CURRENT_STATE_SCHEMA,
-                "lab_id": "lab_example",
-                "gate_approvals": {},
-                "evidence": labflow.default_evidence(),
-                "protected_baseline": None,
-            }
+            state = make_source_reference_fixture(root)
+            state.update(
+                {
+                    "gate_approvals": {},
+                    "evidence": labflow.default_evidence(),
+                    "protected_baseline": None,
+                }
+            )
             state["evidence"]["boundary_verifier"] = "passed"
             with mock.patch.object(labflow, "foundation_errors", return_value=[]), mock.patch.object(
                 labflow, "save_state"
@@ -290,13 +848,14 @@ class LabflowTests(unittest.TestCase):
             lessons = root / "KnowledgeBase" / "rebuild-lessons"
             lessons.mkdir(parents=True)
             (lessons / "safe.md").write_text("safe\n", encoding="utf-8")
-            state = {
-                "schema_version": labflow.CURRENT_STATE_SCHEMA,
-                "lab_id": "lab_example",
-                "gate_approvals": {},
-                "evidence": labflow.default_evidence(),
-                "protected_baseline": None,
-            }
+            state = make_source_reference_fixture(root)
+            state.update(
+                {
+                    "gate_approvals": {},
+                    "evidence": labflow.default_evidence(),
+                    "protected_baseline": None,
+                }
+            )
             state["evidence"]["boundary_verifier"] = "passed"
             with mock.patch.object(labflow, "foundation_errors", return_value=[]), mock.patch.object(
                 labflow, "save_state"
@@ -354,6 +913,106 @@ class LabflowTests(unittest.TestCase):
         self.assertNotIn("EmVrTelemetryEmitter", source)
         self.assertNotIn("EmVrStatusDisplay", source)
 
+    def test_scaffold_persists_portable_files_and_survives_relocation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "first clone"
+            state = make_scaffold_fixture(root)
+            baseline = root / state["protected_baseline"]["path"]
+            baseline_bytes = baseline.read_bytes()
+            args = argparse.Namespace(project_root=root, lab_id="lab_example")
+            with mock.patch.object(labflow, "require_foundation"), mock.patch.object(
+                labflow, "validate_contracts", return_value=([], [], {})
+            ):
+                self.assertEqual(labflow.command_scaffold(args), 0)
+
+            persisted = labflow.load_state(root, "lab_example")
+            expected = [
+                "UnityProject/Assets/Scripts/EMVR/Labs/LabExample/LabExampleController.cs",
+                "UnityProject/Assets/Editor/LabExample/LabExampleSceneBuilder.cs",
+                "LabSpecs/lab_example/implementation.md",
+            ]
+            self.assertEqual(persisted["generated_files"], expected)
+            for relative in expected:
+                self.assertIsNone(labflow.portable_repository_path_error(relative, "generated_files"))
+                self.assertTrue((root / relative).is_file())
+            handoff = (root / expected[2]).read_text(encoding="utf-8")
+            for relative in expected[:2]:
+                self.assertIn(relative, handoff)
+            self.assertEqual(persisted["stage"], "scaffold_ready")
+            self.assertEqual(labflow.current_gate(persisted), 4)
+            self.assertEqual(persisted["evidence"]["scaffold_compile"], "pending")
+            self.assertEqual(persisted["gate_approvals"], state["gate_approvals"])
+            self.assertFalse((root / "UnityProject" / state["scene"]).exists())
+            self.assertFalse((root / "UnityProject/Assets/Generated").exists())
+            self.assertEqual(baseline.read_bytes(), baseline_bytes)
+
+            moved = Path(directory) / "relocated clone"
+            root.rename(moved)
+            reloaded = labflow.load_state(moved, "lab_example")
+            self.assertEqual(reloaded, persisted)
+            self.assertTrue(all((moved / relative).is_file() for relative in reloaded["generated_files"]))
+            self.assertEqual(labflow.protected_baseline_errors(moved, reloaded), [])
+            self.assertEqual(labflow.source_reference_errors(moved, reloaded), [])
+
+    def test_scaffold_serialization_uses_posix_for_both_path_flavors(self) -> None:
+        # Exercise the whole command and real save_state/write_json serialization
+        # in memory, so a POSIX CI host still detects Windows separator regressions.
+        for root in (PureWindowsPath("C:/portable pack"), PurePosixPath("/portable pack")):
+            with self.subTest(flavor=type(root).__name__):
+                state = {
+                    "scene": "Assets/Scenes/LabExample.unity",
+                    "gate_approvals": {str(gate): {"approved": True} for gate in range(4)},
+                    "design_approval": {"approved": True},
+                }
+                project_root = mock.Mock()
+                project_root.resolve.return_value = root
+                args = argparse.Namespace(project_root=project_root, lab_id="lab_example")
+                with (
+                    mock.patch.object(labflow, "require_foundation"),
+                    mock.patch.object(labflow, "load_current_state", return_value=state),
+                    mock.patch.object(labflow, "protected_baseline_errors", return_value=[]),
+                    mock.patch.object(labflow, "source_reference_errors", return_value=[]),
+                    mock.patch.object(labflow, "validate_contracts", return_value=([], [], {})),
+                    mock.patch.object(type(root), "exists", return_value=False, create=True),
+                    mock.patch.object(labflow, "write_text") as write,
+                ):
+                    self.assertEqual(labflow.command_scaffold(args), 0)
+                saved = next(
+                    call.args[1] for call in write.call_args_list
+                    if call.args[0].name == "workflow_state.json"
+                )
+                entries = json.loads(saved)["generated_files"]
+                self.assertEqual(len(entries), 3)
+                for relative in entries:
+                    self.assertIsNone(labflow.portable_repository_path_error(relative, "generated_files"))
+
+    def test_scaffold_rejects_integrity_errors_before_any_write(self) -> None:
+        for defect in ("missing_baseline", "changed_tool", "changed_references"):
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                state = make_scaffold_fixture(root)
+                if defect == "missing_baseline":
+                    state["protected_baseline"] = None
+                    labflow.save_state(root, "lab_example", state)
+                    expected = "Gate 0 protected baseline has not been captured"
+                elif defect == "changed_tool":
+                    (root / "Tools/labflow/labflow.py").write_text("# changed\n", encoding="utf-8")
+                    expected = "Protected file changed after Gate 0"
+                else:
+                    manifest = root / state["source_references"]["path"]
+                    manifest.write_text("{}\n", encoding="utf-8")
+                    expected = "[Ss]ource"
+                before = {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+                args = argparse.Namespace(project_root=root, lab_id="lab_example")
+                with mock.patch.object(labflow, "require_foundation"), mock.patch.object(
+                    labflow, "validate_contracts", return_value=([], [], {})
+                ), mock.patch.object(labflow, "write_text") as write:
+                    with self.assertRaisesRegex(RuntimeError, expected):
+                        labflow.command_scaffold(args)
+                    write.assert_not_called()
+                after = {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+                self.assertEqual(after, before)
+
     def test_scaffold_handoff_contains_beginner_unity_locations(self) -> None:
         source = MODULE_PATH.read_text(encoding="utf-8")
         for required in (
@@ -367,6 +1026,101 @@ class LabflowTests(unittest.TestCase):
         ):
             self.assertIn(required, source)
 
+    def test_maintenance_preserves_original_baseline_and_unblocks_scaffold(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "original"
+            state = make_scaffold_fixture(root)
+            original_state = copy.deepcopy(state)
+            baseline_path = root / state["protected_baseline"]["path"]
+            original_baseline = baseline_path.read_bytes()
+            add_maintenance_fixture(root, state)
+            self.assertEqual(labflow.protected_baseline_errors(root, state), [])
+            self.assertEqual(state["protected_baseline"], original_state["protected_baseline"])
+            self.assertEqual(state["gate_approvals"], original_state["gate_approvals"])
+            self.assertEqual(state["evidence"], original_state["evidence"])
+            self.assertEqual(baseline_path.read_bytes(), original_baseline)
+            with mock.patch.object(labflow, "require_foundation"), mock.patch.object(
+                labflow, "validate_contracts", return_value=([], [], {})
+            ):
+                labflow.command_scaffold(argparse.Namespace(project_root=root, lab_id="lab_example"))
+            saved = labflow.load_state(root, "lab_example")
+            self.assertEqual(labflow.current_gate(saved), 4)
+            self.assertEqual(saved["evidence"]["scaffold_compile"], "pending")
+            self.assertEqual(saved["protected_maintenance"], state["protected_maintenance"])
+            self.assertEqual(labflow.protected_baseline_errors(root, saved), [])
+            moved = Path(directory) / "relocated"
+            root.rename(moved)
+            self.assertEqual(labflow.protected_baseline_errors(moved, saved), [])
+
+    def test_maintenance_receipt_chain_requires_all_predecessors(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = make_scaffold_fixture(root)
+            first = add_maintenance_fixture(root, state)
+            add_maintenance_fixture(root, state)
+            self.assertEqual(labflow.protected_baseline_errors(root, state), [])
+            first.unlink()
+            self.assertTrue(labflow.protected_baseline_errors(root, state))
+
+    def test_maintenance_rejects_changed_or_unregistered_receipts(self) -> None:
+        for defect in ("bytes", "registration", "path"):
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                state = make_scaffold_fixture(root)
+                receipt_path = add_maintenance_fixture(root, state)
+                if defect == "bytes":
+                    receipt_path.write_text("{}\n", encoding="utf-8")
+                elif defect == "registration":
+                    state.pop("protected_maintenance")
+                else:
+                    state["protected_maintenance"][0]["path"] = "../receipt.json"
+                self.assertTrue(labflow.protected_baseline_errors(root, state))
+
+    def test_maintenance_rejects_invalid_binding_and_change_metadata(self) -> None:
+        for defect in ("lab_id", "baseline_sha256", "previous_receipt_sha256", "source_references_sha256", "profile", "sequence", "authorization_note", "before_sha256", "after_sha256", "unapproved_path", "duplicate", "empty"):
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                state = make_scaffold_fixture(root)
+                receipt_path = add_maintenance_fixture(root, state)
+                receipt = labflow.read_json(receipt_path)
+                if defect in ("before_sha256", "after_sha256"):
+                    receipt["changes"][0][defect] = "0" * 64
+                elif defect == "unapproved_path":
+                    receipt["changes"][0]["path"] = "UnityProject/Packages/manifest.json"
+                elif defect == "duplicate":
+                    receipt["changes"].append(receipt["changes"][0])
+                elif defect == "empty":
+                    receipt["changes"] = []
+                else:
+                    receipt[defect] = ""
+                labflow.write_json(receipt_path, receipt, force=True)
+                state["protected_maintenance"][0]["sha256"] = labflow.file_sha256(receipt_path)
+                self.assertTrue(labflow.protected_baseline_errors(root, state))
+
+    def test_maintenance_still_detects_all_later_protected_drift(self) -> None:
+        for defect in ("same_size_mtime", "added", "removed", "baseline"):
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                state = make_scaffold_fixture(root)
+                add_maintenance_fixture(root, state)
+                tool = root / "Tools/labflow/labflow.py"
+                if defect == "same_size_mtime":
+                    stat = tool.stat()
+                    tool.write_bytes(tool.read_bytes().replace(b"maintenance", b"MAINTENANCE"))
+                    os.utime(tool, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+                elif defect == "added":
+                    (root / "Tools/unreviewed.py").write_text("# new\n", encoding="utf-8")
+                elif defect == "removed":
+                    tool.unlink()
+                else:
+                    (root / state["protected_baseline"]["path"]).write_text("{}\n", encoding="utf-8")
+                self.assertTrue(labflow.protected_baseline_errors(root, state))
+                self.assertIn("Stop", labflow.next_action(root, state))
+                with mock.patch.object(labflow, "require_foundation"), mock.patch.object(labflow, "write_text") as write:
+                    with self.assertRaisesRegex(RuntimeError, "protected run integrity"):
+                        labflow.command_scaffold(argparse.Namespace(project_root=root, lab_id="lab_example"))
+                    write.assert_not_called()
+
     def test_gate_five_requires_foundation_before_domain(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -378,6 +1132,10 @@ class LabflowTests(unittest.TestCase):
                 labflow, "gate5_materialization_errors", side_effect=lambda *_args: []
             ), mock.patch.object(
                 labflow, "approved_asset_import_errors", side_effect=lambda *_args: []
+            ), mock.patch.object(
+                labflow, "room_scene_reuse_errors", side_effect=lambda *_args: []
+            ), mock.patch.object(
+                labflow, "xr_reuse_errors", side_effect=lambda *_args: []
             ), mock.patch.object(
                 labflow, "protected_baseline_errors", side_effect=lambda *_args: []
             ):
@@ -636,11 +1394,14 @@ class LabflowTests(unittest.TestCase):
             (root / ".emvr-workspace.json").write_text(
                 json.dumps(
                     {
-                        "schema_version": "1.1.0",
+                        "schema_version": "1.2.0",
                         "workflow_mode": "blind-rebuild",
                         "lab_id": "lab_example",
                         "required_master_directory_name": "EMVR_Blind_BuilderPack",
                         "required_directory_name": "EMVR_Blind_Rebuild_lab_example",
+                        "reference_base": "builder_pack_root",
+                        "path_format": "repository_relative_posix",
+                        "absolute_paths_persisted": False,
                     }
                 ),
                 encoding="utf-8",
@@ -661,13 +1422,28 @@ class LabflowTests(unittest.TestCase):
             }
             labflow.write_json(labflow.state_path(root, "lab_example"), state)
             args = type("Args", (), {"project_root": root, "lab_id": "lab_example"})()
-            self.assertEqual(labflow.command_migrate_state(args), 0)
+            source_metadata = {
+                "path": "LabSpecs/lab_example/source-references.json",
+                "sha256": "A" * 64,
+                "catalog_path": labflow.SOURCE_REFERENCE_CATALOG,
+                "catalog_sha256": "B" * 64,
+                "reference_base": "builder_pack_root",
+                "path_format": "repository_relative_posix",
+                "source_access": "read_only",
+            }
+            with mock.patch.object(
+                labflow,
+                "ensure_source_reference_manifest",
+                return_value=source_metadata,
+            ):
+                self.assertEqual(labflow.command_migrate_state(args), 0)
             migrated = labflow.load_state(root, "lab_example")
             self.assertEqual(migrated["schema_version"], labflow.CURRENT_STATE_SCHEMA)
             self.assertEqual(migrated["gate_approvals"], {})
             self.assertFalse(migrated["brief_confirmation"]["confirmed"])
             self.assertFalse(migrated["design_approval"]["approved"])
             self.assertIsNone(migrated["protected_baseline"])
+            self.assertEqual(migrated["source_references"], source_metadata)
             self.assertEqual(labflow.current_gate(migrated), 0)
             for key in labflow.default_evidence():
                 if key != "notes":

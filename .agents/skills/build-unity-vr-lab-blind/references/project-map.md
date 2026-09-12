@@ -13,6 +13,8 @@
 - `AGENTS.md`: repository boundary and Unity safety rules.
 - `Policies/reuse-policy.md`: authoritative three-category reuse policy.
 - `Policies/reuse-allowlist.json`: machine-readable allowlist.
+- `Policies/reuse-source-references.json`: protected catalog of original
+  reusable code/asset sources, transfer modes, and repository-relative paths.
 - `Policies/gold-exclusions.json`: forbidden target artifacts and uses.
 - `UnityProject/`: clean Unity project and generated Lab code/scenes.
 - `UnityProject/LocalPackages/com.emvr.lab-common/`: canonical validated shared
@@ -27,7 +29,8 @@
 - `ReusableFoundation/Gate5MinimalSlice/`: protected cross-Lab Gate 5 wiring,
   fail-closed builder helpers, and generic regression tests. Copy only through
   `scripts/materialize_gate5_foundation.py`; do not edit source or copy.
-- `LabSpecs/<lab_id>/`: Brief, design, state, and implementation handoff.
+- `LabSpecs/<lab_id>/`: Brief, design, state, implementation handoff, and the
+  immutable `source-references.json` generated from the protected catalog.
 - `LabInterfaceContracts/`: exactly five canonical JSON contracts for the
   single current run; legacy examples are restricted elsewhere.
 - `KnowledgeBase/ReusableCodeArchive/`: Category B staging area. It is
@@ -62,6 +65,14 @@
 - `BuildEvidence/<lab_id>/gate0-protected-baseline.json`: create-once Gate 0
   snapshot made only by `labflow capture-gate0-baseline` after release Boundary
   PASS; immutable and checked through Gate 10.
+
+For a maintainer-repaired pre-scaffold Gate 4 run, follow the compatibility
+receipt rules in `Policies/reuse-policy.md`. Preserve the original baseline,
+`BuildEvidence/<lab_id>/protected-maintenance/*.json` and the state
+`protected_maintenance` registrations. The Builder cannot issue, edit, remove,
+rehash or register receipts. Rerun Boundary, source-references and status;
+resume the same Gate 4 only when integrity passes. Prior approvals remain
+unchanged, and scaffold generation/Unity compile evidence are still required.
 - `BuildEvidence/retrospectives/<lab_id>.md`: Gate 10 run-specific audit;
   create only after Gate 9 approval and never overwrite an existing file.
 - `BuildEvidence/EvalTemplates/`: read-only evaluator templates.
@@ -86,6 +97,9 @@ problems in all other paths to the user without changing them or supplying a
 replacement patch. Previous retrospectives and lessons remain read-only.
 Within current-run evidence, the Gate 0 baseline is a stricter exception: after
 its one-time tool creation, the Builder Agent cannot edit or overwrite it.
+The same applies to `LabSpecs/<lab_id>/source-references.json`: `labflow new`
+creates it once, state locks its SHA-256, and all paths remain relative to the
+current Builder Pack root so a GitHub clone needs no path rewrite.
 
 The Gate 5 generated foundation is an additional controlled exception to
 ordinary output ownership: the materializer may create it, but the Builder

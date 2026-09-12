@@ -1,0 +1,302 @@
+{
+  "schema_version": "1.0.0",
+  "revision": "emvrlabs-ambient-lift-v3",
+  "reference_base": "builder_pack_root",
+  "path_format": "repository_relative_posix",
+  "access": "read_only",
+  "settings_asset": "ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting",
+  "settings_guid": "28f1169e0b81e7e4ca1f34e58759ebca",
+  "settings_file_id": 4890085278179872738,
+  "room_assembly": "Policies/emvr-room-assembly.json",
+  "render_settings": {
+    "m_ObjectHideFlags": 0,
+    "serializedVersion": 9,
+    "m_Fog": 0,
+    "m_FogColor": {
+      "r": 0.5,
+      "g": 0.5,
+      "b": 0.5,
+      "a": 1
+    },
+    "m_FogMode": 3,
+    "m_FogDensity": 0.01,
+    "m_LinearFogStart": 0,
+    "m_LinearFogEnd": 300,
+    "m_AmbientSkyColor": {
+      "r": 0.13116321,
+      "g": 0.15650724,
+      "b": 0.212264115,
+      "a": 1
+    },
+    "m_AmbientEquatorColor": {
+      "r": 0.1400303,
+      "g": 0.21646784,
+      "b": 0.27205884,
+      "a": 1
+    },
+    "m_AmbientGroundColor": {
+      "r": 0.048010383,
+      "g": 0.112683475,
+      "b": 0.17647058,
+      "a": 1
+    },
+    "m_AmbientIntensity": 1,
+    "m_AmbientMode": 3,
+    "m_SubtractiveShadowColor": {
+      "r": 0.42,
+      "g": 0.478,
+      "b": 0.627,
+      "a": 1
+    },
+    "m_SkyboxMaterial": {
+      "fileID": 0
+    },
+    "m_HaloStrength": 0.5,
+    "m_FlareStrength": 1,
+    "m_FlareFadeSpeed": 3,
+    "m_HaloTexture": {
+      "fileID": 0
+    },
+    "m_SpotCookie": {
+      "fileID": 10001,
+      "guid": "0000000000000000e000000000000000",
+      "type": 0
+    },
+    "m_DefaultReflectionMode": 1,
+    "m_DefaultReflectionResolution": 128,
+    "m_ReflectionBounces": 1,
+    "m_ReflectionIntensity": 1,
+    "m_CustomReflection": {
+      "fileID": 0
+    },
+    "m_Sun": {
+      "fileID": 0
+    },
+    "m_IndirectSpecularColor": {
+      "r": 0,
+      "g": 0,
+      "b": 0,
+      "a": 1
+    },
+    "m_UseRadianceAmbientProbe": 0
+  },
+  "lighting_settings": {
+    "m_ObjectHideFlags": 0,
+    "m_CorrespondingSourceObject": {
+      "fileID": 0
+    },
+    "m_PrefabInstance": {
+      "fileID": 0
+    },
+    "m_PrefabAsset": {
+      "fileID": 0
+    },
+    "m_Name": "Static_Electric_FieldSettings",
+    "serializedVersion": 6,
+    "m_GIWorkflowMode": 1,
+    "m_EnableBakedLightmaps": 0,
+    "m_EnableRealtimeLightmaps": 1,
+    "m_RealtimeEnvironmentLighting": 1,
+    "m_BounceScale": 1,
+    "m_AlbedoBoost": 1,
+    "m_IndirectOutputScale": 1,
+    "m_UsingShadowmask": 0,
+    "m_BakeBackend": 0,
+    "m_LightmapMaxSize": 1024,
+    "m_BakeResolution": 50,
+    "m_Padding": 2,
+    "m_LightmapCompression": 0,
+    "m_AO": 1,
+    "m_AOMaxDistance": 1,
+    "m_CompAOExponent": 6,
+    "m_CompAOExponentDirect": 0,
+    "m_ExtractAO": 0,
+    "m_MixedBakeMode": 1,
+    "m_LightmapsBakeMode": 1,
+    "m_FilterMode": 1,
+    "m_LightmapParameters": {
+      "fileID": 15204,
+      "guid": "0000000000000000f000000000000000",
+      "type": 0
+    },
+    "m_ExportTrainingData": 0,
+    "m_TrainingDataDestination": "TrainingData",
+    "m_RealtimeResolution": 1,
+    "m_ForceWhiteAlbedo": 0,
+    "m_ForceUpdates": 0,
+    "m_FinalGather": 1,
+    "m_FinalGatherRayCount": 2048,
+    "m_FinalGatherFiltering": 1,
+    "m_PVRCulling": 1,
+    "m_PVRSampling": 1,
+    "m_PVRDirectSampleCount": 32,
+    "m_PVRSampleCount": 512,
+    "m_PVREnvironmentSampleCount": 512,
+    "m_PVREnvironmentReferencePointCount": 2048,
+    "m_LightProbeSampleCountMultiplier": 4,
+    "m_PVRBounces": 2,
+    "m_PVRMinBounces": 2,
+    "m_PVREnvironmentImportanceSampling": 0,
+    "m_PVRFilteringMode": 0,
+    "m_PVRDenoiserTypeDirect": 0,
+    "m_PVRDenoiserTypeIndirect": 0,
+    "m_PVRDenoiserTypeAO": 0,
+    "m_PVRFilterTypeDirect": 0,
+    "m_PVRFilterTypeIndirect": 0,
+    "m_PVRFilterTypeAO": 0,
+    "m_PVRFilteringGaussRadiusDirect": 1,
+    "m_PVRFilteringGaussRadiusIndirect": 5,
+    "m_PVRFilteringGaussRadiusAO": 2,
+    "m_PVRFilteringAtrousPositionSigmaDirect": 0.5,
+    "m_PVRFilteringAtrousPositionSigmaIndirect": 2,
+    "m_PVRFilteringAtrousPositionSigmaAO": 1,
+    "m_PVRTiledBaking": 0,
+    "m_NumRaysToShootPerTexel": -1,
+    "m_RespectSceneVisibilityWhenBakingGI": 0
+  },
+  "project_render_defaults": {
+    "active_color_space": 0,
+    "pixel_light_count": 4,
+    "custom_render_pipeline": null,
+    "lights_use_linear_intensity": false,
+    "lights_use_color_temperature": false
+  },
+  "source_files": [
+    {
+      "path": "ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting",
+      "sha256": "A49EB3AFA0B879432FFCAAF4150C79618BC118D43D08EBA4F02AAFB52E3FE27B",
+      "size": 1881
+    },
+    {
+      "path": "ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting.meta",
+      "sha256": "94C11E510CFF135AFB7CD42CEC59C1DC98000B0951D551E44220E8F14710F1DB",
+      "size": 208
+    },
+    {
+      "path": "Policies/EMVRRoomLightingReference/LightingData.asset",
+      "sha256": "59B1E61BEA52A2C7CFC9A0F18089B5C2269790E42D0016BEB27EF5130905C799",
+      "size": 3592300
+    },
+    {
+      "path": "Policies/EMVRRoomLightingReference/LightingData.asset.meta",
+      "sha256": "84D44BD83F663CC8D5BFA87FF524617F8E42EBC3C2EBCA7D2CDBB2BD6CF29692",
+      "size": 198
+    }
+  ],
+  "historical_lighting_data": {
+    "path": "Policies/EMVRRoomLightingReference/LightingData.asset",
+    "guid": "5ccf681a5a6a0d34ba50f7346e31858c",
+    "unity_version": "2018.3.14f1",
+    "access": "read_only_reference_only",
+    "assign_to_new_scene": false,
+    "reason": "Precomputed data contains scene renderer/object associations; regenerate for new scene identities and geometry placement."
+  },
+  "new_scene_lighting_data": {
+    "strategy": "regenerate_in_unity_from_immutable_settings",
+    "required_for_gate5": true,
+    "output_directory": "UnityProject/Assets/Scenes/<lab_id>",
+    "allow_historical_data_reference": false
+  },
+  "original_render_settings": {
+    "m_ObjectHideFlags": 0,
+    "serializedVersion": 9,
+    "m_Fog": 0,
+    "m_FogColor": {
+      "r": 0.5,
+      "g": 0.5,
+      "b": 0.5,
+      "a": 1
+    },
+    "m_FogMode": 3,
+    "m_FogDensity": 0.01,
+    "m_LinearFogStart": 0,
+    "m_LinearFogEnd": 300,
+    "m_AmbientSkyColor": {
+      "r": 0.08744214,
+      "g": 0.10433816,
+      "b": 0.14150941,
+      "a": 1
+    },
+    "m_AmbientEquatorColor": {
+      "r": 0.1400303,
+      "g": 0.21646784,
+      "b": 0.27205884,
+      "a": 1
+    },
+    "m_AmbientGroundColor": {
+      "r": 0.048010383,
+      "g": 0.112683475,
+      "b": 0.17647058,
+      "a": 1
+    },
+    "m_AmbientIntensity": 1,
+    "m_AmbientMode": 3,
+    "m_SubtractiveShadowColor": {
+      "r": 0.42,
+      "g": 0.478,
+      "b": 0.627,
+      "a": 1
+    },
+    "m_SkyboxMaterial": {
+      "fileID": 0
+    },
+    "m_HaloStrength": 0.5,
+    "m_FlareStrength": 1,
+    "m_FlareFadeSpeed": 3,
+    "m_HaloTexture": {
+      "fileID": 0
+    },
+    "m_SpotCookie": {
+      "fileID": 10001,
+      "guid": "0000000000000000e000000000000000",
+      "type": 0
+    },
+    "m_DefaultReflectionMode": 1,
+    "m_DefaultReflectionResolution": 128,
+    "m_ReflectionBounces": 1,
+    "m_ReflectionIntensity": 1,
+    "m_CustomReflection": {
+      "fileID": 0
+    },
+    "m_Sun": {
+      "fileID": 0
+    },
+    "m_IndirectSpecularColor": {
+      "r": 0,
+      "g": 0,
+      "b": 0,
+      "a": 1
+    },
+    "m_UseRadianceAmbientProbe": 0
+  },
+  "user_adjustment": {
+    "date": "2026-09-12",
+    "parameter": "m_AmbientSkyColor",
+    "rgb_multiplier": 1.5,
+    "reason": "User requested a modest brighter default after finding the original environment too dark.",
+    "scope": "scene_render_settings_only",
+    "source_assets_unchanged": true
+  },
+  "settings_serialization": {
+    "line_endings": "LF",
+    "encoding": "UTF-8",
+    "transformation": "CRLF to LF only; all serialized settings and GUIDs preserved",
+    "original_sha256": "FF773DEDF4E061F85EA4902CF00E92F395D1A1B1C00282BF3CCC6E57EBAF97CB",
+    "original_size": 1947,
+    "published_sha256": "A49EB3AFA0B879432FFCAAF4150C79618BC118D43D08EBA4F02AAFB52E3FE27B",
+    "published_size": 1881
+  },
+  "execution_settings": {
+    "mode": "native_on_demand",
+    "asset_name": "RoomLighting_Execution.lighting",
+    "output_directory": "UnityProject/Assets/Scenes/<lab_id>/",
+    "source_access": "read_only",
+    "generated_access": "canonical_editor_routine_only",
+    "auto_generate": false,
+    "identity_fields_allowed_to_differ": [
+      "m_Name",
+      "serializedVersion"
+    ],
+    "reason": "Observed Unity import exposes workflow=0/autoGenerate=true despite frozen source YAML mode=1. Native execution object enforces OnDemand without modifying source bytes."
+  }
+}

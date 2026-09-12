@@ -45,7 +45,14 @@ scene:
 
 ```powershell
 python Tools/labflow/labflow.py new --mode blind-rebuild --lab-id <lab_id> --title "<title>" --domain <domain> --scene Assets/Scenes/<Output>.unity
+python Tools/labflow/labflow.py source-references --lab-id <lab_id>
 ```
+
+`new` generates `LabSpecs/<lab_id>/source-references.json` from the protected
+catalog. It contains repository-relative POSIX references to unchanged,
+read-only reusable sources. `source-references` resolves them against the
+current Pack root, including after a GitHub clone; its absolute output is not
+persisted.
 
 After the Gate 0 verifier actually passes:
 
@@ -58,6 +65,14 @@ The second command is Agent-owned, Gate-0-only, and create-once. It does not
 replace or update release frozen hashes. Gates 1–10 block if protected files no
 longer match `BuildEvidence/<lab_id>/gate0-protected-baseline.json`; do not
 recapture it to hide a difference.
+
+For a maintainer-repaired pre-scaffold Gate 4 run, follow the compatibility
+receipt rules in `Policies/reuse-policy.md`. Preserve the original baseline,
+`BuildEvidence/<lab_id>/protected-maintenance/*.json` and the state
+`protected_maintenance` registrations. The Builder cannot issue, edit, remove,
+rehash or register receipts. Rerun Boundary, source-references and status;
+resume the same Gate 4 only when integrity passes. Prior approvals remain
+unchanged, and scaffold generation/Unity compile evidence are still required.
 
 After each gate is complete and the user approves/progresses:
 

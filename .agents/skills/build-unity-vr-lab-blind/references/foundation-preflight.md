@@ -43,14 +43,28 @@ Complete this preflight before creating or changing Lab C#.
     non-`.meta` source file exactly once with a matching SHA-256. Reject any
     unlisted source file. The actual copy and approved-room import happen only
     after Gate 4 approval, during Gate 5.
-12. When resuming, require `workflow_state.json` schema `1.9.0`. If `status`
+12. When resuming, require `workflow_state.json` schema `2.0.0`. If `status`
     reports an older schema, run `labflow migrate-state`; all prior approvals
     and evidence must be reviewed again from Gate 0.
-13. After the release Boundary actually passes and `boundary_verifier=passed`
+13. Require `Policies/reuse-source-references.json` and the current
+    `LabSpecs/<lab_id>/source-references.json` to validate with `labflow
+    source-references --lab-id <lab_id>`. Require catalog/manifest SHA-256
+    values in state, read-only sources, repository-relative POSIX persisted
+    paths, and zero persisted absolute paths. After a GitHub clone, resolve
+    again from the new Pack root; never edit the manifest for the new drive.
+14. After the release Boundary actually passes and `boundary_verifier=passed`
     is recorded, run `labflow capture-gate0-baseline --lab-id <lab_id>` once.
     Require `BuildEvidence/<lab_id>/gate0-protected-baseline.json` and its
     state-recorded SHA-256 to remain unchanged through Gate 10. Do not update
     release hashes or recapture this baseline to absorb a later difference.
+
+For a maintainer-repaired pre-scaffold Gate 4 run, follow the compatibility
+receipt rules in `Policies/reuse-policy.md`. Preserve the original baseline,
+`BuildEvidence/<lab_id>/protected-maintenance/*.json` and the state
+`protected_maintenance` registrations. The Builder cannot issue, edit, remove,
+rehash or register receipts. Rerun Boundary, source-references and status;
+resume the same Gate 4 only when integrity passes. Prior approvals remain
+unchanged, and scaffold generation/Unity compile evidence are still required.
 
 Do not start Lab generation when any check fails. Report the first root failure
 and stop; do not edit the foundation or continue into cascaded errors.

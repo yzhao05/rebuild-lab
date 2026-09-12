@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0.0",
+  "reference_base": "builder_pack_root",
+  "path_format": "repository_relative_posix",
+  "absolute_paths_persisted": false,
+  "source_access": "read_only",
+  "integrity_enforcement": [
+    "release_builder_boundary",
+    "gate0_protected_baseline",
+    "per_lab_reference_manifest_sha256"
+  ],
+  "sources": [
+    {
+      "source_id": "common_package",
+      "source_kind": "directory",
+      "path": "UnityProject/LocalPackages/com.emvr.lab-common",
+      "access": "read_only",
+      "transfer_mode": "reference_only",
+      "integrity_reference": "Policies/pack-inventory.json"
+    },
+    {
+      "source_id": "gate5_foundation",
+      "source_kind": "directory",
+      "path": "ReusableFoundation/Gate5MinimalSlice/Source",
+      "access": "read_only",
+      "transfer_mode": "byte_for_byte_copy_via_materializer",
+      "tool": ".agents/skills/build-unity-vr-lab-blind/scripts/materialize_gate5_foundation.py",
+      "integrity_reference": "ReusableFoundation/Gate5MinimalSlice/manifest.json"
+    },
+    {
+      "source_id": "approved_assets",
+      "source_kind": "directory",
+      "path": "ApprovedAssets",
+      "access": "read_only",
+      "transfer_mode": "guid_closure_copy_via_importer",
+      "tool": ".agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py",
+      "integrity_reference": "Policies/pack-inventory.json"
+    },
+    {
+      "source_id": "mandatory_room",
+      "source_kind": "file",
+      "path": "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab",
+      "access": "read_only",
+      "transfer_mode": "guid_closure_copy_via_importer",
+      "tool": ".agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py",
+      "integrity_reference": "Policies/pack-inventory.json"
+    },
+    {
+      "source_id": "xr_interaction_setup",
+      "source_kind": "file",
+      "path": "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab",
+      "access": "read_only",
+      "transfer_mode": "guid_closure_copy_via_importer",
+      "tool": ".agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py",
+      "integrity_reference": "Policies/pack-inventory.json"
+    },
+    {
+      "source_id": "xr_device_simulator",
+      "source_kind": "file",
+      "path": "ApprovedAssets/XRInteractionToolkitSamples/XR Device Simulator/XR Device Simulator.prefab",
+      "access": "read_only",
+      "transfer_mode": "guid_closure_copy_via_importer",
+      "tool": ".agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py",
+      "integrity_reference": "Policies/pack-inventory.json"
+    },
+    {
+      "source_id": "conditional_reusable_code_archive",
+      "source_kind": "directory",
+      "path": "KnowledgeBase/ReusableCodeArchive",
+      "access": "read_only",
+      "transfer_mode": "reference_only_after_design_approval",
+      "integrity_reference": "Policies/reuse-allowlist.json"
+    }
+  ]
+}

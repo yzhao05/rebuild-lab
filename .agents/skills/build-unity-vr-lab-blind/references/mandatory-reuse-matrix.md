@@ -28,6 +28,7 @@ Do not replace these responsibilities with new Lab-specific equivalents.
 
 | Responsibility | Required Common code | Requirement |
 | --- | --- | --- |
+| Portable reusable-source binding | `Policies/reuse-source-references.json` and `LabSpecs/<lab_id>/source-references.json` | Keep original reusable code/assets and the per-Lab binding immutable. Resolve repository-relative POSIX paths from the current Builder Pack root; runtime absolute paths are diagnostic only. |
 | Stable contract identity and reversible object state | `EmVrLabObject`, `ILabObjectStateProvider`, `IRestorableLabObjectStateProvider` | Add/subclass on every contract-visible mutable object; use exact contract IDs. |
 | Capture/Restore/Reset | `EmVrObjectStateSnapshotStore` | Register every mutable contract-visible object. Lab-specific code may additionally manage runtime-created membership, but must not replace the Common state envelope. |
 | Lab and step lifecycle | `EmVrLabContractRunner` | Configure the confirmed lab ID, ordered steps, known objects, and shared services. Domain code decides physics success and then advances the runner. |
@@ -79,6 +80,41 @@ area, and require the foundation visibility check after button invocation.
 
 ## Gate 5 implementation split
 
+The XR baseline is mandatory default code, owned by approved Prefabs, XRI and
+Common. Follow `Policies/reuse-policy.md` "Gate 5 XR defaults and ownership".
+Require complete linked Setup and Simulator, unchanged bindings/controller
+models/ray origins, one Common ray tuner and one Common mouse pointer outside
+the XR hierarchy (mouse ray visualization off). Common lifecycle applies ray
+tuning at runtime; do not persist tuning overrides on the approved rig.
+Never create a second simulator, input driver, ray caster, controller updater
+or renamed copy of existing reusable code. Only an explicit user request may
+initiate a default change; record scope/provenance and route protected-source
+changes through maintenance. Import hashes alone do not prove runtime behavior.
+
+Gate 5 room lighting defaults to **5.0 for each of the four Part 03 point lights**
+and the reviewed environment in read-only `Policies/emvr-room-lighting.json`.
+Its current `render_settings` includes the user-approved original Flat ambient
+RGB x1.5 (2026-09-12); `original_render_settings` preserves original provenance.
+Use the current defaults. Original LightingSettings, room Parts/recipe and all
+four point lights at intensity 5 remain unchanged.
+The published RoomLighting text is LF-normalized by maintenance (2026-09-12),
+preserving every value/GUID. Import that frozen release byte-for-byte; never
+normalize generated copies or accept mismatching hashes even for EOL-only drift.
+Import source-exact `ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting`
+through the approved importer; assign it as the scene's LightingSettings without
+editing its fields. Realtime GI on, baked GI off, original sampling/AO values.
+Generate fresh scene-bound lighting data in Unity after each rebuild; the frozen
+historical LightingData archive is reference-only and must not be assigned.
+Require current-scene data plus actual visual evidence before Gate 5 acceptance.
+
+Gate 5 room lighting defaults to **5.0 for each of the four Part 03 point lights**
+through the frozen recipe's existing instance overrides, plus **Flat ambient
+intensity 1.0**. Apply the exact environment colors/reflection settings in
+`Policies/reuse-policy.md` (Gate 5 default room lighting). Add no Directional
+Light to the minimal room. Validate lighting before saving; missing overrides
+must not silently fall back to the standalone Prefab's 1.5. Assets, imports and
+the complete five-module recipe remain read-only.
+
 The Builder Agent must preserve this ownership boundary:
 
 1. Direct-call Common; never copy Common `.cs` files into the Lab.
@@ -116,6 +152,64 @@ in a production Lab scene.
 Treat the approved `EMVRRoom/Prefabs/Room_Big_Part_01.prefab` as the mandatory
 EMVR room baseline for every Lab rebuild. It is an asset rather than C# source, but
 it belongs to the same mandatory-reuse audit as the Common code baseline.
+
+Use frozen `Policies/emvr-room-assembly.json` (hash in pack-inventory): linked
+Part 01, Part 02, Part 03, Part 02, Part 01 at normalized X positions 7.5, 4.5,
+1.5, -1.5, -7.5 m. Only the last Part 01 has yaw 180 degrees; Y/Z normalize to
+zero before whole-room placement. Regular floor extent is about 15 x 18 m.
+Read the recipe's GUIDs and explicit Part 03 floor/light instance overrides,
+which reproduce the EMVRLABS room configuration without its Lab logic. Source
+and imported Prefab bytes stay unchanged. Two Part 01 copies alone form a
+smaller 6 x 18 m room and are not this approved assembly.
+
+Import Part 02 and Part 03 in Gate 5 in addition to Part 01; all three GUID
+closures are mandatory. Read the protected recipe during Editor construction,
+validate target local file IDs and apply only its numeric Transform/Light
+instance properties. Preserve links and children. Check actual floor support
+including the configured center floor, roof/end joins and initial/post-action
+Game View; aggregate bounds alone cannot establish support beneath a player.
+
+The entire room source, each Part and dependency/meta, generated imports and
+assembly recipe are read-only. Always reuse all five recorded instances, even
+for a minimal slice. No module may be omitted, regenerated, unpacked, replaced,
+deleted, simplified or patched. Use only the recipe's frozen instance settings
+and whole-room placement. Verify source/copy hashes and exact saved-scene linked
+counts (Part 01 x2, Part 02 x2, Part 03 x1). Reject removed/added children or
+components, disabling and non-unit scale overrides before accepting Gate 5.
+
+After changing builder layout code, rebuild successfully before collecting
+Play Mode evidence. On failure a builder may reopen the last saved scene;
+playing it does not exercise the new layout. Include a serialized layout
+revision and reject stale scenes. `gate5_foundation_ready` only checks wiring;
+it is not room completeness or Game View acceptance evidence.
+It is also not evidence that GI has been generated. The builder must automatically
+derive and reference native current-Lab RoomLighting_Execution from the verified
+original LightingSettings using reuse-policy's compatibility adapter. Preserve all
+light parameters and source hashes; only execution Auto Generate is forced off.
+Validate provenance and saved fields, use the mandatory source-cache retirement
+and exact-path save guard, and save the assembled scene. Reuse this available
+implementation; do not rewrite it without an explicit user change request.
+Build hands off manual generation; it must not automatically bake. Optional
+generation-only recovery must reuse the same adapter and save protection.
+Preserve execution Auto Generate=false and all original source/import bytes.
+Check completion/errors, scene identity and the saved generated-data reference,
+then validate Game View. Never infer stale GI from timestamps or build success.
+
+Every Gate 5A user-facing reply must include this ordered lighting procedure:
+
+1. Exit Play Mode.
+2. Run the current Lab's Build menu once. For `ece329_electric_field_0`:
+   `Tools > EMVR > Labs > Build Ece329 Electric Field 0`.
+3. `Window > Rendering > Lighting > Generate Lighting, wait, then save.`
+
+Use the actual generated Build menu name for another Lab. This supersedes the
+older lighting-only one-line handoff and the instruction to omit Build when a
+settings reference exists. Keep the normal reply concise; keep asset/reference
+checks internal and add diagnostics only for an actual failure or user request.
+Generate after that Build and save after completion. Do not ask for another Build
+after generation unless content changes; a later Build requires regeneration.
+
+Preserve source defaults; never ask users to drag in or recreate settings.
 
 `new_scene` means create a new Lab scene and instantiate the approved room
 Prefab inside it. It does not authorize copying `DemoScene.unity`, generating

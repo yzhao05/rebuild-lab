@@ -1,9 +1,7 @@
-# Keep byte-level integrity manifests stable across Windows, macOS, and Linux.
-* text=auto eol=lf
-
-# Windows command scripts are the only files that require CRLF checkout.
-*.bat text eol=crlf
-*.cmd text eol=crlf
+# Preserve reviewed bytes in the index, clones and GitHub source archives.
+# Frozen inputs include LF, CRLF and binary assets. Git must not normalize them.
+# Unity .lighting is published as LF; do not convert it or other frozen assets.
+* -text
 
 # Never run binary assets through end-of-line conversion.
 *.dll binary

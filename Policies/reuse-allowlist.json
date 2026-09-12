@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.5.0",
+  "schema_version": "1.6.0",
   "policy": "deny_unlisted",
   "categories": {
     "direct_reuse": [
@@ -19,6 +19,10 @@
       "KnowledgeBase/rebuild-lessons/**",
       "LabSpecs/templates/**",
       "BuildEvidence/EvalTemplates/**"
+    ],
+    "portable_source_reference_control": [
+      "Policies/reuse-source-references.json (maintainer-owned catalog)",
+      "LabSpecs/<lab_id>/source-references.json (labflow-generated immutable binding)"
     ],
     "restricted_lab_specific_archive": [
       "KnowledgeBase/legacy-lab-specific-summaries/** (forbidden during blind rebuild; exact-file user authorization required for non-blind comparison)"
@@ -70,15 +74,26 @@
     ],
     "foundation_owner": "user",
     "agent_action_on_foundation_defect": "stop current gate and report; do not modify, work around, or provide replacement code",
-    "controlled_write_exception": "During Gate 0, labflow may create BuildEvidence/<current_lab_id>/gate0-protected-baseline.json exactly once after release Boundary PASS. After Gate 9 user acceptance, Gate 10 may create only BuildEvidence/retrospectives/<current_lab_id>.md and KnowledgeBase/rebuild-lessons/<current_lab_id>.md; none may overwrite an existing file"
+    "controlled_write_exception": "During new-run creation, labflow may create LabSpecs/<current_lab_id>/source-references.json exactly once from the protected catalog. During Gate 0, labflow may create BuildEvidence/<current_lab_id>/gate0-protected-baseline.json exactly once after release Boundary PASS. After Gate 9 user acceptance, Gate 10 may create only BuildEvidence/retrospectives/<current_lab_id>.md and KnowledgeBase/rebuild-lessons/<current_lab_id>.md; none may overwrite an existing file"
   },
   "mandatory_assets": [
     "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_01.prefab",
+    "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_02.prefab",
+    "ApprovedAssets/EMVRRoom/Prefabs/Room_Big_Part_03.prefab",
     "ApprovedAssets/XRInteractionToolkitSamples/Starter Assets/Prefabs/XR Interaction Setup.prefab",
-    "ApprovedAssets/XRInteractionToolkitSamples/XR Device Simulator/XR Device Simulator.prefab"
+    "ApprovedAssets/XRInteractionToolkitSamples/XR Device Simulator/XR Device Simulator.prefab",
+    "ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting"
   ],
   "requirements": {
     "record_provenance": true,
+    "reuse_source_reference_catalog": "Policies/reuse-source-references.json",
+    "per_lab_source_reference_manifest": "LabSpecs/<lab_id>/source-references.json",
+    "source_reference_base": "builder_pack_root",
+    "source_reference_path_format": "repository_relative_posix",
+    "persisted_absolute_source_paths_forbidden": true,
+    "source_reference_sources_read_only": true,
+    "source_reference_manifest_hash_locked": true,
+    "source_reference_runtime_resolution_after_clone": true,
     "generalize_conditional_code": true,
     "validate_new_shared_code": true,
     "ask_when_spec_is_missing": true,
@@ -113,6 +128,12 @@
     "gate0_protected_baseline_create_once": true,
     "gate0_protected_baseline_overwrite_forbidden": true,
     "gate0_protected_baseline_update_after_gate0_forbidden": true,
+    "maintainer_compatibility_profile": "gate4_pre_scaffold_tooling_v1",
+    "maintainer_compatibility_receipts": "BuildEvidence/<lab_id>/protected-maintenance/<sequence>.json",
+    "maintainer_compatibility_state_field": "protected_maintenance",
+    "maintainer_compatibility_preserves_original_baseline": true,
+    "maintainer_compatibility_requires_exact_old_new_hashes": true,
+    "builder_may_issue_or_modify_maintenance_receipts": false,
     "gates_1_through_10_verify_gate0_protected_baseline": true,
     "gate10_current_lesson_excluded_from_gate0_baseline": true,
     "approved_asset_real_import_gate": 5,
@@ -149,6 +170,7 @@
     "workflow_maintenance_material_forbidden": true,
     "gate_9_user_acceptance_required": true,
     "gate_10_retrospective_required": true,
-    "gate_9_must_announce_gate_10": true
+    "gate_9_must_announce_gate_10": true,
+    "room_assembly_recipe": "Policies/emvr-room-assembly.json"
   }
 }

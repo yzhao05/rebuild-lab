@@ -16,6 +16,10 @@ the requested Lab ID, skip creation and initialize/resume there. Never invoke
 the master copy tool from inside a valid child.
 This workspace handoff is pre-Gate setup, not a Gate 0 blocker. Gate 0 work and
 artifacts begin only after `labflow new` initializes the marked child.
+That command also creates `LabSpecs/<lab_id>/source-references.json` from
+`Policies/reuse-source-references.json`. Run `labflow source-references` to
+validate and resolve it on the current machine; never persist the displayed
+absolute paths.
 
 Use one atomic conversation work package per gate:
 
@@ -80,7 +84,11 @@ The verifier passes; every `file:` dependency resolves to a real
 `package.json`; `manifest.json` and `packages-lock.json` agree; Common resolves
 from `UnityProject/LocalPackages`; Unity MCP and `UNITY_MCP_READY` are absent;
 no Gold artifact or protected-foundation repair is present. Complete this gate
-before writing Lab C#. Recursively read every prior lesson under
+with a valid, read-only per-Lab source-reference manifest whose catalog and
+manifest hashes are recorded in state. Every source path must be normalized
+repository-relative POSIX and resolve inside the current Builder Pack; the
+manifest and referenced source content must remain unchanged through Gate 10.
+Complete this gate before writing Lab C#. Recursively read every prior lesson under
 `KnowledgeBase/rebuild-lessons/` except files named `README.md`, including the
 recommended pre-workflow construction experience, and complete the current Lab's
 `prior-lessons-review.md`, listing applicable safeguards and explaining lessons
@@ -97,6 +105,14 @@ and is checked by every later gate. Never edit the release frozen hashes or
 recapture the baseline to accept a change. If a later comparison names a
 changed protected file, stop and report that foundation defect. Gate 10's new
 current-Lab lesson is the only planned baseline exclusion.
+
+For a maintainer-repaired pre-scaffold Gate 4 run, follow the compatibility
+receipt rules in `Policies/reuse-policy.md`. Preserve the original baseline,
+`BuildEvidence/<lab_id>/protected-maintenance/*.json` and the state
+`protected_maintenance` registrations. The Builder cannot issue, edit, remove,
+rehash or register receipts. Rerun Boundary, source-references and status;
+resume the same Gate 4 only when integrity passes. Prior approvals remain
+unchanged, and scaffold generation/Unity compile evidence are still required.
 
 ## 1. Brief confirmed
 
@@ -127,6 +143,10 @@ Unity, and XRI API the new Lab will call. It names all three mandatory Prefabs'
 generated import paths under
 `Assets/Generated/<lab_id>/ApprovedDependencies/` and their import-manifest
 evidence.
+The design also names `LabSpecs/<lab_id>/source-references.json`, confirms that
+the original reusable sources are read-only, and records only repository-relative
+paths. API audits may cite these references; they may not duplicate or rewrite
+the referenced code.
 
 ## 4. Scaffold ready
 

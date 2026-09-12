@@ -36,9 +36,300 @@ workflow, Common, reusable-foundation, approved-asset, knowledge, package, and
 project-setting roots for this run. The command is allowed only in Gate 0,
 refuses overwrite, and cannot be used to bless a failed release Boundary.
 Gates 1–10 compare current protected files against this Gate 0 snapshot and
-block on any added, removed, or changed protected file. The current Lab's
+block on every unregistered change, addition or removal; verified maintainer
+receipts below provide only exact replacement hashes. The current Lab's
 `KnowledgeBase/rebuild-lessons/<lab_id>.md` is the sole planned exclusion
 because Gate 10 creates it; all older lessons remain protected.
+
+### Maintainer compatibility receipts before scaffold generation
+
+A user-authorized workflow maintainer may register a reviewed tooling repair
+at Gate 4, before any scaffold/implementation output or Unity evidence exists.
+Profile `gate4_pre_scaffold_tooling_v1` permits only the explicit workflow tool
+and instruction paths in `labflow.PROTECTED_MAINTENANCE_PATHS`; it cannot
+replace Common, assets, packages or Lab inputs, or add/remove protected files.
+The entire actual drift must match a reviewed old/new SHA-256 and size plan,
+with passing release Boundary and source-reference checks.
+
+The maintainer creates an immutable numbered receipt at
+`BuildEvidence/<lab_id>/protected-maintenance/0001.json` (then 0002, etc.)
+and appends its repository-relative path and SHA-256 to the optional state
+`protected_maintenance` list. Receipts bind the Lab, original baseline hash,
+source manifest, predecessor receipt, reviewed state, user authorization,
+reason, validation and exact replacements. Original baseline bytes/registration
+and Gate 0-3 approvals remain unchanged; all Unity evidence stays pending.
+State schema 2.0.0 stays backward compatible: an absent list means no maintenance
+authorization. The receipt schema is independently versioned as 1.0.0.
+
+The Builder cannot issue, edit, remove, rehash or register these receipts or
+alter that state list. Issuance is deliberately outside the Pack and is not a
+Builder command or input. After registration, rerun Boundary,
+`labflow source-references` and `labflow status`. Resume the same Gate 4 only
+after integrity passes; generate the scaffold and obtain Unity compile evidence
+normally. Every later gate verifies actual protected bytes against the original
+snapshot with these exact replacements. A receipt is never a wildcard,
+baseline recapture, gate approval or exclusion. Repairs outside this profile
+require a separate maintenance compatibility decision or a new run.
+
+## Portable read-only source references
+
+`Policies/reuse-source-references.json` is the maintainer-owned catalog for the
+original reusable code, Common package, validated Gate 5 source, approved
+assets, room, and XR Prefabs. `labflow new` copies only these references—not
+the source contents—into `LabSpecs/<lab_id>/source-references.json` and records
+the manifest and catalog SHA-256 values in `workflow_state.json`.
+
+Both manifests use normalized repository-relative POSIX paths resolved from
+the current Builder Pack root. They must never store a Windows drive letter,
+UNC path, or other machine-specific absolute path. After a GitHub clone, run:
+
+```powershell
+python Tools/labflow/labflow.py source-references --lab-id <lab_id>
+```
+
+The command validates the binding and prints absolute paths only as transient
+diagnostic output. Do not paste that output into source, contracts, scenes,
+specifications, or evidence. The original sources remain read-only and
+byte-identical; reference-only items are called in place, and copied items may
+move only through the catalog's declared verified importer/materializer.
+Gate 0 freezes the catalog and per-Lab binding, and every later gate rejects a
+changed manifest, changed catalog, missing source, or access/path-policy drift.
+
+## Gate 5 default room lighting
+
+The complete authority is immutable `Policies/emvr-room-lighting.json`, which
+captures the current reviewed RenderSettings, original RenderSettings provenance, complete LightingSettings values and
+rendering defaults. Original bytes and GUIDs are preserved in
+the room/archive assets. For the published LightingSettings text only, maintenance
+on 2026-09-12 standardized CRLF to LF so Unity serialization preserves the approved
+byte format. No field values, GUIDs or metadata changed. The original and published
+hashes/sizes are recorded in the profile's settings_serialization. Reuse
+`ApprovedAssets/EMVRRoom/Lighting/RoomLighting.lighting` and its `.meta`.
+Import this asset through the approved importer and assign its verified copy
+to `Lightmapping.lightingSettings`; never edit the asset or substitute new
+settings with a few matching fields. Source and imported copies are read-only.
+
+Original GI defaults: realtime GI enabled, baked GI disabled, realtime environment
+lighting enabled, On Demand generation, bounce/indirect/albedo multipliers 1,
+realtime resolution 1, AO enabled with indirect exponent 6, final gather enabled
+with 2048 rays. All remaining sampling/filtering values come from the original
+asset, not inferred defaults. Preserve the original Gamma color space, Built-in
+pipeline and Ultra pixel-light count 4 already configured in the protected project.
+
+The original 2018.3.14f1 precomputed data and metadata are sealed at
+`Policies/EMVRRoomLightingReference/LightingData.asset` for read-only provenance.
+They contain scene-object associations and are **not transferable generated data
+for a new scene**. Do not import, patch or assign this archive. Unity must
+generate the current scene's own lighting data with the original settings;
+write only the current Lab's declared `UnityProject/Assets/Scenes/<lab_id>/`
+lighting output. Rebuilding changes renderer identities and invalidates old
+data. Keep the settings asset and every room Part unchanged while generating.
+
+Gate 5 checks the entire frozen environment, immutable imported lighting source,
+and current-Lab LightingData reference, rejecting the historical data GUID.
+Missing generation remains pending. Data-file presence is not proof of correct
+GI: also inspect Unity's lighting completion/errors and the current Game view.
+Only a specific user request may initiate default changes through maintenance;
+Builders may not alter the profile, source hashes, imports or Gate 0 baseline.
+
+Gate 5 lighting handoff is mandatory. The Editor builder automatically loads
+the approved imported LightingSettings, verifies its identity and derives the
+current-scene execution settings described below before saving; users must not create an asset or drag in a substitute.
+Stop with an actionable import error when the required asset is missing.
+Before touching scene objects, verify the imported lighting asset and metadata
+against their reviewed byte hashes. Validate GUID, loaded type and GI defaults.
+If loaded validation fails, the user-invoked Editor command synchronously reimports
+only that verified asset once (`ForceUpdate | ForceSynchronousImport`), then
+rechecks bytes, GUID, loaded type and GI defaults. Keep a valid loaded object;
+unnecessary reimports can retrigger GI precompute. This refreshes Unity's loaded
+import without rewriting source/default values. Distinguish missing files, byte
+drift, GUID/type failure and loaded-property mismatch; include expected and actual
+values for a mismatch. Do not label all of them as a missing immutable import.
+Use the Inspector's serialized GI properties and public API values for validation.
+The frozen source may load with workflow=0 / autoGenerate=true even though its
+stored mode is 1. This observed Unity behavior is handled by the execution adapter
+below; never patch the source/imported asset or remove GI/default checks.
+Run this preflight before opening/rebuilding the scene so a dependency failure
+does not destroy and then reopen the room. Disable Build and generation menus
+while playing, compiling, importing or generating. A direct invocation in those
+states gives a waiting/exit-Play dialog and returns, rather than a red Console error.
+Current-scene lighting compatibility (maintainer-approved 2026-09-12): preserve
+the source/imported LightingSettings byte-for-byte. The canonical current-Lab
+Editor routine derives `Assets/Scenes/<lab_id>/RoomLighting_Execution.lighting`
+using Unity's native Object.Instantiate/CreateAsset APIs. Set autoGenerate=false
+only on this execution object; retain every original photometric/GI parameter.
+Its name and Unity serialization version may differ; no authored light value may
+differ from the frozen profile. Existing execution assets are reused and validated;
+the routine may restore only their loaded auto-generation mode. Reject other drift.
+Create the adjacent `.lighting.provenance.json` binding the original repository-
+relative source path, source SHA-256/GUID and execution GUID. Validate fields and
+provenance before acceptance. These are current-Lab generated outputs, not approved
+imports; do not copy/import them from another run or hand-edit them. The scene must
+reference its own execution asset. This explicitly supersedes earlier instructions
+to reference the imported original directly. Keep Auto Generate off on execution
+settings and retain all source/import hashes. Reuse this adapter for both Build
+and generation-only recovery; do not write another lighting implementation.
+The user-verified execution adapter, cache retirement and exact-path save guard
+below are mandatory Gate 5A defaults. Reuse them; an agent must not replace or
+rewrite this available implementation without an explicit user change request.
+When valid execution settings already exist, validate them against the frozen
+source file bytes without loading the original LightingSettings object again.
+After binding execution settings, clear the original imported object's unsaved
+native dirty state and unload it only when no loaded scene references it. This
+discards a derived editor cache, not source file content. A deferred code-reload
+cleanup may do this only for the current Lab already using its execution asset;
+it must not open/save scenes, assign settings or start generation.
+Install a current-Lab AssetModificationProcessor.OnWillSaveAssets filter for the
+exact imported RoomLighting.lighting path and its metadata. Preserve every other
+save path. Never call SaveAssetIfDirty on that original; that API bypasses the save
+filter. Keep execution/data saves targeted. Verify original source/import byte
+hashes after each native scene save and before reporting lighting-save success.
+If Unity rewrites an original despite these protections, stop; do not automatically
+restore files, accept changed hashes or issue maintenance receipts from the Builder.
+
+A successful user-invoked Build must assign and validate execution settings,
+save the assembled scene and verify original byte integrity. It must then show:
+`Window > Rendering > Lighting > Generate Lighting, wait, then save.`
+Do not invoke Bake automatically at the end of Build: the normal Gate 5A sequence
+uses the user's explicit Lighting-window generation after Build. Keep execution
+`LightingSettings.autoGenerate` false and all source/import values unchanged.
+Retain the current-Lab Generate Lighting And Save menu as optional generation-only
+recovery, reusing the same adapter and save protection. That explicit utility may
+use native one-shot `Lightmapping.Bake()` and save only after success; it does not
+replace the required normal user-facing sequence. Do not generate on script import,
+editor startup or Play. Require Edit Mode, no running bake, exactly the target scene
+loaded, current foundation revisions and verified settings. Save before generation.
+On success recheck the scene/settings, require current LightingData in this Lab's
+declared output directory, save and verify its nonzero GUID reference in the scene.
+Never repair GI by assigning an old file. Cancellation, failure, missing output or
+failed save remain pending; starting generation is not completion. Refuse a rebuild
+while generation runs. Interaction READY and build success are not lighting
+completion or Gate 5 acceptance.
+
+Do not use file modification times to judge GI freshness: saving the scene normally
+makes it newer than LightingData, and Git checkout changes timestamps. A null or
+unresolved saved reference is a real blocker. A valid reference is structural proof
+only; require native generation completion/errors and visual evidence for acceptance.
+
+Every Gate 5A user-facing reply must include this ordered lighting procedure:
+
+1. Exit Play Mode.
+2. Run the current Lab's Build menu once. For `ece329_electric_field_0`:
+   `Tools > EMVR > Labs > Build Ece329 Electric Field 0`.
+3. `Window > Rendering > Lighting > Generate Lighting, wait, then save.`
+
+Use the actual generated Build menu name for another Lab. This supersedes the
+older lighting-only one-line handoff and the instruction to omit Build when a
+settings reference exists. Keep the normal reply concise; keep asset/reference
+checks internal and add diagnostics only for an actual failure or user request.
+Generate after that Build and save after completion. Do not ask for another Build
+after generation unless content changes; a later Build requires regeneration.
+
+The default room light intensity is **5.0 per light** (Unity `Light.intensity`,
+not a measured illuminance in lux). Reuse all four original Part 03 point lights
+and apply the existing `m_Intensity: 5` instance overrides from read-only
+`Policies/emvr-room-assembly.json`. The standalone Prefab value is 1.5;
+importing it without its frozen overrides does not reproduce the room.
+
+The original EMVRLABS environment remains recorded as `original_render_settings`.
+On 2026-09-12 the user requested a modest brighter default: multiply the original
+Flat ambient sky RGB by 1.5, preserving alpha and all other settings. This lifts
+the constant ambient contribution without increasing the four light hot spots.
+Use `render_settings` for the current default; the original record is provenance.
+Set these defaults explicitly in the current-Lab
+scene builder, before visual validation; never edit a room asset to set them:
+
+| Setting | Gate 5 default |
+| --- | --- |
+| Part 03 point lights | 4 lights, intensity **5.0** each; preserve recipe colors/ranges |
+| Ambient mode / intensity | `Flat` (serialized 3) / **1.0** |
+| Ambient sky RGB | `(0.13116321, 0.15650724, 0.212264115)` (original RGB x1.5) |
+| Ambient equator RGB | `(0.1400303, 0.21646784, 0.27205884)` |
+| Ambient ground RGB | `(0.048010383, 0.112683475, 0.17647058)` |
+| Ambient color alpha | `1` for all three colors |
+| Skybox / Sun / Fog | None / None / disabled |
+| Reflection mode / intensity / custom cubemap | `Custom` / `1.0` / None |
+| Extra Directional Light | None in the Gate 5 minimal room |
+
+In Flat mode the sky color supplies constant ambient light; equator/ground
+colors are preserved for source consistency. The full profile and source asset
+also preserve GI settings. These values do not guarantee identical screen brightness across render
+pipelines, quality settings or displays. Keep all room Parts, dependency copies
+and the assembly recipe byte-identical. Gate 5 checks the saved environment and
+each expected light override; Unity visual/compile evidence remains required.
+
+## Gate 5 XR defaults and ownership
+
+These are required defaults in every Gate 5 minimal slice, not optional examples.
+Only an explicit user request may initiate changing a default. Record the user's
+exact request, affected setting, reason and validation in the current design and
+reuse report. A general approval/continue message does not authorize changes.
+Protected source changes require a reviewed maintainer release/compatibility
+decision; Builders must not modify sources, imports, manifests or validators.
+Do not introduce an agent-written exception file that bypasses these checks.
+
+| Responsibility | Mandatory owner and default |
+| --- | --- |
+| Rig, camera, left/right tracking, models, interaction/locomotion managers, input action manager | Exactly one complete approved `XR Interaction Setup.prefab` by GUID closure. Preserve every nested source link/component/action reference and child pose. |
+| Simulated HMD/controllers, pose input, device mode, bindings and simulator UI | Exactly one approved `XR Device Simulator.prefab` with its entire closure. Use installed XRI `XRDeviceSimulator`; never rewrite a pose updater or inject a second simulated device. |
+| Initial keyboard movement target | Set the imported simulator's public `axis2DTargets` to `XRDeviceSimulator.Axis2DTargets.Position` once in the current-Lab startup composition. XRI 2.6.5 initializes Primary2DAxis; this explicit Gate 5 default enables immediate keyboard hand translation. Preserve subsequent user mode changes. |
+| Controller ray casting and line origin | Keep approved `XRRayInteractor` / `XRInteractorLineVisual` and authored tracking/stabilized and model origin references. Do not move models, reparent origins, align rays to the camera, or reconstruct lines. |
+| Runtime ray tuning | One Common `EmVrXrRayRuntimeTuner`: radius 0.06, minimum distance 20, controller rays only true, mouse-left debug selection false. Its existing Start/Update applies these; do not persist editor ray overrides into the rig. |
+| Desktop interaction | One Common `EmVrMousePointer` on external Systems group, `showPointerRay=false`. Keep desktop behavior; the camera-origin yellow debug line is not a controller laser. |
+| XR grab / feedback | XRI `XRGrabInteractable` and Common `EmVrXrGrabFeedbackBridge` on the neutral/domain object, sharing Common feedback/state with desktop. |
+| XR UI / button / spawning | `EmVrGate5FoundationSceneUtility`, the rig's input actions, one XR EventSystem and persistent buttons, plus Common spawner/harness. Keep protected six-file foundation copy byte-identical. |
+
+Default composition configures existing code. Both complete Prefabs must already
+be instantiated through approved imports; `systems` is outside their hierarchies:
+
+```csharp
+var pointer = systems.gameObject.AddComponent<EmVrMousePointer>();
+pointer.showPointerRay = false;
+// Configure current-Lab interaction targets/layers through Common APIs.
+var tuner = systems.gameObject.AddComponent<EmVrXrRayRuntimeTuner>();
+tuner.sphereCastRadius = 0.06f;
+tuner.minimumRayDistance = 20f;
+tuner.controllerRaysOnly = true;
+tuner.enableMouseLeftDebugSelect = false;
+// Existing Common Start/Update applies settings at runtime.
+```
+
+Bind the imported root's existing `XRDeviceSimulator` to the current controller
+in the scene builder. In that controller's `Start`, after verifying the reference,
+apply exactly this existing API once (never in Update or LateUpdate):
+
+```csharp
+deviceSimulator.axis2DTargets = XRDeviceSimulator.Axis2DTargets.Position;
+```
+
+Use `UnityEngine.XR.Interaction.Toolkit.Inputs.Simulation`. This is composition
+of the installed implementation, not permission to copy or modify its internals.
+
+Preserve simulator keyboard Y speed **0.2** and Q/E plus Down/Up arrow bindings.
+In controller mode, hold **Left Shift** for the left device or **Space** for the
+right; **T/Y** select each persistently. Up/Down translate relative to the
+configured local movement space. Game view must have focus. **1** selects
+Primary 2D Axis, **2** Secondary 2D Axis, and **3** toggles Device Position
+targeting. Keyboard position movement runs only while Position is active.
+If changed, use 3 once and confirm Position is selected, rather than repeatedly
+toggling it. **Tab** cycles devices; **Escape** stops manipulation. These keys
+belong to the simulator; do not advertise numbered Lab steps as shortcuts or
+assign conflicting Lab keys.
+
+Review code inventory/provenance: if Common, XRI, approved assets or Gate 5
+foundation implement a responsibility, call it or use the verified
+importer/materializer. Never copy, rename, fork or recreate that implementation
+in Lab code. Lab code owns domain behavior and composition. Automated checks
+reject missing/duplicate/unpacked or modified XR instances, changed Common
+defaults and known duplicate/input-injection patterns. Static pattern checks
+cannot prove arbitrary renamed code is semantically equivalent; review all
+current-Lab code and declared output paths as well.
+
+Before foundation acceptance, obtain Unity observations of both hands moving
+up/down, each controller ray following its controller, no extra camera debug
+beam, and equivalent desktop/XR button/grab results. Import hashes or a compile
+PASS cannot replace these observations. Record actual observations in the
+Gate 5 foundation evidence, not assumed results.
 
 ## Category A: directly reusable
 
@@ -86,6 +377,61 @@ created scene, preserving its `.meta` and dependency closure. This is the
 validated modular EMVR room containing floor, wall, and roof geometry. The XRI
 `Teleportation Environment.prefab` contains only a sample ground and must not be
 used as the room shell.
+The full EMVRLABS room is frozen in `Policies/emvr-room-assembly.json`: two
+Part 01, two Part 02, one Part 03, forming approximately 15 x 18 m of regular
+floor extent. Part 01 alone or two joined Part 01 copies do not match this room.
+Import all three Prefabs with dependency closure and preserve their source and
+imported bytes/links. Apply only the recipe's placements and explicit Part 03
+floor/light overrides to instances. No donor Lab scene or domain code is used.
+Validate actual floor support, roof/joins and camera-visible room/UI.
+
+Room reuse is all-or-nothing. Every room Part, dependency and .meta, the
+generated imports, and the frozen assembly recipe are read-only to workflow
+agents. Do not edit, unpack, regenerate, simplify, substitute or delete them,
+or alter hashes to accept a changed copy. Always instantiate Part 01 twice,
+Part 02 twice and Part 03 once. Only the already-frozen instance settings and
+whole-room placement may be applied. Do not choose a subset for a minimal Lab.
+Before Gate 5 foundation evidence can pass, verify the saved scene contains
+those exact linked-instance counts and no added/removed, disabled or rescaled
+module content. Copy/import success alone is insufficient. Existing maintenance
+receipts are historical compatibility records, not Builder write permission.
+
+Room reuse is all-or-nothing. Every room Part, dependency and .meta, the
+generated imports, and the frozen assembly recipe are read-only to workflow
+agents. Do not edit, unpack, regenerate, simplify, substitute or delete them,
+or alter hashes to accept a changed copy. Always instantiate Part 01 twice,
+Part 02 twice and Part 03 once. Only the already-frozen instance settings and
+whole-room placement may be applied. Do not choose a subset for a minimal Lab.
+Before Gate 5 foundation evidence can pass, verify the saved scene contains
+those exact linked-instance counts and no added/removed, disabled or rescaled
+module content. Copy/import success alone is insufficient. Existing maintenance
+receipts are historical compatibility records, not Builder write permission.
+
+For maintenance of a pending Gate 5 room assembly, the separate
+`gate5_room_assembly_guidance_v1` profile is restricted to `AGENTS.md`, this
+policy, the mandatory reuse matrix, `Tools/labflow/labflow.py`, and its tests.
+Only the maintainer may issue/register the explicit before/after hash receipt;
+the original Gate 0 snapshot and earlier receipts remain unchanged. Issuance
+requires Gate 0-4 approvals, passed scaffold compilation, and pending Gate 5
+and later checks. All assets, Common/reusable copies and source bindings must
+still validate. It neither recaptures a baseline nor approves a gate.
+This Prefab supplies one half of the room. A complete shell needs two linked
+instances joined at the open longitudinal edge of the regular `Floor_01`
+geometry, with a 180-degree relative yaw and positive unit scale. Derive the
+join from actual geometry, excluding the doorway floor extension; do not
+delete children, unpack the Prefab, change source/imported bytes, or fill the
+missing half with primitives. Check floor support across the seam and beneath
+player/apparatus footprints, matching roof/end-wall joins, and both sides in
+Game View. Presence of three geometry roles alone is insufficient.
+
+For maintenance of a pending Gate 5 room assembly, the separate
+`gate5_room_assembly_guidance_v1` profile is restricted to `AGENTS.md`, this
+policy, the mandatory reuse matrix, `Tools/labflow/labflow.py`, and its tests.
+Only the maintainer may issue/register the explicit before/after hash receipt;
+the original Gate 0 snapshot and earlier receipts remain unchanged. Issuance
+requires Gate 0-4 approvals, passed scaffold compilation, and pending Gate 5
+and later checks. All assets, Common/reusable copies and source bindings must
+still validate. It neither recaptures a baseline nor approves a gate.
 Record this decision in the Brief/design, but execute the approved-asset copy
 only during Gate 5 after Gate 4 approval. Gate 5 readiness verifies the import
 manifest and every source/copy hash.
@@ -223,6 +569,30 @@ boundary.
 
 ## Foundation defect ownership
 
+### Git distribution byte integrity
+
+GitHub requires neither CRLF nor LF for repository files. This Pack uses
+`* -text` in `.gitattributes` so its already-reviewed LF, CRLF, mixed text and
+binary bytes stay identical in the Git index, clone and source archives.
+Do not add text/eol/encoding/filter/ident/export-subst overrides or mass-convert
+source files. Unity RoomLighting retains its explicitly published LF format.
+All source/copy/directory SHA-256 checks remain strict. No hashes are refreshed
+by the Builder after download, and a resumed run preserves its original baseline.
+
+Publish a clean master containing no current-Lab output, baseline/receipts,
+Unity caches, restricted old-Lab archive or maintainer material. Include hidden
+`.agents`, `.gitattributes` and `.gitignore`. A maintainer who publishes into an
+existing Git index must stage new files and re-index tracked files with the
+new attributes; changing `.gitattributes` alone does not repair old blobs.
+Validate a fresh clone and a source ZIP against the reviewed full-file hashes
+before publishing. Keep repository/root name `EMVR_Blind_BuilderPack`.
+
+The `gate5_git_byte_preservation_v1` compatibility profile registers only its
+eight named existing tooling/instruction files in a pending Gate 5 run. No
+asset, source-binding or baseline update is authorized by this profile. Only
+the maintainer may register its precise hash plan, retaining all prior receipts,
+approvals and evidence. It does not grant Gate 5 completion.
+
 The Builder Agent owns only the current Lab's generated specifications,
 non-example contracts, declared Lab-specific Unity output, and evidence. The
 workflow infrastructure, repository `.gitattributes`/`.gitignore`, Skills, policies, tools, Common package, reusable
@@ -262,3 +632,14 @@ closure with the Skill importer into
 `UnityProject/Assets/Generated/<lab_id>/ApprovedDependencies/`. Preserve the
 import manifest under `BuildEvidence/<lab_id>/approved-asset-imports/`; do not
 copy into shared `UnityProject/Assets/ApprovedReuse/` during a run.
+
+
+`gate5_emvrlabs_room_sources_v1` additionally permits the six reviewed Part 02,
+Part 03 and Light_01 asset/meta files and `Policies/emvr-room-assembly.json`,
+plus its named instruction/tool/inventory updates. Addition receipts bind
+explicit null before hash/size and exact after hash/size. Added files become
+protected expectations; they are never excluded from later drift checks.
+Only the maintainer can issue/register this profile at pending Gate 5 after
+Gates 0-4 approval and scaffold compilation. All source/import checks still
+apply. Preserve the Gate 0 snapshot, prior receipts/approvals and source
+bindings; issue no Unity evidence and accept no unrelated file changes.

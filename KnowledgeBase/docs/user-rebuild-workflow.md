@@ -40,7 +40,13 @@ User 执行复制命令，也不得在主 Pack、父目录、其他名称目录�
 
 ```powershell
 python Tools/labflow/labflow.py new --mode blind-rebuild --lab-id <lab_id> --title "<title>" --domain <domain> --scene Assets/Scenes/<Output>.unity
+python Tools/labflow/labflow.py source-references --lab-id <lab_id>
 ```
+
+The first command creates the per-Lab immutable source-reference manifest. The
+second validates it and resolves repository-relative paths from the current
+Builder Pack root. This remains portable after GitHub clone; never persist its
+machine-specific absolute output.
 
 查看状态：
 
@@ -86,6 +92,12 @@ python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>
 
 第二条命令也由 Agent 执行，只能在 Gate 0 成功创建一次。它把本次运行开始时的受保护文件状态保存到
 `BuildEvidence/<lab_id>/gate0-protected-baseline.json`。Gate 1–10 会持续与该文件比较；Agent 不能通过重建基线或修改发布哈希来接受后续变化。
+
+Gate 4 尚未生成脚手架时，用户授权的维护方可登记逐文件旧／新哈希维护凭据，
+保留原基线和 Gate 0–3 审批。Builder 不得签发、修改、删除或重新登记凭据，
+也不得修改 state 中的 `protected_maintenance`。维护完成后重新执行
+Boundary、source-references 和 status，完整性通过即可在原 Gate 4 继续；
+仍须生成脚手架并取得 Unity 零错误证据。规则见 `Policies/reuse-policy.md`。
 
 ## Gate 1：Brief 确认
 

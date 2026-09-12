@@ -8,6 +8,10 @@ status: "draft"
 source_material:
   handbook: "docs/replace_with_handbook.pdf"
   additional_notes: []
+  reusable_source_reference_manifest: "LabSpecs/<lab_id>/source-references.json"
+  reusable_source_reference_base: "builder_pack_root"
+  reusable_source_access: "read_only"
+  persisted_absolute_source_paths: false
 
 learning_goals:
   - "State the first observable learning goal."

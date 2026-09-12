@@ -24,11 +24,17 @@ $required = @(
     "Tools\labflow\labflow.py",
     "Tools\create_blind_run_pack.ps1",
     "Policies\reuse-allowlist.json",
+    "Policies\reuse-source-references.json",
     "Policies\gold-exclusions.json",
     "UnityProject\Packages\manifest.json",
     "UnityProject\LocalPackages\com.emvr.lab-common\package.json",
     "ApprovedAssets\EMVRRoom\Prefabs\Room_Big_Part_01.prefab",
     "ApprovedAssets\EMVRRoom\Prefabs\Room_Big_Part_01.prefab.meta",
+    "ApprovedAssets\EMVRRoom\Prefabs\Room_Big_Part_02.prefab",
+    "ApprovedAssets\EMVRRoom\Prefabs\Room_Big_Part_02.prefab.meta",
+    "ApprovedAssets\EMVRRoom\Prefabs\Room_Big_Part_03.prefab",
+    "ApprovedAssets\EMVRRoom\Prefabs\Room_Big_Part_03.prefab.meta",
+    "Policies\emvr-room-assembly.json",
     "ApprovedAssets\XRInteractionToolkitSamples\Starter Assets\Prefabs\XR Interaction Setup.prefab",
     "ApprovedAssets\XRInteractionToolkitSamples\Starter Assets\Prefabs\XR Interaction Setup.prefab.meta",
     "ApprovedAssets\XRInteractionToolkitSamples\XR Device Simulator\XR Device Simulator.prefab",
@@ -52,9 +58,12 @@ if (Test-Path -LiteralPath $workspaceMarkerPath) {
     try {
         $workspaceMarker = Get-Content -Raw -LiteralPath $workspaceMarkerPath | ConvertFrom-Json
         $expectedName = "EMVR_Blind_Rebuild_$($workspaceMarker.lab_id)"
-        if ($workspaceMarker.schema_version -ne "1.1.0" -or
+        if ($workspaceMarker.schema_version -ne "1.2.0" -or
             $workspaceMarker.workflow_mode -ne "blind-rebuild" -or
             $workspaceMarker.required_master_directory_name -ne "EMVR_Blind_BuilderPack" -or
+            $workspaceMarker.reference_base -ne "builder_pack_root" -or
+            $workspaceMarker.path_format -ne "repository_relative_posix" -or
+            $workspaceMarker.absolute_paths_persisted -ne $false -or
             (Split-Path -Leaf $BuilderRoot) -ne $expectedName -or
             (Split-Path -Leaf (Split-Path -Parent $BuilderRoot)) -ne "RebuildWorkspaces" -or
             (Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent $BuilderRoot))) -ne "EMVR_Blind_BuilderPack") {
@@ -69,6 +78,53 @@ if (Test-Path -LiteralPath $workspaceMarkerPath) {
 foreach ($relative in $required) {
     if (-not (Test-Path -LiteralPath (Join-Path $BuilderRoot $relative))) {
         $errors.Add("Missing required Builder Pack item: $relative")
+    }
+}
+
+$sourceReferenceCatalogPath = Join-Path $BuilderRoot "Policies\reuse-source-references.json"
+if (Test-Path -LiteralPath $sourceReferenceCatalogPath) {
+    try {
+        $sourceReferenceCatalog = Get-Content -Raw -LiteralPath $sourceReferenceCatalogPath | ConvertFrom-Json
+        if ($sourceReferenceCatalog.schema_version -ne "1.0.0" -or
+            $sourceReferenceCatalog.reference_base -ne "builder_pack_root" -or
+            $sourceReferenceCatalog.path_format -ne "repository_relative_posix" -or
+            $sourceReferenceCatalog.absolute_paths_persisted -ne $false -or
+            $sourceReferenceCatalog.source_access -ne "read_only") {
+            $errors.Add("Reusable source-reference catalog has invalid portability/access metadata")
+        }
+        $sourceIds = @($sourceReferenceCatalog.sources | ForEach-Object { [string]$_.source_id })
+        foreach ($requiredSourceId in @(
+            'common_package',
+            'gate5_foundation',
+            'approved_assets',
+            'mandatory_room',
+            'xr_interaction_setup',
+            'xr_device_simulator',
+            'conditional_reusable_code_archive'
+        )) {
+            if ($sourceIds -notcontains $requiredSourceId) {
+                $errors.Add("Reusable source-reference catalog is missing required ID: $requiredSourceId")
+            }
+        }
+        foreach ($source in $sourceReferenceCatalog.sources) {
+            $relativeSource = [string]$source.path
+            $sourceSegments = $relativeSource.Split('/')
+            if ([string]::IsNullOrWhiteSpace($relativeSource) -or
+                [System.IO.Path]::IsPathRooted($relativeSource) -or
+                $relativeSource.Contains('\') -or
+                $sourceSegments -contains '.' -or
+                $sourceSegments -contains '..' -or
+                $source.access -ne "read_only") {
+                $errors.Add("Invalid reusable source reference: $relativeSource")
+                continue
+            }
+            if (-not (Test-Path -LiteralPath (Join-Path $BuilderRoot ($relativeSource.Replace('/', '\'))))) {
+                $errors.Add("Missing reusable source reference target: $relativeSource")
+            }
+        }
+    }
+    catch {
+        $errors.Add("Invalid Policies/reuse-source-references.json: $($_.Exception.Message)")
     }
 }
 
@@ -88,13 +144,22 @@ if (Test-Path -LiteralPath $approvedRoomPath) {
 
 $attributesPath = Join-Path $BuilderRoot ".gitattributes"
 if (Test-Path -LiteralPath $attributesPath) {
-    $hasPortableLfRule = @(
-        Get-Content -LiteralPath $attributesPath | Where-Object {
-            $_.Split('#')[0].Trim() -eq "* text=auto eol=lf"
+    $hasBytePreservingRule = $false
+    $hasTransformingRule = $false
+    foreach ($line in Get-Content -LiteralPath $attributesPath) {
+        $rule = $line.Split('#')[0].Trim()
+        if ([string]::IsNullOrWhiteSpace($rule)) { continue }
+        $tokens = @($rule -split '\s+')
+        if ($tokens.Count -eq 2 -and $tokens[0] -eq '*' -and $tokens[1] -eq '-text') {
+            $hasBytePreservingRule = $true
         }
-    ).Count -gt 0
-    if (-not $hasPortableLfRule) {
-        $errors.Add(".gitattributes must enforce '* text=auto eol=lf' so frozen hashes survive Git checkout.")
+        if ($tokens.Count -lt 2) { $hasTransformingRule = $true }
+        foreach ($attribute in ($tokens | Select-Object -Skip 1)) {
+            if ($attribute -notin @('-text', 'binary')) { $hasTransformingRule = $true }
+        }
+    }
+    if (-not $hasBytePreservingRule -or $hasTransformingRule) {
+        $errors.Add(".gitattributes must preserve '* -text' without content-transforming overrides so frozen hashes survive Git checkout and archives.")
     }
 }
 
@@ -300,7 +365,33 @@ if ((Test-Path -LiteralPath $canonicalCommon) -and (Test-Path -LiteralPath $lega
 $inventoryPath = Join-Path $BuilderRoot "Policies\pack-inventory.json"
 if (Test-Path -LiteralPath $inventoryPath) {
     $inventory = Get-Content -Raw -LiteralPath $inventoryPath | ConvertFrom-Json
+    $roomRecipePath = Join-Path $BuilderRoot "Policies\emvr-room-assembly.json"
+    if ((Test-Path -LiteralPath $roomRecipePath) -and
+        (Get-FileHash -LiteralPath $roomRecipePath -Algorithm SHA256).Hash -ne $inventory.sections.EMVRRoomAssembly.sha256) {
+        $errors.Add("EMVRLABS room assembly recipe differs from the frozen inventory.")
+    }
     $commonInventory = $inventory.sections.'UnityProject/LocalPackages/com.emvr.lab-common'
+    if ($inventory.sections.EMVRRoomLighting) {
+        $lightingProfilePath = Join-Path $BuilderRoot 'Policies/emvr-room-lighting.json'
+        if (-not (Test-Path -LiteralPath $lightingProfilePath) -or
+            (Get-FileHash -LiteralPath $lightingProfilePath -Algorithm SHA256).Hash -ne $inventory.sections.EMVRRoomLighting.sha256) {
+            $errors.Add('Full room lighting profile is missing or differs from frozen inventory.')
+        } else {
+            $lightingProfile = Get-Content -Raw -LiteralPath $lightingProfilePath | ConvertFrom-Json
+            foreach ($entry in $lightingProfile.source_files) {
+                $lightingSourcePath = Join-Path $BuilderRoot $entry.path
+                if (-not (Test-Path -LiteralPath $lightingSourcePath) -or
+                    (Get-FileHash -LiteralPath $lightingSourcePath -Algorithm SHA256).Hash -ne $entry.sha256) {
+                    $errors.Add("Read-only lighting source/archive changed: $($entry.path)")
+                }
+                if ($entry.path -like '*.lighting' -and (Test-Path -LiteralPath $lightingSourcePath)) {
+                    if ([System.IO.File]::ReadAllBytes($lightingSourcePath) -contains 13) {
+                        $errors.Add('Published RoomLighting must use LF line endings for Unity serialization; maintainer repair required.')
+                    }
+                }
+            }
+        }
+    }
     $commonPackageJson = Join-Path $canonicalCommon "package.json"
     if ((Test-Path -LiteralPath $commonPackageJson) -and $commonInventory.package_json_sha256) {
         $actualPackageHash = (Get-FileHash -LiteralPath $commonPackageJson -Algorithm SHA256).Hash
