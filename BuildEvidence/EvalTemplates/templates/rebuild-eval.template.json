@@ -46,7 +46,9 @@
     "documentation_matches": false,
     "per_lab_evidence_complete": false,
     "user_accepted": false,
-    "gate_10_retrospective_approved": false
+    "all_observed_blockers_resolved": true,
+    "gate_6_user_acceptance_recorded": false,
+    "gate_8_archive_approved": false
   },
   "evidence": {
     "console": [],
@@ -54,5 +56,6 @@
     "scene_view": []
   },
   "issues": [],
-  "final_effective_fixes": []
+  "final_effective_fixes": [],
+  "workflow_model": "compact_gates_v1"
 }

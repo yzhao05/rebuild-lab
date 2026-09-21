@@ -55,7 +55,7 @@ Complete this preflight before creating or changing Lab C#.
 14. After the release Boundary actually passes and `boundary_verifier=passed`
     is recorded, run `labflow capture-gate0-baseline --lab-id <lab_id>` once.
     Require `BuildEvidence/<lab_id>/gate0-protected-baseline.json` and its
-    state-recorded SHA-256 to remain unchanged through Gate 10. Do not update
+    state-recorded SHA-256 to remain unchanged through completion, including blocker recovery. Do not update
     release hashes or recapture this baseline to absorb a later difference.
 
 For a maintainer-repaired pre-scaffold Gate 4 run, follow the compatibility

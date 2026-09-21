@@ -56,3 +56,14 @@ Lifecycle, telemetry, and assist
 Acceptance evidence
 Unresolved items: none
 ```
+
+
+## Student manual metadata for future Gate 1
+
+First read confirmed inputs. Ask only for missing `manual_number`, English
+`manual_title`, `language`, `report_submission_requirements` and `scoring_policy`.
+Use the Brief template's `manual` block and record confirmation. The number is
+the course Lab number, never inferred from the Lab ID. At Gate 2 bind exercise
+prompts, criterion IDs, points/null, bonus flags and submissions in the rubric's
+`manual_assessment`; no inherited 100+5 points, deadlines or Blackboard policy.
+See `student-lab-manual.md`. Do not ask these questions during workflow maintenance.

@@ -45,7 +45,7 @@ Builder Pack 为 AI 提供以下允许使用的基础：
 - 必须复用的房间、XR Interaction Setup 和 XR Device Simulator Prefab；
 - Gate 5 受保护的按钮、生成物可见性、EventSystem 和回归测试基础；
 - 历次重建中提炼出的跨 Lab 构建经验；
-- Gate 0–10 状态机、验证脚本和证据模板。
+- Gate 0–6、8 状态机、验证脚本和证据模板。
 
 AI 只能直接调用 Common，通过指定工具导入 ApprovedAssets，并通过 Gate 5
 materializer 原样复制受保护基础；不能手工复制或修改这些来源，也不能修改工作流、
@@ -57,7 +57,7 @@ Unity MCP 当前禁用。Unity 中的编译、Test Runner、Game View 和交互�
 
 ## 2. 工作流介绍
 
-整个重建过程分为 Gate 0–10。核心规则是：
+整个重建过程分为 Gate 0–6、8。核心规则是：
 
 1. 一次 AI 回复只完成一个 Gate；
 2. AI 完成当前 Gate 后汇报结果并等待用户审批；
@@ -241,7 +241,7 @@ AI 会：
 用户需要：检查 AI 的 PASS 证据。如果无问题，回复“继续”或同义表达。
 
 发布包固定哈希只允许工作流维护端更新。Gate 0 基线保存在
-`BuildEvidence/<lab_id>/gate0-protected-baseline.json`，不能覆盖或重新生成；Gate 1–10 发现受保护文件相对基线有新增、删除或变化时会停止。
+`BuildEvidence/<lab_id>/gate0-protected-baseline.json`，不能覆盖或重新生成；后续所有 Gate 发现受保护文件相对基线有新增、删除或变化时会停止。
 
 Gate 4 尚未生成脚手架时，用户授权的维护方可登记逐文件旧／新哈希维护凭据，
 保留原基线和 Gate 0–3 审批。Builder 不得签发、修改、删除或重新登记凭据，
@@ -365,6 +365,12 @@ AI 只加入一条端到端领域链路：
 
 ### Gate 6：构建和验证完整 Unity 场景
 
+本阶段同时完成用户验收。Agent 展示验证后的场景、效果和延期项；用户回复
+“继续”“可以”“通过”“下一步”等明确同意推进的表达，即记录为验收，随后进入
+Gate 8 手册生成与验证。无需另走 Gate 7 或 Gate 9。未解决的错误和修改请求不能作为通过。
+原编号 Gate 8 分为 8A、8B：先生成两份独立 Lab 手册，再增量补充项目总手册；两步核验后统一确认。
+
+
 目的：生成最终场景并检查 Game View 的实际效果。
 
 AI 必须告诉用户准确的 Builder 菜单，例如：
@@ -391,60 +397,37 @@ Game View 通常是中央 **Scene** 标签旁的 **Game** 标签；若没有，�
 `Window > General > Game` 打开。进入或退出 Play Mode 使用 Unity 顶部中央的
 三角形按钮。
 
-### Gate 7：交互与生命周期测试
+### Gate 8：生成并验证学生用 Lab Manual
 
-目的：验证用户实际操作流程。
+根据 Gate 6 用户验收的实际实验生成学生 PDF：`Lab <课程编号> <英文主题>.pdf`。
+编号、标题、语言、提交要求和计分规则从已确认 Brief 与合同读取；编号不能从
+`lab_id` 推断，旧手册的 100+5 分、Blackboard 和截止日期不能擅自继承。
 
-通常包括：
+手册固定为介绍、理论、桌面/模拟器/VR 交互、图文导览、练习与挑战、扩展探索
+六部分，小节使用实际课程编号 N.1 至 N.6。按钮和操作与已验收实现一致，截图
+必须来自当前 Lab，学生版不能泄露标准答案。生成后核对内容、渲染并逐页检查
+PDF，再提交用户确认；文件存在不代表验收通过。后续实验修改使旧手册证据失效。
 
-- 鼠标和键盘桌面操作；
-- XR Device Simulator；
-- 真实 VR 手柄，如果当前有设备；
-- Capture、Restore 和 Reset；
-- Start、Lab、Back 等场景生命周期。
+输出保存在当前运行 `BuildEvidence/<lab_id>/handbooks/`。复用报告、验证报告和
+导入清单保留为内部证据。不要覆盖参考手册；发布到项目 `Docs/Handbook/` 需另行
+授权。8A 同时生成独立学生 PDF 和单 Lab Developer Handbook DOCX/PDF；8B 只增补项目
+总手册的当前 Lab 小节，保留其他章节和图片，重复运行更新原小节，不重复追加。
+保存修改前版本和增补清单，检查整本 PDF；两步均绑定同一 Gate 6 验收版本，
+实际执行与文档核对明确区分，最后统一提交 Gate 8 确认。
 
-没有真实手柄时，可以明确记录为延期，但桌面和模拟器路径仍应完成。用户按照
-AI 的逐步指令操作，并提供成功结果或失败截图。
+详见 `.agents/skills/build-unity-vr-lab-blind/references/student-lab-manual.md`。
 
-### Gate 8：整理验收材料
+## 代码或逻辑阻塞：自动复盘并返回原 Gate
 
-目的：把本次运行的真实证据整理成可审核资料。
+任一 Gate 出现代码错误或逻辑阻塞时，Agent 自动启动复盘，无需用户另行批准。
+先记录现象和归属，再修复当前 Lab 范围内的问题、重新验证并沉淀已验证经验，
+随后返回原 Gate。受保护基础缺陷仍交维护方修复，不能借复盘绕过哈希或重采基线。
+等待用户、尚未执行的测试和普通 pending 状态不等于失败，不制造虚假复盘。
 
-AI 会完善：
+记录保存在 `BuildEvidence/<lab_id>/blocker-retrospectives/<sequence>.json`；
+验证后由工具追加当前运行的 `KnowledgeBase/rebuild-lessons/<lab_id>.md`。
+已完成记录和旧经验只读。原 Gate 10 不再是末尾阶段，也不需要独立审批。
 
-- 复用报告；
-- 验证报告；
-- ApprovedAssets 导入清单；
-- Console、Test Runner、Game View 和交互证据；
-- 无法测试项目的延期说明。
-
-不得使用其他 Lab 的报告代替当前 Lab 证据，也不能保留 `TODO` 或 `pending`。
-
-### Gate 9：用户最终验收
-
-目的：由用户决定当前 Lab 是否可以接受。
-
-AI 会展示已完成功能、验证结果和延期项。只有用户可以作出最终验收决定。
-Gate 9 通过后流程还没有结束；AI 必须提醒用户接下来会进入 Gate 10 复盘。
-
-### Gate 10：错误复盘与经验归纳
-
-目的：把本轮出现的问题转化成下一次重建可参考的安全经验。
-
-AI 会整理：
-
-- 错误出现的顺序；
-- 根因和责任归类；
-- 实际修复及验证证据；
-- 被拒绝的临时绕过方案；
-- 下次应在哪个 Gate 预防；
-- 可跨 Lab 使用的 API 和生命周期约束。
-
-完整运行记录保存到 `BuildEvidence/retrospectives/`；经过清理的跨 Lab 经验保存
-到 `KnowledgeBase/rebuild-lessons/`，供下一次 Gate 0 阅读。经验文件不得包含
-当前 Lab 的答案、坐标、类名、完整实现、隐私路径或未经验证的猜测。
-
-User 审批 Gate 10 后，整个工作流才正式完成。
 
 ## 7. AI 每个 Gate 应使用的汇报格式
 
@@ -534,7 +517,7 @@ LabSpecs/<lab_id>/
 LabInterfaceContracts/
 UnityProject/Assets/
 BuildEvidence/<lab_id>/
-BuildEvidence/retrospectives/<lab_id>.md
+BuildEvidence/<lab_id>/blocker-retrospectives/<sequence>.json
 KnowledgeBase/rebuild-lessons/<lab_id>.md
 ```
 
@@ -542,3 +525,14 @@ KnowledgeBase/rebuild-lessons/<lab_id>.md
 Lab、规格、代码、场景、
 测试和证据。下一次重建其他 Lab 时，应重新从主 Builder Pack 创建新的独立副本，
 不要清空或复用这次运行目录。
+
+
+
+Original Gate 8 keeps its number and uses two ordered steps: 8A independent
+student and single-Lab developer manuals; 8B incremental project Development
+Handbook. Both bind the same accepted Gate 6 version. 8B preserves the existing
+master and every unrelated chapter/image, replaces only the current Lab's tagged
+section, and provides a before-version plus increment list. Review every page of
+all PDFs, then request one Gate 8 confirmation. Collect developer material during
+Gates 0-6 and resolved blockers. See
+`.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md`.

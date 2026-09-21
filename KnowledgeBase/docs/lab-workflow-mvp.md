@@ -30,11 +30,9 @@ only about an explicit semantic exception or an unsupported action.
 3 design and API signatures approved
 4 scaffold cleanly compiles
 5 reusable foundation passes, then smallest domain slice works and compiles
-6 integrated scene compiles/builds/validates
-7 interaction and lifecycle pass
-8 acceptance package ready
-9 user accepted; announce Gate 10
-10 retrospective and reusable lesson captured
+6 integrated scene compiles/builds/validates and user accepts
+8A independent student/developer manuals, then 8B incremental project master; one Gate 8 confirmation
+Any code/logic blocker -> automatic retrospective -> original gate
 ```
 
 ## Core commands
@@ -62,7 +60,7 @@ python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>
 ```
 
 The second command is Agent-owned, Gate-0-only, and create-once. It does not
-replace or update release frozen hashes. Gates 1–10 block if protected files no
+replace or update release frozen hashes. All later gates block if protected files no
 longer match `BuildEvidence/<lab_id>/gate0-protected-baseline.json`; do not
 recapture it to hide a difference.
 
@@ -117,28 +115,60 @@ After adding the domain slice, rerun both the domain check and the three
 foundation tests against unchanged current content, then record the foundation
 result again. Gate 5 rejects stale content-digest evidence.
 
-Keep integrated scene and playtest evidence in their own gates:
+Record integrated scene evidence at Gate 6; playtest observations are optional at that same gate:
 
 ```powershell
 python Tools/labflow/labflow.py record --lab-id <lab_id> --compile passed --scene-built passed --note "<Gate 6 evidence>"
-python Tools/labflow/labflow.py record --lab-id <lab_id> --playtest passed --note "<Gate 7 evidence>"
+python Tools/labflow/labflow.py record --lab-id <lab_id> --playtest passed --note "<optional Gate 6 observation>"
 ```
 
-After the Gate 8 evidence package, Gate 9 obtains final user acceptance and
-must announce the required Gate 10 retrospective. After Gate 9 approval:
+## Automatic blocker recovery (formerly Gate 10)
+
+The main sequence is `0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 8`. Gates 7 and 9
+are removed; Gate 10 is now an automatic interruption, not an approval gate.
+At any gate, an observed code failure or logic blocker immediately enters recovery
+without asking permission to start a retrospective. Keep the originating gate.
+Ordinary pending evidence, a question, or waiting for user approval is not a failure.
+
+`record ... failed` and failed contract validation open recovery automatically.
+For blockers observed outside those commands, the Agent immediately runs:
 
 ```powershell
-python Tools/labflow/labflow.py retrospective --lab-id <lab_id>
+python Tools/labflow/labflow.py retrospective --lab-id <lab_id> --kind <code|logic|protected-foundation> --note "<observed blocker and evidence>"
 ```
 
-Complete both generated files and remove every placeholder:
+Classify ownership and diagnose the earliest root cause. Repair current-Lab output
+within authorization, then rerun the failed check. Protected-foundation defects
+still require maintainer repair; automatic recovery grants no permission to edit
+sources, hashes, policies or baselines. Record their diagnosis and remain blocked.
+Do not switch gates, self-approve, or invent passing evidence to leave recovery.
 
-- `BuildEvidence/retrospectives/<lab_id>.md`
-- `KnowledgeBase/rebuild-lessons/<lab_id>.md`
+After the fix is verified, record any required passed evidence and run:
 
-Approve Gate 10 only after both pass readiness checks. At Gate 0 of every later
-run, read every prior lesson and complete
-`LabSpecs/<lab_id>/prior-lessons-review.md` before approval.
+```powershell
+python Tools/labflow/labflow.py retrospective --lab-id <lab_id> --resolve --root-cause "<verified cause>" --fix "<authorized change>" --verification "<observed verification>" --prevention "<earliest preventive check>" --lesson "<verified reusable lesson>"
+```
+
+This seals `BuildEvidence/<lab_id>/blocker-retrospectives/<sequence>.json` and
+appends only to this run's `KnowledgeBase/rebuild-lessons/<lab_id>.md`. The tool
+checks existing history/lesson hashes; never hand-edit a completed report or prior
+lesson. Exclude target answers, Gold details, copied implementation, secrets,
+personal paths and guesses. Unknown causes remain open, not verified lessons.
+Repeated failures update the open incident; later incidents get new sequence IDs.
+Resolution returns to the originating gate, with its approval still required.
+There is no separate user approval for the retrospective itself.
+
+Gate 6 includes user acceptance of the validated scene, result and declared deferrals.
+When ready and presented, a clear user reply such as `继续`, `可以`, `通过`, `下一步`
+or `OK` is acceptance; retain the user's wording. Questions, negations, silence and
+requests for changes do not approve it. Gate 8 generates and verifies handbooks after acceptance;
+overall approval requires both 8A and 8B verification. There is no mandatory separate Gate 7 playtest.
+Required interactions remain covered by Gate 5 and the approved Brief/acceptance.
+
+Existing schema-2.0 runs retain Gates 0-5, source bindings, evidence and original
+baseline/receipt history. Legacy Gate 6/8 approvals lack the new acceptance/handbook
+meaning and cannot silently finish a run; reapprove these stages when reached.
+Legacy Gate 7/9/10 records remain history and never drive the new sequence.
 
 ## Compile discipline
 
@@ -165,3 +195,14 @@ Each run also owns `BuildEvidence/<lab_id>/reuse-report.md` and
 `BuildEvidence/<lab_id>/validation-report.md`. A global or previous-run report
 cannot satisfy Gate 8. Start a different Lab only from a pristine Builder Pack
 copy; `labflow new` refuses mixed-run workspaces.
+
+
+
+Original Gate 8 keeps its number and uses two ordered steps: 8A independent
+student and single-Lab developer manuals; 8B incremental project Development
+Handbook. Both bind the same accepted Gate 6 version. 8B preserves the existing
+master and every unrelated chapter/image, replaces only the current Lab's tagged
+section, and provides a before-version plus increment list. Review every page of
+all PDFs, then request one Gate 8 confirmation. Collect developer material during
+Gates 0-6 and resolved blockers. See
+`.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md`.

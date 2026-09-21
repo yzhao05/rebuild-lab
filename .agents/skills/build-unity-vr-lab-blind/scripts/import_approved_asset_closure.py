@@ -84,11 +84,13 @@ def workflow_gate(project_root: Path, lab_id: str) -> int:
     if state.get("schema_version") != CURRENT_STATE_SCHEMA:
         raise RuntimeError("Workflow state schema is stale; run labflow migrate-state first")
     approvals = state.get("gate_approvals", {})
-    for gate in range(11):
+    for gate in (0, 1, 2, 3, 4, 5, 6, 8):
         approval = approvals.get(str(gate), {})
+        if gate in (6, 8) and isinstance(approval, dict) and approval.get("workflow_model") != "compact_gates_v1":
+            return gate
         if not isinstance(approval, dict) or not approval.get("approved", False):
             return gate
-    return 11
+    return 8
 
 
 def sha256(path: Path) -> str:

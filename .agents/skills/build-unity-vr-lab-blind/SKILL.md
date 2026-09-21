@@ -61,7 +61,8 @@ If the user rejects or requests changes, apply only gate-local corrections and
 submit the same gate again.
 
 After semantic approval, record it in `workflow_state.json` with `labflow
-approve-gate`. The next substantive response may execute only Gate N+1. Never
+approve-gate`. The next substantive response may execute only the next gate in
+`0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 8` (Gate 6 advances to Gate 8). Never
 skip a gate, pre-build the next gate while waiting, or approve a gate on the
 user's behalf.
 
@@ -168,14 +169,15 @@ the Builder Agent. Do not hand-copy, patch, rename, fork, or rewrite either.
 Lab-specific domain code must call or compose around these assemblies from
 separate declared output paths. If they need a change, use the foundation
 defect report and wait for the user.
-The only additional write exception is Gate 10: after Gate 9 user acceptance,
-create and complete exactly `BuildEvidence/retrospectives/<lab_id>.md` and
-`KnowledgeBase/rebuild-lessons/<lab_id>.md` through `labflow retrospective`.
-Never edit or overwrite a previous Lab's retrospective or lesson file.
+The controlled knowledge-write exception is automatic blocker recovery at any
+gate. `labflow retrospective --resolve` appends verified lessons only to the
+current run's root-level lesson; earlier entries and all other lessons stay read-only.
+Incident records live under `BuildEvidence/<lab_id>/blocker-retrospectives/`.
+Follow `references/workflow-gates.md` for entry, verification and resolution.
 
 When a protected resource is defective or insufficient:
 
-1. stop the current gate;
+1. keep the current gate and automatically open a protected-foundation retrospective;
 2. report the affected protected path, direct evidence, rebuild impact, and the
    user action required;
 3. wait for the user to repair it and ask for verification.
@@ -575,21 +577,49 @@ Record only observed evidence:
 
 ```powershell
 python Tools/labflow/labflow.py record --lab-id <lab_id> --compile <pending|passed|failed> --scene-built <pending|passed|failed> --note "<Gate 6 evidence>"
-python Tools/labflow/labflow.py record --lab-id <lab_id> --playtest <pending|passed|failed> --note "<Gate 7 evidence>"
+python Tools/labflow/labflow.py record --lab-id <lab_id> --playtest <pending|passed|failed> --note "<optional Gate 6 observation>"
 ```
 
 Compilation or scene generation alone is not acceptance.
 
-## Complete acceptance and Gate 10 knowledge capture
+## Gate 6 acceptance, Gate 8 handbooks, and automatic blocker recovery
 
-Follow the Gate 8-10 evidence, reminder, content, exclusion, and readiness rules
-in [references/workflow-gates.md](references/workflow-gates.md). Gate 8 packages
-evidence; Gate 9 presents the Lab and announces the required retrospective;
-after Gate 9 user approval, run Gate 10 in the next substantive response:
+The main sequence is 0, 1, 2, 3, 4, 5, 6, 8. Gate 6 includes user acceptance;
+after presenting the validated result, accept clear progression wording such as
+`继续`, `可以`, `下一步` or `通过`, preserving it in the approval note. Gate 8
+generates Lab manuals in 8A, then increments the existing project handbook in 8B.
+Submit one confirmation after both steps are verified. Gates 7 and 9 are removed.
 
-```powershell
-python Tools/labflow/labflow.py retrospective --lab-id <lab_id>
-```
+At every code or logic blocker, automatically enter the retrospective subflow
+defined in `references/workflow-gates.md` (formerly Gate 10), without requesting
+permission to start it. Failed evidence/contract commands open it automatically;
+for other observed blockers invoke `retrospective --kind ... --note ...` immediately.
+Diagnose, repair within ownership, verify, and resolve with verified lessons, then
+return to the same gate. Do not advance or approve a gate during unresolved recovery.
+Normal pending evidence is not a failure. Protected repairs remain maintainer-owned.
+No separate final retrospective gate or retrospective approval remains.
 
-Request Gate 10 approval only after both files contain no placeholders and pass
-`labflow` readiness checks. Gate 10 approval marks the workflow complete.
+
+## Original Gate 8: sequential 8A and 8B handbook delivery
+
+Keep original Gate 8 numbering in the sequence 0,1,2,3,4,5,6,8. Read
+`.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md`.
+Accumulate current-project developer material at Gates 0-6 and each resolved
+blocker with `handbooks.py collect`; never invent observations at the end.
+8A generates independent student PDF and single-Lab developer DOCX/PDF from the
+same Gate 6 accepted version. Preserve `Lab <number> <theme>` naming, adding
+` Developer Handbook` only for the developer book. Verify content consistency
+and every PDF page. Clearly label executed versus document-checked procedures.
+8B starts only after 8A is verified. Increment a saved copy of the existing
+project Development Handbook: only the current Lab's tagged section, references
+to existing general material and verified unique information. Preserve all other
+chapters, images and package parts. Reruns update that section without duplicates.
+Retain the before-version, increment change list and old issues left untouched;
+render/review the whole master PDF. Never regenerate the entire master or turn
+its old implementation details into new Lab requirements or reusable sources.
+All three manuals bind the same acceptance; changed final 8A evidence invalidates
+8B. Keep current-run outputs in `BuildEvidence/<lab_id>/handbooks/`; host publishing
+is a separate release instruction. Retain reuse/validation reports internally.
+Submit both steps together for one Gate 8 user confirmation. Neither 8A nor file
+existence is approval. Missing captures/results remain pending. Workflow maintenance
+does not execute current Lab gates or request its course metadata.

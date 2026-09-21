@@ -1,0 +1,55 @@
+{
+  "generation_sha256": "",
+  "rendering_sha256": "",
+  "reviewer": "",
+  "reviewed_at": "",
+  "content": {
+    "language_matches_brief": {
+      "passed": false,
+      "observation": ""
+    },
+    "accepted_implementation_matches": {
+      "passed": false,
+      "observation": ""
+    },
+    "theory_symbols_units_limits_verified": {
+      "passed": false,
+      "observation": ""
+    },
+    "desktop_simulator_vr_controls_verified": {
+      "passed": false,
+      "observation": ""
+    },
+    "current_lab_screenshots_verified": {
+      "passed": false,
+      "observation": ""
+    },
+    "exercises_and_submission_match_contract": {
+      "passed": false,
+      "observation": ""
+    },
+    "no_answers_or_tour_solution_leaks": {
+      "passed": false,
+      "observation": ""
+    },
+    "extensions_clearly_not_implemented": {
+      "passed": false,
+      "observation": ""
+    },
+    "no_unapproved_legacy_requirements": {
+      "passed": false,
+      "observation": ""
+    }
+  },
+  "pages": [
+    {
+      "page": 1,
+      "no_placeholders": false,
+      "formula_glyphs_readable": false,
+      "images_legible": false,
+      "no_overflow": false,
+      "cross_references_correct": false,
+      "observation": ""
+    }
+  ]
+}

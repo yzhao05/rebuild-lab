@@ -39,8 +39,8 @@
 - `KnowledgeBase/rebuild-lessons/build-experience/`: normalized, cross-Lab
   construction experience from pre-workflow rebuilds; recommended and required
   Gate 0 reading, never a source of target requirements.
-- `KnowledgeBase/rebuild-lessons/<lab_id>.md`: verified Gate 10 lessons; read
-  every prior file at Gate 0. Gate 10 may create only the current root-level
+- `KnowledgeBase/rebuild-lessons/<lab_id>.md`: verified current-run blocker lessons; read
+  every prior file at Gate 0. Recovery may append only to the current run-owned root-level
   `<lab_id>.md`.
 - `KnowledgeBase/legacy-lab-specific-summaries/`: restricted old summaries that
   may expose implementation, coordinates, class names, wiring, and answers;
@@ -64,7 +64,7 @@
 - `BuildEvidence/<lab_id>/`: current-run provenance and validation evidence.
 - `BuildEvidence/<lab_id>/gate0-protected-baseline.json`: create-once Gate 0
   snapshot made only by `labflow capture-gate0-baseline` after release Boundary
-  PASS; immutable and checked through Gate 10.
+  PASS; immutable and checked through completion.
 
 For a maintainer-repaired pre-scaffold Gate 4 run, follow the compatibility
 receipt rules in `Policies/reuse-policy.md`. Preserve the original baseline,
@@ -73,8 +73,8 @@ receipt rules in `Policies/reuse-policy.md`. Preserve the original baseline,
 rehash or register receipts. Rerun Boundary, source-references and status;
 resume the same Gate 4 only when integrity passes. Prior approvals remain
 unchanged, and scaffold generation/Unity compile evidence are still required.
-- `BuildEvidence/retrospectives/<lab_id>.md`: Gate 10 run-specific audit;
-  create only after Gate 9 approval and never overwrite an existing file.
+- `BuildEvidence/<lab_id>/blocker-retrospectives/<sequence>.json`: automatic
+  blocker diagnosis/resolution at any gate; completed records remain immutable.
 - `BuildEvidence/EvalTemplates/`: read-only evaluator templates.
 - Current-conversation document attachments: authorized requirement inputs at
   their exact resolved paths; their surrounding directories remain forbidden.
@@ -90,8 +90,8 @@ During a rebuild, every mapped path is read-only except the current
 `LabSpecs/<lab_id>/`, its five non-example contracts, Lab-specific Unity output
 paths declared in its implementation handoff, generated approved dependencies
 under `UnityProject/Assets/Generated/<lab_id>/`, and
-`BuildEvidence/<lab_id>/`. In Gate 10 only, the two controlled additional
-writes are `BuildEvidence/retrospectives/<lab_id>.md` and
+`BuildEvidence/<lab_id>/`. During automatic blocker recovery, the controlled additional
+writes are `BuildEvidence/<lab_id>/blocker-retrospectives/<sequence>.json` and
 `KnowledgeBase/rebuild-lessons/<current_lab_id>.md`. Report
 problems in all other paths to the user without changing them or supplying a
 replacement patch. Previous retrospectives and lessons remain read-only.

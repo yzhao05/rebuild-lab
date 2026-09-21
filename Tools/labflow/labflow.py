@@ -96,6 +96,21 @@ GIT_DISTRIBUTION_PATHS = frozenset((
     "AGENTS.md", "Policies/reuse-policy.md", "README.md", "README_USER.md",
 ))
 PROTECTED_MAINTENANCE_PROFILES[GIT_DISTRIBUTION_PROFILE] = (5, GIT_DISTRIBUTION_PATHS)
+
+COMPACT_WORKFLOW_PROFILE = "gate5_compact_workflow_v1"
+COMPACT_WORKFLOW_PATHS = frozenset(('Tools/labflow/labflow.py', 'Tools/labflow/test_labflow.py', 'AGENTS.md', 'README.md', 'README_USER.md', 'Policies/reuse-policy.md', 'Policies/reuse-allowlist.json', 'KnowledgeBase/docs/lab-workflow-mvp.md', 'KnowledgeBase/docs/user-rebuild-workflow.md', '.agents/skills/build-unity-vr-lab-blind/SKILL.md', '.agents/skills/build-unity-vr-lab-blind/references/workflow-gates.md', '.agents/skills/build-unity-vr-lab-blind/references/foundation-preflight.md', '.agents/skills/build-unity-vr-lab-blind/references/project-map.md', '.agents/skills/build-unity-vr-lab-blind/scripts/import_approved_asset_closure.py', '.agents/skills/build-unity-vr-lab-blind/scripts/materialize_gate5_foundation.py', 'KnowledgeBase/docs/unity-compile-error-playbook.md', 'KnowledgeBase/rebuild-lessons/README.md', 'Policies/pack-inventory.json'))
+PROTECTED_MAINTENANCE_PROFILES[COMPACT_WORKFLOW_PROFILE] = (5, COMPACT_WORKFLOW_PATHS)
+MANUAL_WORKFLOW_PROFILE = "gate5_student_manual_workflow_v1"
+MANUAL_WORKFLOW_PATHS = frozenset(('Tools/labflow/labflow.py', 'Tools/labflow/test_labflow.py', 'AGENTS.md', 'README.md', 'README_USER.md', 'Policies/reuse-policy.md', 'Policies/reuse-allowlist.json', 'LabSpecs/templates/lab-brief.template.yaml', '.agents/skills/build-unity-vr-lab-blind/SKILL.md', '.agents/skills/build-unity-vr-lab-blind/references/workflow-gates.md', '.agents/skills/build-unity-vr-lab-blind/references/brief-interview.md', 'KnowledgeBase/docs/lab-workflow-mvp.md', 'KnowledgeBase/docs/user-rebuild-workflow.md', 'Tools/labflow/manuals.py', 'Tools/labflow/test_manuals.py', 'Tools/labflow/manual-requirements.txt', 'LabSpecs/templates/lab-manual.template.json', 'LabSpecs/templates/manual-review.template.json', 'LabSpecs/templates/rubric-manual-assessment.template.json', '.agents/skills/build-unity-vr-lab-blind/references/student-lab-manual.md'))
+MANUAL_WORKFLOW_ADDITIONS = frozenset(('Tools/labflow/manuals.py', 'Tools/labflow/test_manuals.py', 'Tools/labflow/manual-requirements.txt', 'LabSpecs/templates/lab-manual.template.json', 'LabSpecs/templates/manual-review.template.json', 'LabSpecs/templates/rubric-manual-assessment.template.json', '.agents/skills/build-unity-vr-lab-blind/references/student-lab-manual.md'))
+PROTECTED_MAINTENANCE_PROFILES[MANUAL_WORKFLOW_PROFILE] = (5, MANUAL_WORKFLOW_PATHS)
+HANDBOOK_WORKFLOW_PROFILE = "gate5_two_step_handbooks_v1"
+HANDBOOK_WORKFLOW_PATHS = frozenset(('Tools/labflow/labflow.py', 'Tools/labflow/test_labflow.py', 'AGENTS.md', 'README.md', 'README_USER.md', 'Policies/reuse-policy.md', 'Policies/reuse-allowlist.json', '.agents/skills/build-unity-vr-lab-blind/SKILL.md', '.agents/skills/build-unity-vr-lab-blind/references/workflow-gates.md', 'KnowledgeBase/docs/lab-workflow-mvp.md', 'KnowledgeBase/docs/user-rebuild-workflow.md', 'Tools/labflow/manuals.py', 'Tools/labflow/test_manuals.py', 'Tools/labflow/manual-requirements.txt', '.agents/skills/build-unity-vr-lab-blind/references/student-lab-manual.md', 'Tools/labflow/handbooks.py', 'Tools/labflow/export_handbook_pdf.ps1', 'Tools/labflow/test_handbooks.py', 'LabSpecs/templates/developer-handbook.template.json', 'LabSpecs/templates/handbook-review.template.json', 'LabSpecs/templates/project-handbook-addendum.template.json', '.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md'))
+HANDBOOK_WORKFLOW_ADDITIONS = frozenset(('Tools/labflow/handbooks.py', 'Tools/labflow/export_handbook_pdf.ps1', 'Tools/labflow/test_handbooks.py', 'LabSpecs/templates/developer-handbook.template.json', 'LabSpecs/templates/handbook-review.template.json', 'LabSpecs/templates/project-handbook-addendum.template.json', '.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md'))
+PROTECTED_MAINTENANCE_PROFILES[HANDBOOK_WORKFLOW_PROFILE] = (5, HANDBOOK_WORKFLOW_PATHS)
+
+
+
 SOURCE_REFERENCE_SCHEMA = "1.0.0"
 SOURCE_REFERENCE_CATALOG = "Policies/reuse-source-references.json"
 REQUIRED_SOURCE_REFERENCE_IDS = (
@@ -151,12 +166,12 @@ GATE_NAMES = {
     3: "Design approved",
     4: "Scaffold ready",
     5: "Reusable foundation and domain slice validated",
-    6: "Unity scene validated",
-    7: "Interaction and lifecycle passed",
-    8: "Acceptance package ready",
-    9: "User accepted",
-    10: "Retrospective captured",
+    6: "Unity scene validated and user accepted",
+    8: "8A Lab manuals then 8B incremental project handbook",
 }
+
+GATE_SEQUENCE = tuple(GATE_NAMES)
+WORKFLOW_MODEL = "compact_gates_v1"
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -524,7 +539,7 @@ def protected_baseline_relative_path(lab_id: str) -> Path:
 
 
 def protected_baseline_exclusions(lab_id: str) -> tuple[str, ...]:
-    # Gate 10 creates this one safe lesson after Gate 0. It must not invalidate
+    # Blocker recovery owns this one current-run lesson. It must not invalidate
     # the run baseline, while all pre-existing and cross-Lab lessons stay frozen.
     return (f"KnowledgeBase/rebuild-lessons/{lab_id}.md",)
 
@@ -646,7 +661,9 @@ def maintained_protected_files(
             if not isinstance(relative, str) or relative not in allowed_paths:
                 return effective, [f"{label} names a file outside the tooling compatibility profile."]
             permitted_additions = {EMVRLABS_ROOM_PROFILE: EMVRLABS_ROOM_ADDITIONS,
-                                   LIGHTING_MAINTENANCE_PROFILE: LIGHTING_ADDITIONS}.get(profile, frozenset())
+                                   LIGHTING_MAINTENANCE_PROFILE: LIGHTING_ADDITIONS,
+                                   MANUAL_WORKFLOW_PROFILE: MANUAL_WORKFLOW_ADDITIONS,
+                                   HANDBOOK_WORKFLOW_PROFILE: HANDBOOK_WORKFLOW_ADDITIONS}.get(profile, frozenset())
             addition = relative in permitted_additions and relative not in effective
             if relative in seen or (relative not in effective and not addition):
                 return effective, [f"{label} has a duplicate or non-existing protected file: {relative}"]
@@ -1595,7 +1612,15 @@ def save_state(root: Path, lab_id: str, state: dict[str, Any]) -> None:
 
 
 def gate_is_approved(state: dict[str, Any], gate: int) -> bool:
+    if gate not in GATE_NAMES:
+        return False
     approval = state.get("gate_approvals", {}).get(str(gate), {})
+    # Older Gate 6 proved scene validation, not user acceptance. Older Gate 8
+    # preceded acceptance. Preserve history but require the new meaning explicitly.
+    if gate == 8 and approval.get("manual_model") != "handbooks_8a_8b_v1":
+        return False
+    if gate in (6, 8) and approval.get("workflow_model") != WORKFLOW_MODEL:
+        return False
     return bool(approval.get("approved", False))
 
 
@@ -1609,18 +1634,33 @@ def require_gate_approved(state: dict[str, Any], gate: int) -> None:
 
 
 def record_gate_approval(state: dict[str, Any], gate: int, note: str) -> None:
-    state.setdefault("gate_approvals", {})[str(gate)] = {
-        "approved": True,
-        "note": note,
-        "approved_at": utc_now(),
-    }
+    if gate not in GATE_NAMES:
+        raise RuntimeError(f"supported gates are {GATE_SEQUENCE}")
+    approvals = state.setdefault("gate_approvals", {})
+    if str(gate) in approvals:
+        state.setdefault("superseded_gate_approvals", []).append(
+            {"gate": gate, "approval": approvals[str(gate)]})
+    approvals[str(gate)] = {"approved": True, "note": note,
+        "approved_at": utc_now(), "workflow_model": WORKFLOW_MODEL}
+    if gate == 8:
+        approvals[str(gate)]["manual_model"] = "handbooks_8a_8b_v1"
+    if gate == 6:
+        state["user_acceptance"] = {"confirmed": True, "note": note, "accepted_at": utc_now()}
 
 
 def current_gate(state: dict[str, Any]) -> int:
-    for gate in range(11):
+    for gate in GATE_SEQUENCE:
         if not gate_is_approved(state, gate):
             return gate
-    return 10
+    return GATE_SEQUENCE[-1]
+
+
+def workflow_is_complete(state: dict[str, Any]) -> bool:
+    return all(gate_is_approved(state, gate) for gate in GATE_SEQUENCE) and not state.get("blocker_recovery", {}).get("active")
+
+
+def previous_gate(gate: int) -> int:
+    return GATE_SEQUENCE[GATE_SEQUENCE.index(gate) - 1]
 
 
 def contract_candidates(root: Path, lab_id: str, kind: str) -> tuple[Path, Path]:
@@ -1796,6 +1836,14 @@ title: {title_yaml}
 domain: {domain_yaml}
 workflow_mode: "{workflow_mode}"
 status: "draft"
+
+manual:
+  manual_number: null
+  manual_title: ""
+  language: ""
+  report_submission_requirements: ""
+  scoring_policy: ""
+  metadata_confirmed: false
 
 source_material:
   handbook: ""
@@ -2068,11 +2116,7 @@ def prior_lessons_review_errors(root: Path, lab_id: str) -> list[str]:
     return errors
 
 
-def retrospective_relative_paths(lab_id: str) -> tuple[Path, Path]:
-    return (
-        Path("BuildEvidence") / "retrospectives" / f"{lab_id}.md",
-        Path("KnowledgeBase") / "rebuild-lessons" / f"{lab_id}.md",
-    )
+
 
 
 def evidence_relative_paths(lab_id: str) -> tuple[Path, Path]:
@@ -2132,157 +2176,22 @@ Lab ID: `{lab_id}`
 | Gate 4 scaffold compile | pending | |
 | Gate 5 domain slice and compile | pending | |
 | Gate 6 scene build/Common validation/Game View | pending | |
-| Gate 7 desktop/XR/lifecycle | pending | |
-| Gate 8 evidence package | pending | |
-| Gate 9 user acceptance | pending | |
+| Gate 6 user acceptance | pending | |
+| Gate 8 student manual content/layout review | pending | |
+| Blocker recovery | none observed | |
 
 Acceptance remains a user/evaluator decision. Do not mark a Unity-owned result
 passed without observed Console, Game View, interaction, or hardware evidence.
 '''
 
 
-def retrospective_text(lab_id: str, title: str) -> str:
-    return f'''# {lab_id} rebuild error retrospective
-
-Lab title: {title}
-Review status: TODO
-
-## Build outcome
-
-TODO: Summarize the accepted Lab and the final compile/scene/playtest evidence.
-
-## Error timeline
-
-TODO: List errors and warnings in observed order, starting with each earliest
-root error. If no errors occurred, state that explicitly and list the checks
-that kept the build clean.
-
-## Verified root causes
-
-TODO: For each verified issue, record the error signature, owning layer,
-evidence, root cause, and why later messages were or were not cascades.
-
-## Fixes and verification
-
-TODO: Describe the allowed fix location and the observed evidence that proved
-the fix. Do not paste large logs or old Lab implementation code.
-
-## False leads and rejected workarounds
-
-TODO: Record misleading symptoms and unsafe workarounds that were avoided.
-
-## Prevention checks by gate
-
-TODO: Map each verified issue to the earliest Gate/check that should prevent it
-in a future rebuild.
-
-## Foundation issues reported to the user
-
-TODO: List protected-foundation issues without writing repair code. Use `none`
-when no foundation issue occurred.
-
-## Deferred or unresolved items
-
-TODO: Record real-hardware deferrals or remaining risks. Use `none` when empty.
-'''
 
 
-def reusable_lesson_text(lab_id: str, title: str) -> str:
-    return f'''---
-lab_id: {lab_id}
-lab_title: "{title.replace('"', "'")}"
-knowledge_kind: rebuild_lessons
-verified: true
-unity_version: TODO
-common_version: TODO
-components: [TODO]
-error_signatures: [TODO]
----
-
-# Reusable lessons from {lab_id}
-
-## Verified reusable failure patterns
-
-TODO: Normalize only verified patterns that can recur in another Lab. If the
-build was clean, state `none` and preserve the safeguards that worked.
-
-## Ownership and allowed fix location
-
-TODO: Distinguish current-Lab output from protected workflow foundation.
-
-## Prevention checks by gate
-
-TODO: Give concrete checks for Gate 0 through Gate 7 as applicable.
-
-## API and lifecycle constraints
-
-TODO: Record verified signatures, package/version constraints, Unity lifecycle
-rules, or asmdef boundaries that a future Agent must check.
-
-## Search cues for future rebuilds
-
-TODO: List concise component names, error fragments, and conditions that make
-this lesson relevant.
-
-## Exclusions
-
-Do not include target formulas, expected answers, rubric logic, Gold Reference
-details, secrets, personal paths, or unverified guesses.
-'''
 
 
-def retrospective_readiness_errors(root: Path, state: dict[str, Any]) -> list[str]:
-    lab_id = state["lab_id"]
-    default_run, default_lesson = retrospective_relative_paths(lab_id)
-    recorded = state.get("retrospective_paths", {})
-    errors: list[str] = []
-    if recorded.get("run") not in (None, default_run.as_posix()):
-        errors.append("Gate 10 run retrospective path differs from the designated location.")
-    if recorded.get("lesson") not in (None, default_lesson.as_posix()):
-        errors.append("Gate 10 reusable-lesson path differs from the designated location.")
-    run_path = root / default_run
-    lesson_path = root / default_lesson
 
-    requirements = (
-        (
-            run_path,
-            600,
-            (
-                "## Build outcome",
-                "## Error timeline",
-                "## Verified root causes",
-                "## Fixes and verification",
-                "## Prevention checks by gate",
-                "## Deferred or unresolved items",
-            ),
-        ),
-        (
-            lesson_path,
-            400,
-            (
-                "knowledge_kind: rebuild_lessons",
-                "verified: true",
-                "## Verified reusable failure patterns",
-                "## Ownership and allowed fix location",
-                "## Prevention checks by gate",
-                "## API and lifecycle constraints",
-                "## Search cues for future rebuilds",
-            ),
-        ),
-    )
-    for path, minimum_length, required_markers in requirements:
-        if not path.exists():
-            errors.append(f"Gate 10 retrospective file is missing: {path}")
-            continue
-        content = path.read_text(encoding="utf-8-sig")
-        if len(content.strip()) < minimum_length:
-            errors.append(f"Gate 10 retrospective file is too short: {path}")
-        if "TODO" in content or "Replace with" in content:
-            errors.append(f"Gate 10 retrospective still contains placeholders: {path}")
-        for marker in required_markers:
-            if marker not in content:
-                errors.append(f"Gate 10 retrospective is missing `{marker}`: {path}")
-    return errors
+
+
 
 
 def command_new(args: argparse.Namespace) -> int:
@@ -2463,7 +2372,22 @@ def validate_contracts(root: Path, lab_id: str) -> tuple[list[str], list[str], d
     for required in ("session_start", "step_start", "assist_requested", "outcome_recorded"):
         if required not in event_names:
             warnings.append(f"telemetry_map: recommended event {required!r} is missing")
+    brief = root / "LabSpecs" / lab_id / "brief.yaml"
+    if brief.exists() and re.search(r"^manual:", brief.read_text(encoding="utf-8-sig"), re.M):
+        try:
+            tools = manual_tools()
+            tools.assessment(root, lab_id, tools.metadata(root, lab_id))
+        except (ValueError, OSError, TypeError, KeyError) as error:
+            errors.append("manual_assessment: " + str(error))
     return errors, warnings, bundle
+
+
+def manual_tools():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("emvr_manual_tools", Path(__file__).with_name("manuals.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def brief_readiness_errors(root: Path, lab_id: str) -> list[str]:
@@ -2503,6 +2427,7 @@ def brief_readiness_errors(root: Path, lab_id: str) -> list[str]:
         errors.append("Brief must keep reusable sources read-only.")
     if "persisted_absolute_source_paths: false" not in content:
         errors.append("Brief must forbid persisted absolute reusable-source paths.")
+    errors.extend(manual_tools().metadata_errors(root, lab_id))
     return errors
 
 
@@ -2578,6 +2503,13 @@ def design_readiness_errors(root: Path, lab_id: str) -> list[str]:
 
 def gate_readiness_errors(root: Path, state: dict[str, Any], gate: int) -> list[str]:
     lab_id = state["lab_id"]
+    if gate not in GATE_NAMES:
+        return [f"Unsupported gate: {gate}"]
+    history_errors = blocker_history_errors(root, state)
+    if history_errors:
+        return history_errors
+    if state.get("blocker_recovery", {}).get("active"):
+        return ["Active blocker recovery must be verified and resolved before gate approval."]
     baseline_errors = protected_baseline_errors(root, state)
     reference_errors = source_reference_errors(root, state)
     if gate == 0:
@@ -2633,11 +2565,9 @@ def gate_readiness_errors(root: Path, state: dict[str, Any], gate: int) -> list[
         if evidence.get("scene_built") != "passed":
             missing.append("Unity scene-build/validation evidence has not passed.")
         return missing
-    if gate == 7:
-        return [] if evidence.get("playtest") == "passed" else ["Interaction/lifecycle playtest has not passed."]
     if gate == 8:
         missing = []
-        for prior in range(8):
+        for prior in GATE_SEQUENCE[:-1]:
             if not gate_is_approved(state, prior):
                 missing.append(f"Gate {prior} is not approved.")
         for relative in evidence_relative_paths(lab_id):
@@ -2650,11 +2580,8 @@ def gate_readiness_errors(root: Path, state: dict[str, Any], gate: int) -> list[
                 missing.append(f"Acceptance evidence does not identify {lab_id}: {relative.as_posix()}")
             if "pending" in content.lower() or "TODO" in content:
                 missing.append(f"Acceptance evidence is incomplete: {relative.as_posix()}")
+        missing.extend(manual_tools().gate_errors(root, state, type("ManualFlow", (), {"gate_is_approved": staticmethod(gate_is_approved), "gate5_lab_output_digest": staticmethod(gate5_lab_output_digest), "pascal_name": staticmethod(pascal_name)})))
         return missing
-    if gate == 9:
-        return []
-    if gate == 10:
-        return retrospective_readiness_errors(root, state)
     return [f"Unsupported gate: {gate}"]
 
 
@@ -2671,6 +2598,8 @@ def command_validate(args: argparse.Namespace) -> int:
     for error in errors:
         print(f"ERROR: {error}")
     if errors:
+        begin_blocker(root, state, "logic", "Contract validation failed: " + "; ".join(errors), ["contracts"])
+        save_state(root, lab_id, state)
         print(f"Contract validation FAILED for {lab_id}: {len(errors)} error(s), {len(warnings)} warning(s).")
         return 1
     path = state_path(root, lab_id)
@@ -2951,15 +2880,13 @@ root. Do not declare the lab complete yet.
 
 
 def derived_stage(state: dict[str, Any]) -> str:
-    if gate_is_approved(state, 10):
+    if state.get("blocker_recovery", {}).get("active"):
+        return "blocker_recovery"
+    if workflow_is_complete(state):
         return "complete"
-    if state.get("stage") == "retrospective_draft":
-        return "retrospective_draft"
-    if gate_is_approved(state, 9):
+    if gate_is_approved(state, 6):
         return "accepted"
     evidence = ensure_evidence(state)
-    if evidence.get("compile") == "passed" and evidence.get("scene_built") == "passed" and evidence.get("playtest") == "passed":
-        return "playtest_passed"
     if evidence.get("compile") == "passed" and evidence.get("scene_built") == "passed":
         return "scene_built"
     if evidence.get("compile") == "passed":
@@ -2978,17 +2905,15 @@ def derived_stage(state: dict[str, Any]) -> str:
 
 
 def next_action(root: Path, state: dict[str, Any]) -> str:
-    if gate_is_approved(state, 10):
-        return "Workflow and Gate 10 retrospective are complete."
+    if state.get("blocker_recovery", {}).get("active"):
+        return "Automatically handle the active blocker retrospective: diagnose, repair within ownership, verify, record lessons, then return to the same gate. No separate user approval is needed for recovery; protected repairs remain maintainer-owned."
+    if workflow_is_complete(state):
+        if gate_readiness_errors(root, state, 8):
+            return "Previously accepted content or handbooks changed. Reopen acceptance for Lab changes, or reopen-handbooks for document changes; revalidate and obtain renewed user confirmation."
+        return "Workflow complete: Gate 6 user acceptance and Gate 8 handbook validation are recorded."
     gate = current_gate(state)
     readiness = gate_readiness_errors(root, state, gate)
     if not readiness:
-        if gate == 9:
-            return (
-                "Gate 9 user-acceptance review is complete. Request user approval and explicitly "
-                "remind them that Gate 10 will summarize verified errors and save reusable lessons "
-                "before the workflow is complete."
-            )
         return (
             f"Gate {gate} ({GATE_NAMES[gate]}) is complete. Request approval; a clear "
             "progression response such as `继续`, `可以`, or `下一步` is sufficient. "
@@ -3011,11 +2936,8 @@ def next_action(root: Path, state: dict[str, Any]) -> str:
         3: "Complete the full design/reuse/environment review in one work package, then submit it once for approval.",
         4: "Generate only the scaffold, run a clean Unity compile smoke test, and record scaffold-compile evidence before approval.",
         5: "Materialize and validate the immutable Gate 5 foundation first; only then implement the smallest domain closure and record foundation, domain-slice, and clean-compile evidence.",
-        6: "Complete Unity compile, scene build, Common validation, Console, and Game View checks as one Gate 6 package.",
-        7: "Complete desktop/XR/state/lifecycle testing as one Gate 7 package.",
-        8: "Complete the evidence/provenance package and submit it for approval.",
-        9: "Present the completed Lab for explicit user acceptance; after acceptance, announce the required Gate 10 retrospective.",
-        10: "Run `labflow retrospective`, replace every placeholder with verified evidence, and submit both retrospective files for approval.",
+        6: "Complete Unity compile/build, Common validation and Game View checks, present the result and deferrals for user acceptance. A clear progression reply such as 继续 accepts the ready Gate 6.",
+        8: "Complete original Gate 8 in order: 8A verify independent student and developer manuals, then 8B increment the existing project handbook and review the entire PDF. Submit one Gate 8 confirmation after both pass.",
     }[gate]
 
 
@@ -3059,20 +2981,42 @@ def command_status(args: argparse.Namespace) -> int:
         return 0
     errors, warnings, _bundle = validate_contracts(root, lab_id)
     gate = current_gate(state)
-    accepted = gate_is_approved(state, 9)
-    workflow_complete = gate_is_approved(state, 10)
-    readiness = [] if workflow_complete else gate_readiness_errors(root, state, gate)
+    acceptance_recorded = gate_is_approved(state, 6)
+    accepted = acceptance_recorded
+    acceptance_errors = []
+    if acceptance_recorded:
+        try:
+            manual_tools().accepted_digest(root, state, type("ManualFlow", (), {
+                "gate_is_approved": staticmethod(gate_is_approved),
+                "gate5_lab_output_digest": staticmethod(gate5_lab_output_digest)}))
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as error:
+            accepted = False
+            acceptance_errors.append(str(error))
+    workflow_complete = workflow_is_complete(state)
+    readiness = gate_readiness_errors(root, state, gate)
+    workflow_complete = workflow_complete and accepted and not readiness
+    stage = derived_stage(state)
+    if not state.get("blocker_recovery", {}).get("active"):
+        if acceptance_recorded and not accepted:
+            stage = "acceptance_revalidation"
+        elif stage == "complete" and not workflow_complete:
+            stage = "handbooks_revalidation"
     payload = {
         "lab_id": lab_id,
         "workflow_mode": workflow_mode,
         "state_schema": state.get("schema_version", "missing"),
         "current_schema": CURRENT_STATE_SCHEMA,
         "legacy_state_requires_gate_reapproval": state.get("schema_version") != CURRENT_STATE_SCHEMA,
-        "stage": derived_stage(state),
+        "stage": stage,
         "accepted": accepted,
+        "acceptance_recorded": acceptance_recorded,
+        "acceptance_errors": acceptance_errors,
+        "gate_sequence": list(GATE_SEQUENCE),
+        "blocker_recovery": state.get("blocker_recovery", {"active": None, "history": []}),
         "workflow_complete": workflow_complete,
         "current_gate": None if workflow_complete else gate,
         "current_gate_name": None if workflow_complete else GATE_NAMES[gate],
+        "gate8_step": manual_tools().gate_step(root, state, type("ManualFlow", (), {"gate_is_approved": staticmethod(gate_is_approved), "gate5_lab_output_digest": staticmethod(gate5_lab_output_digest), "pascal_name": staticmethod(pascal_name)})) if gate == 8 and not workflow_complete else None,
         "gate_ready_for_approval": False if workflow_complete else not readiness,
         "gate_blockers": readiness,
         "gate_approvals": state.get("gate_approvals", {}),
@@ -3109,7 +3053,7 @@ def command_record(args: argparse.Namespace) -> int:
     if args.compile is not None or args.scene_built is not None:
         groups.append(6)
     if args.playtest is not None:
-        groups.append(7)
+        groups.append(6)
     groups = sorted(set(groups))
     if len(groups) > 1:
         raise RuntimeError("One record command may contain evidence for only one gate.")
@@ -3118,7 +3062,7 @@ def command_record(args: argparse.Namespace) -> int:
     if groups:
         gate = groups[0]
         if gate > 0:
-            require_gate_approved(state, gate - 1)
+            require_gate_approved(state, previous_gate(gate))
         if current_gate(state) != gate:
             raise RuntimeError(f"Evidence belongs to Gate {gate}, but current gate is {current_gate(state)}.")
 
@@ -3158,6 +3102,10 @@ def command_record(args: argparse.Namespace) -> int:
             "gate": groups[0] if groups else current_gate(state),
             "text": args.note.strip(),
         })
+    failed_keys = [key for key in ("boundary_verifier", "scaffold_compile", "gate5_foundation", "domain_slice", "domain_compile", "compile", "scene_built", "playtest") if getattr(args, key) == "failed"]
+    if failed_keys:
+        kind = "code" if any("compile" in key for key in failed_keys) else "logic"
+        begin_blocker(root, state, kind, args.note, failed_keys)
     state["stage"] = derived_stage(state)
     save_state(root, lab_id, state)
     print(f"Evidence recorded for {lab_id}; stage is now {state['stage']}.")
@@ -3171,41 +3119,163 @@ def command_capture_gate0_baseline(args: argparse.Namespace) -> int:
     state = load_current_state(root, lab_id)
     path = capture_gate0_protected_baseline(root, lab_id, state)
     print(f"Captured immutable Gate 0 run baseline: {path}")
-    print("Gate 1 through Gate 10 will compare protected files against this snapshot.")
+    print("All later gates and blocker recovery preserve and check this original snapshot.")
     return 0
+
+
+BLOCKER_KINDS = ("code", "logic", "protected-foundation")
+
+
+def blocker_history_errors(root: Path, state: dict[str, Any]) -> list[str]:
+    recovery = state.get("blocker_recovery", {})
+    errors = []
+    for index, item in enumerate(recovery.get("history", []), 1):
+        expected = f"BuildEvidence/{state['lab_id']}/blocker-retrospectives/{index:04d}.json"
+        if item.get("path") != expected or not (root / expected).is_file():
+            errors.append("Blocker retrospective history is missing or has an invalid path.")
+        elif file_sha256(root / expected) != item.get("sha256"):
+            errors.append("Completed blocker retrospective history was modified.")
+    lesson = recovery.get("lesson")
+    if lesson:
+        expected = f"KnowledgeBase/rebuild-lessons/{state['lab_id']}.md"
+        if lesson.get("path") != expected or not (root / expected).is_file():
+            errors.append("Current-run blocker lesson is missing or has an invalid path.")
+        elif file_sha256(root / expected) != lesson.get("sha256"):
+            errors.append("Previously recorded blocker lessons were modified.")
+    return errors
+
+
+def begin_blocker(root: Path, state: dict[str, Any], kind: str, note: str,
+                  required_rechecks: list[str] | None = None) -> dict[str, Any]:
+    """Record an observed blocker without approval, repair, or advancing its gate."""
+    if kind not in BLOCKER_KINDS:
+        raise RuntimeError("Unknown blocker kind.")
+    note = validate_text_argument(note, "observed blocker note")
+    if workflow_is_complete(state):
+        raise RuntimeError("Completed runs cannot open new blocker recovery.")
+    errors = blocker_history_errors(root, state)
+    if errors:
+        raise RuntimeError("\n".join(errors))
+    recovery = state.setdefault("blocker_recovery", {"active": None, "history": []})
+    active = recovery.get("active")
+    gate = current_gate(state)
+    if active:
+        if active.get("gate") != gate:
+            raise RuntimeError("Active blocker belongs to a different gate.")
+        path = blocker_active_path(root, state)
+        report = read_json(path)
+        report.setdefault("observations", []).append({"at": utc_now(), "kind": kind, "note": note})
+        active["required_rechecks"] = sorted(set(active.get("required_rechecks", [])) | set(required_rechecks or []))
+        report["required_rechecks"] = active["required_rechecks"]
+        write_json(path, report, force=True)
+        return active
+    sequence = len(recovery.get("history", [])) + 1
+    relative = f"BuildEvidence/{state['lab_id']}/blocker-retrospectives/{sequence:04d}.json"
+    active = {"id": sequence, "gate": gate, "kind": kind, "path": relative,
+              "required_rechecks": sorted(set(required_rechecks or [])),
+              "resume_stage": state.get("stage", "boundary_review")}
+    report = dict(active, lab_id=state["lab_id"], status="open", opened_at=utc_now(),
+                  observations=[{"at": utc_now(), "kind": kind, "note": note}])
+    write_json(root / relative, report)
+    recovery["active"] = active
+    return active
+
+
+def blocker_active_path(root: Path, state: dict[str, Any]) -> Path:
+    recovery = state.get("blocker_recovery", {})
+    active = recovery.get("active")
+    if not isinstance(active, dict):
+        raise RuntimeError("There is no active blocker recovery.")
+    sequence = len(recovery.get("history", [])) + 1
+    expected = f"BuildEvidence/{state['lab_id']}/blocker-retrospectives/{sequence:04d}.json"
+    if active.get("id") != sequence or active.get("path") != expected:
+        raise RuntimeError("Active blocker path/sequence is invalid.")
+    path = root / expected
+    report = read_json(path)
+    if any(report.get(k) != active.get(k) for k in ("id", "gate", "path", "required_rechecks")) or report.get("lab_id") != state["lab_id"] or report.get("status") != "open":
+        raise RuntimeError("Active blocker report does not match its state registration.")
+    return path
 
 
 def command_retrospective(args: argparse.Namespace) -> int:
     root = args.project_root.resolve()
     lab_id = require_lab_id(args.lab_id)
     state = load_current_state(root, lab_id)
-    require_gate_approved(state, 9)
-    if current_gate(state) != 10:
-        raise RuntimeError(
-            f"Retrospective generation belongs to Gate 10, but current gate is {current_gate(state)}."
-        )
-
-    run_relative, lesson_relative = retrospective_relative_paths(lab_id)
-    run_path = root / run_relative
+    if not args.resolve:
+        active = begin_blocker(root, state, args.kind, args.note or "")
+        save_state(root, lab_id, state)
+        print(f"Blocker recovery {active['id']:04d} opened at Gate {active['gate']}; remain at this gate.")
+        print("Diagnose ownership, repair only authorized output, verify, then resolve the retrospective.")
+        return 0
+    path = blocker_active_path(root, state)
+    recovery = state["blocker_recovery"]
+    active = recovery["active"]
+    if active["gate"] != current_gate(state):
+        raise RuntimeError("Recovery must return to its originating gate.")
+    errors = blocker_history_errors(root, state) + source_reference_errors(root, state)
+    # Gate 0 may not have captured its baseline yet; resolving a Boundary failure
+    # still requires a fresh foundation validation. Never suppress existing drift.
+    if active["gate"] == 0 and not state.get("protected_baseline"):
+        errors.extend(foundation_errors(root))
+    else:
+        errors.extend(protected_baseline_errors(root, state))
+    if errors:
+        raise RuntimeError("Cannot resolve recovery while integrity fails:\n- " + "\n- ".join(errors))
+    for key in active.get("required_rechecks", []):
+        if key == "contracts":
+            contract_errors, _warnings, _bundle = validate_contracts(root, lab_id)
+            if contract_errors or not state.get("last_contract_validation", {}).get("ok"):
+                raise RuntimeError("Required contract recheck has not passed.")
+            continue
+        if ensure_evidence(state).get(key) != "passed":
+            raise RuntimeError(f"Required recheck has not passed: {key}")
+    if active["gate"] == 5:
+        errors = gate5_evidence_freshness_errors(root, state)
+        if errors:
+            raise RuntimeError("Cannot resolve with stale verification:\n- " + "\n- ".join(errors))
+    fields = {key: validate_text_argument(getattr(args, key) or "", key)
+              for key in ("root_cause", "fix", "verification", "prevention", "lesson")}
+    if any(re.search(r"\bTODO\b|replace_with", text, flags=re.I) for text in fields.values()):
+        raise RuntimeError("Blocker resolution still contains placeholders.")
+    for key in ("lesson", "prevention"):
+        if re.search(r"[A-Za-z]:[\\/]|\\\\|/(?:Users|home)/", fields[key]):
+            raise RuntimeError("Reusable lessons must not contain personal absolute paths.")
+    lesson_relative = f"KnowledgeBase/rebuild-lessons/{lab_id}.md"
     lesson_path = root / lesson_relative
-    existing = [path for path in (run_path, lesson_path) if path.exists()]
-    if existing:
-        raise RuntimeError(
-            "Refusing to overwrite retrospective history; use a distinct lab_id or review the existing files:\n"
-            + "\n".join(str(path) for path in existing)
-        )
-
-    write_text(run_path, retrospective_text(lab_id, state.get("title", lab_id)))
-    write_text(lesson_path, reusable_lesson_text(lab_id, state.get("title", lab_id)))
-    state["retrospective_paths"] = {
-        "run": run_relative.as_posix(),
-        "lesson": lesson_relative.as_posix(),
-    }
-    state["stage"] = "retrospective_draft"
-    save_state(root, lab_id, state)
-    print(f"Gate 10 run retrospective created: {run_path}")
-    print(f"Gate 10 reusable lesson created: {lesson_path}")
-    print("Replace every TODO with verified evidence, then request Gate 10 approval.")
+    old_lesson = lesson_path.read_text(encoding="utf-8") if lesson_path.exists() else ""
+    if lesson_path.exists() and not recovery.get("lesson"):
+        raise RuntimeError("Refusing to overwrite or append to an unowned existing lesson.")
+    if not old_lesson:
+        old_lesson = f"---\nlab_id: {lab_id}\nknowledge_kind: rebuild_lessons\nverified: true\n---\n\n# Verified blocker lessons\n"
+    section = (f"\n## Blocker {active['id']:04d} — Gate {active['gate']}\n\n"
+               f"{fields['lesson']}\n\nPrevention: {fields['prevention']}\n\n"
+               f"Verified evidence: `{active['path']}`\n")
+    report = read_json(path)
+    report.update(fields, status="resolved", resolved_at=utc_now())
+    # Keep earlier lesson bytes verbatim and roll back this transaction on an I/O
+    # failure. A failed resolve never leaves half-written history or a closed gate.
+    state_file = state_path(root, lab_id)
+    originals = {p: p.read_bytes() if p.exists() else None for p in (lesson_path, path, state_file)}
+    try:
+        prefix = originals[lesson_path] if originals[lesson_path] is not None else old_lesson.encode("utf-8")
+        lesson_path.parent.mkdir(parents=True, exist_ok=True)
+        lesson_path.write_bytes(prefix + section.encode("utf-8"))
+        write_json(path, report, force=True)
+        recovery.setdefault("history", []).append({"id": active["id"], "gate": active["gate"],
+            "path": active["path"], "sha256": file_sha256(path)})
+        recovery["lesson"] = {"path": lesson_relative, "sha256": file_sha256(lesson_path)}
+        recovery["active"] = None
+        state["stage"] = active.get("resume_stage", "boundary_review")
+        state["stage"] = derived_stage(state)
+        save_state(root, lab_id, state)
+    except Exception:
+        for target, original in originals.items():
+            if original is None:
+                target.unlink(missing_ok=True)
+            else:
+                target.write_bytes(original)
+        raise
+    print(f"Blocker resolved and lesson appended; resume Gate {active['gate']}. No gate was approved.")
     return 0
 
 
@@ -3216,13 +3286,13 @@ def command_approve_gate(args: argparse.Namespace) -> int:
     note = validate_text_argument(args.note, "approval note")
     state = load_current_state(root, lab_id)
     if gate not in GATE_NAMES:
-        raise RuntimeError("gate must be an integer from 0 through 10")
+        raise RuntimeError(f"supported gates are {GATE_SEQUENCE}")
     if gate_is_approved(state, gate):
         raise RuntimeError(f"Gate {gate} is already approved.")
     if current_gate(state) != gate:
         raise RuntimeError(f"Current gate is {current_gate(state)}; cannot approve Gate {gate}.")
     if gate > 0:
-        require_gate_approved(state, gate - 1)
+        require_gate_approved(state, previous_gate(gate))
     readiness = gate_readiness_errors(root, state, gate)
     if readiness:
         raise RuntimeError(
@@ -3243,20 +3313,70 @@ def command_approve_gate(args: argparse.Namespace) -> int:
             "approved_at": utc_now(),
         }
         state["stage"] = "design_approved"
-    elif gate == 9:
+    elif gate == 6:
         state["stage"] = "accepted"
-    elif gate == 10:
+    elif gate == 8:
         state["stage"] = "complete"
 
+    if gate in (0, 1, 2, 3, 4, 5, 6):
+        # Accumulate observed development facts before recording acceptance.
+        manual_tools().handbook_tools().collect(root, state, type("MaterialFlow", (), {
+            "current_gate": staticmethod(current_gate), "pascal_name": staticmethod(pascal_name)}))
     record_gate_approval(state, gate, note)
+    if gate == 6:
+        state["user_acceptance"]["content_digest"] = manual_tools().content_digest(root, lab_id, gate5_lab_output_digest(root, lab_id))
+    if gate == 8:
+        state["gate_approvals"]["8"]["handbooks_digest"] = manual_tools().approval_binding(root, state)
     save_state(root, lab_id, state)
-    if gate == 9:
-        print("Gate 9 user acceptance recorded. The required Gate 10 error-retrospective and knowledge-capture step is next.")
-        print("Do not end the workflow yet; run `labflow retrospective --lab-id <lab_id>` in the next response.")
-    elif gate < 10:
-        print(f"Gate {gate} approval recorded. Next response may execute Gate {gate + 1} only.")
+    if gate == 8:
+        print("Gate 8 handbooks approved. Workflow complete.")
     else:
-        print("Gate 10 approval recorded. Workflow and retrospective are complete.")
+        following = GATE_SEQUENCE[GATE_SEQUENCE.index(gate) + 1]
+        if gate == 6:
+            print("Gate 6 user acceptance recorded from the user's approval/progression response.")
+        print(f"Gate {gate} approval recorded. Next response may execute Gate {following} only.")
+    return 0
+
+
+def command_reopen_handbooks(args: argparse.Namespace) -> int:
+    root = args.project_root.resolve()
+    lab_id = require_lab_id(args.lab_id)
+    state = load_current_state(root, lab_id)
+    note = validate_text_argument(args.note, "handbook revalidation reason")
+    errors = protected_baseline_errors(root, state) + source_reference_errors(root, state)
+    if errors:
+        raise RuntimeError("; ".join(errors))
+    if not gate_is_approved(state, 6) or state.get("blocker_recovery", {}).get("active"):
+        raise RuntimeError("Handbook revalidation requires accepted Gate 6 and no active blocker.")
+    old = state.get("gate_approvals", {}).pop("8", None)
+    if old:
+        state.setdefault("superseded_gate_approvals", []).append({"gate": 8, "approval": old, "reason": note})
+    state["stage"] = "handbooks_revalidation"
+    save_state(root, lab_id, state)
+    print("Gate 8 reopened. Retain Gate 6 acceptance; revalidate both handbook steps and request joint confirmation.")
+    return 0
+
+
+def command_reopen_acceptance(args: argparse.Namespace) -> int:
+    root = args.project_root.resolve()
+    lab_id = require_lab_id(args.lab_id)
+    state = load_current_state(root, lab_id)
+    note = validate_text_argument(args.note, "revalidation reason")
+    errors = protected_baseline_errors(root, state) + source_reference_errors(root, state)
+    if errors:
+        raise RuntimeError("; ".join(errors))
+    if not gate_is_approved(state, 6) or state.get("blocker_recovery", {}).get("active"):
+        raise RuntimeError("Reopening acceptance requires prior Gate 6 acceptance without an active blocker.")
+    for gate in (6, 8):
+        old = state.get("gate_approvals", {}).pop(str(gate), None)
+        if old:
+            state.setdefault("superseded_gate_approvals", []).append({"gate": gate, "approval": old, "reason": note})
+    state.setdefault("superseded_user_acceptance", []).append(state.pop("user_acceptance", {}))
+    state.setdefault("superseded_scene_evidence", []).append({"evidence": dict(ensure_evidence(state)), "reason": note})
+    ensure_evidence(state).update(compile="pending", scene_built="pending")
+    state["stage"] = "acceptance_revalidation"
+    save_state(root, lab_id, state)
+    print("Gate 6 reopened: revalidate changed content, then obtain user acceptance. Existing manuals require renewed checks.")
     return 0
 
 
@@ -3384,7 +3504,7 @@ def build_parser() -> argparse.ArgumentParser:
     record.add_argument("--domain-compile", dest="domain_compile", choices=RESULT_VALUES)
     record.add_argument("--compile", choices=RESULT_VALUES)
     record.add_argument("--scene-built", dest="scene_built", choices=RESULT_VALUES)
-    record.add_argument("--playtest", choices=RESULT_VALUES)
+    record.add_argument("--playtest", choices=RESULT_VALUES, help="Optional Gate 6 observation; no separate Gate 7.")
     record.add_argument("--note")
     record.set_defaults(func=command_record)
 
@@ -3397,9 +3517,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     retrospective = subparsers.add_parser(
         "retrospective",
-        help="Create the Gate 10 run retrospective and reusable-lesson files after user acceptance.",
+        help="Open/resolve automatic code or logic blocker recovery at the current gate.",
     )
     retrospective.add_argument("--lab-id", required=True)
+    retrospective.add_argument("--kind", choices=BLOCKER_KINDS, default="logic")
+    retrospective.add_argument("--note")
+    retrospective.add_argument("--resolve", action="store_true")
+    for field in ("root-cause", "fix", "verification", "prevention", "lesson"):
+        retrospective.add_argument("--" + field)
     retrospective.set_defaults(func=command_retrospective)
 
     approve_gate = subparsers.add_parser(
@@ -3407,9 +3532,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Record direct or semantic user approval for exactly the current completed gate.",
     )
     approve_gate.add_argument("--lab-id", required=True)
-    approve_gate.add_argument("--gate", required=True, type=int, choices=range(11))
+    approve_gate.add_argument("--gate", required=True, type=int, choices=GATE_SEQUENCE)
     approve_gate.add_argument("--note", required=True)
     approve_gate.set_defaults(func=command_approve_gate)
+    reopen = subparsers.add_parser("reopen-acceptance", help="Invalidate old acceptance after a teaching/operation change; no automatic approval.")
+    reopen.add_argument("--lab-id", required=True)
+    reopen.add_argument("--note", required=True)
+    reopen.set_defaults(func=command_reopen_acceptance)
+    handbooks_reopen = subparsers.add_parser("reopen-handbooks", help="Revalidate revised documents without inventing a new Lab acceptance.")
+    handbooks_reopen.add_argument("--lab-id", required=True)
+    handbooks_reopen.add_argument("--note", required=True)
+    handbooks_reopen.set_defaults(func=command_reopen_handbooks)
     return parser
 
 

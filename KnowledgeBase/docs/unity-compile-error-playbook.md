@@ -132,11 +132,14 @@ Evidence that the fix worked:
 Store general failure patterns here. Keep target formulas, expected answers,
 rubric logic, and old Lab implementation details out of this knowledge base.
 
-## Gate 10 capture and later reuse
+## Automatic blocker capture and later reuse
 
-After Gate 9 user acceptance, use Gate 10 to create the run-specific record at
-`BuildEvidence/retrospectives/<lab_id>.md` and the normalized reusable lesson at
-`KnowledgeBase/rebuild-lessons/<lab_id>.md`. Include only verified causes and
-prevention checks. At Gate 0 of every later rebuild, review all prior lesson
+At any gate, an observed compile or logic blocker automatically opens
+`labflow retrospective --kind code --note "<observed evidence>"` (include the
+current `--lab-id`). Diagnose ownership and verify the authorized fix, then use
+`retrospective --resolve` to seal the numbered incident under
+`BuildEvidence/<lab_id>/blocker-retrospectives/` and append verified lessons to
+`KnowledgeBase/rebuild-lessons/<lab_id>.md`. Return to the original gate; no
+separate retrospective approval is needed. Protected repairs remain maintainer-owned. At Gate 0 of every later rebuild, review all prior lesson
 files and record their applicability in
 `LabSpecs/<lab_id>/prior-lessons-review.md` before writing Lab code.

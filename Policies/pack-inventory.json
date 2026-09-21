@@ -40,8 +40,8 @@
     },
     "KnowledgeBase": {
       "category": "conditional_reuse_knowledge_only_and_restricted_archive",
-      "integrity": "dynamic_gate_10_append_only",
-      "note": "Clean run packs omit the restricted archive; Gate 10 may add one current-run lesson."
+      "integrity": "dynamic_blocker_recovery_append_only",
+      "note": "Clean run packs omit the restricted archive; verified blocker recovery may append only to its own current-run lesson."
     },
     "LabSpecs": {
       "category": "knowledge_only_and_generated_input",

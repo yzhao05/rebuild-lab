@@ -35,11 +35,11 @@ and records its own SHA-256 in `workflow_state.json`. It snapshots the protected
 workflow, Common, reusable-foundation, approved-asset, knowledge, package, and
 project-setting roots for this run. The command is allowed only in Gate 0,
 refuses overwrite, and cannot be used to bless a failed release Boundary.
-Gates 1–10 compare current protected files against this Gate 0 snapshot and
+All later gates compare current protected files against this Gate 0 snapshot and
 block on every unregistered change, addition or removal; verified maintainer
 receipts below provide only exact replacement hashes. The current Lab's
 `KnowledgeBase/rebuild-lessons/<lab_id>.md` is the sole planned exclusion
-because Gate 10 creates it; all older lessons remain protected.
+because blocker recovery can append it; all older lessons remain protected.
 
 ### Maintainer compatibility receipts before scaffold generation
 
@@ -500,7 +500,7 @@ scene wiring from prose descriptions. Examples are not confirmed requirements;
 the current Brief and contracts are authoritative.
 
 Normalized pre-workflow construction lessons live under
-`KnowledgeBase/rebuild-lessons/build-experience/pre-workflow/`; verified Gate 10 lessons live at
+`KnowledgeBase/rebuild-lessons/build-experience/pre-workflow/`; verified blocker lessons live at
 `KnowledgeBase/rebuild-lessons/<lab_id>.md`. At Gate 0, the Builder Agent must
 read every prior lesson file and record applicability in the current Lab's
 `prior-lessons-review.md`. Lessons provide safeguards and debugging cues, not
@@ -605,15 +605,18 @@ generated output only in location/provenance terms; it remains immutable. A
 hash mismatch in either source or copy is a foundation blocker, not permission
 to regenerate, patch, or replace it manually.
 
-The sole controlled exception is Gate 10 after Gate 9 user acceptance. The
-Builder Agent may create and complete exactly
-`BuildEvidence/retrospectives/<current_lab_id>.md` and
-`KnowledgeBase/rebuild-lessons/<current_lab_id>.md` using the workflow's
-retrospective generator. It may not overwrite or revise an earlier
-retrospective or lesson.
+The controlled exception is automatic blocker recovery at any active gate.
+`labflow retrospective` creates numbered incidents in
+`BuildEvidence/<current_lab_id>/blocker-retrospectives/`. After verified resolution,
+the command seals the report and appends only to the current-run
+`KnowledgeBase/rebuild-lessons/<current_lab_id>.md`. Existing lesson/report hashes
+must match before extension; unowned files and earlier entries cannot be replaced.
+No user acceptance or separate Gate 10 approval is required to start recovery.
+See the Skill's `references/workflow-gates.md` for the full automatic subflow.
 
 When a protected item is incorrect or incomplete, the Agent must stop the
-current gate and report its path, evidence, impact, and the user action needed.
+current gate, open a protected-foundation retrospective, and report its path,
+evidence, impact, and the user action needed.
 It must not edit the item, weaken validation, introduce a local workaround,
 copy in a patched replacement, or provide ready-to-paste code, patches, or
 repair commands. Work resumes only after the user performs the repair and asks
@@ -643,3 +646,55 @@ Only the maintainer can issue/register this profile at pending Gate 5 after
 Gates 0-4 approval and scaffold compilation. All source/import checks still
 apply. Preserve the Gate 0 snapshot, prior receipts/approvals and source
 bindings; issue no Unity evidence and accept no unrelated file changes.
+
+
+## Compact workflow maintenance compatibility
+
+The maintainer-only `gate5_compact_workflow_v1` profile covers its explicitly
+listed workflow code, policy, Skill and documentation files during Gate 5. It
+preserves source assets, current Lab output, original Gate 0 baseline, existing
+receipt chain, all evidence (including stale evidence) and Gates 0-4 approvals.
+Gate 5 foundation evidence may already exist; this profile grants no passing
+evidence or gate approval. All old/new hashes and the reviewed state are bound.
+Existing schema-2.0 runs require no baseline recapture or state reset. Old Gate
+6/8 approvals remain history until explicitly approved under the compact model.
+The Builder cannot issue or modify maintenance receipts.
+
+
+## Original Gate 8: sequential 8A and 8B handbook delivery
+
+Keep original Gate 8 numbering in the sequence 0,1,2,3,4,5,6,8. Read
+`.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md`.
+Accumulate current-project developer material at Gates 0-6 and each resolved
+blocker with `handbooks.py collect`; never invent observations at the end.
+8A generates independent student PDF and single-Lab developer DOCX/PDF from the
+same Gate 6 accepted version. Preserve `Lab <number> <theme>` naming, adding
+` Developer Handbook` only for the developer book. Verify content consistency
+and every PDF page. Clearly label executed versus document-checked procedures.
+8B starts only after 8A is verified. Increment a saved copy of the existing
+project Development Handbook: only the current Lab's tagged section, references
+to existing general material and verified unique information. Preserve all other
+chapters, images and package parts. Reruns update that section without duplicates.
+Retain the before-version, increment change list and old issues left untouched;
+render/review the whole master PDF. Never regenerate the entire master or turn
+its old implementation details into new Lab requirements or reusable sources.
+All three manuals bind the same acceptance; changed final 8A evidence invalidates
+8B. Keep current-run outputs in `BuildEvidence/<lab_id>/handbooks/`; host publishing
+is a separate release instruction. Retain reuse/validation reports internally.
+Submit both steps together for one Gate 8 user confirmation. Neither 8A nor file
+existence is approval. Missing captures/results remain pending. Workflow maintenance
+does not execute current Lab gates or request its course metadata.
+
+The maintainer-only `gate5_student_manual_workflow_v1` profile registers only its
+explicit workflow/rule/template/tool/test changes and seven named additions.
+It preserves the original Gate 0 baseline, prior receipts, existing Lab content,
+approvals and evidence. Added files use null before-hash/size and become protected
+expectations. Registration is maintenance compatibility, never handbook generation
+or Lab acceptance. Builder Agents cannot issue, amend or register these receipts.
+
+
+The maintainer-only `gate5_two_step_handbooks_v1` profile covers its exact
+rule/tool/template/test paths and named additions for the 8A/8B extension. It
+preserves the original baseline, prior receipts, current Lab code/evidence and
+approvals. Receipt registration grants no Lab acceptance, handbook generation,
+master publication or protected source access beyond the existing boundaries.

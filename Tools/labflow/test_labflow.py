@@ -576,6 +576,9 @@ class LabflowTests(unittest.TestCase):
             )
             content = content.replace("Replace with", "Confirmed")
             content = content.replace("replace_with", "confirmed")
+            content = content.replace('manual_number: null', 'manual_number: 4').replace('manual_title: ""', 'manual_title: "Example"')
+            content = content.replace('language: ""', 'language: "English"').replace('report_submission_requirements: ""', 'report_submission_requirements: "Written report"')
+            content = content.replace('scoring_policy: ""', 'scoring_policy: "ungraded"').replace('metadata_confirmed: false', 'metadata_confirmed: true')
             brief.write_text(content, encoding="utf-8")
             self.assertEqual([], labflow.brief_readiness_errors(root, "lab_example"))
 
@@ -887,7 +890,7 @@ class LabflowTests(unittest.TestCase):
             state = {
                 "lab_id": "lab_example",
                 "gate_approvals": {
-                    str(gate): {"approved": True} for gate in range(8)
+                    str(gate): {"approved": True, "workflow_model": labflow.WORKFLOW_MODEL} for gate in labflow.GATE_SEQUENCE[:-1]
                 },
                 "evidence": labflow.default_evidence(),
             }
@@ -897,7 +900,8 @@ class LabflowTests(unittest.TestCase):
             )
             with mock.patch.object(labflow, "protected_baseline_errors", side_effect=lambda *_args: []):
                 errors = labflow.gate_readiness_errors(root, state, 8)
-            self.assertEqual(len(errors), 2)
+            self.assertEqual(len([e for e in errors if "Acceptance evidence is missing" in e]), 2)
+            self.assertTrue(any("Lab Manual" in e for e in errors))
 
             reuse, validation = labflow.evidence_relative_paths("lab_example")
             for relative in (reuse, validation):
@@ -905,7 +909,10 @@ class LabflowTests(unittest.TestCase):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("lab_example\ncomplete\npassed\n", encoding="utf-8")
             with mock.patch.object(labflow, "protected_baseline_errors", side_effect=lambda *_args: []):
-                self.assertEqual(labflow.gate_readiness_errors(root, state, 8), [])
+                remaining = labflow.gate_readiness_errors(root, state, 8)
+                self.assertFalse(any("Acceptance evidence" in e for e in remaining))
+                self.assertTrue(any("Lab Manual" in e for e in remaining))
+                self.assertTrue(any("Developer" in e for e in remaining))
 
     def test_scaffold_runtime_has_no_unreviewed_common_calls(self) -> None:
         source = labflow.runtime_source("LabExample", "LabExample", "lab_example")
@@ -1530,6 +1537,198 @@ class LabflowTests(unittest.TestCase):
             new_test.write_text("new test", encoding="utf-8")
             errors = labflow.gate5_evidence_freshness_errors(root, state)
             self.assertTrue(any("stale" in item.lower() for item in errors))
+
+
+class CompactWorkflowTests(unittest.TestCase):
+    def fixture(self, root, gate=4):
+        state = {"schema_version": labflow.CURRENT_STATE_SCHEMA,
+                 "lab_id": "lab_example", "workflow_mode": "integrated-development",
+                 "gate_approvals": {}, "evidence": labflow.default_evidence()}
+        for previous in labflow.GATE_SEQUENCE:
+            if previous == gate:
+                break
+            labflow.record_gate_approval(state, previous, "继续")
+        labflow.save_state(root, "lab_example", state)
+        return state
+
+    def test_sequence_skips_removed_gates_and_completes_at_eight(self):
+        self.assertEqual(labflow.GATE_SEQUENCE, (0, 1, 2, 3, 4, 5, 6, 8))
+        state = {"gate_approvals": {}}
+        for gate in labflow.GATE_SEQUENCE:
+            self.assertEqual(labflow.current_gate(state), gate)
+            labflow.record_gate_approval(state, gate, "继续")
+        self.assertTrue(labflow.workflow_is_complete(state))
+        self.assertEqual(labflow.derived_stage(state), "complete")
+
+    def test_old_acceptance_does_not_silently_complete_new_flow(self):
+        state = {"gate_approvals": {str(g): {"approved": True} for g in range(11)}}
+        self.assertEqual(labflow.current_gate(state), 6)
+        self.assertFalse(labflow.workflow_is_complete(state))
+        labflow.record_gate_approval(state, 6, "继续")
+        self.assertEqual(labflow.current_gate(state), 8)
+        self.assertTrue(state["superseded_gate_approvals"])
+
+    def test_gate_six_accepts_semantic_approval_without_playtest_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = self.fixture(root, 6)
+            state["evidence"].update(compile="passed", scene_built="passed")
+            labflow.save_state(root, "lab_example", state)
+            with mock.patch.object(labflow, "protected_baseline_errors", return_value=[]), mock.patch.object(labflow, "source_reference_errors", return_value=[]):
+                self.assertEqual(labflow.gate_readiness_errors(root, state, 6), [])
+                args = argparse.Namespace(project_root=root, lab_id="lab_example", gate=6, note="继续")
+                self.assertEqual(labflow.command_approve_gate(args), 0)
+            saved = labflow.load_state(root, "lab_example")
+            self.assertEqual(saved["user_acceptance"]["note"], "继续")
+            self.assertEqual(labflow.current_gate(saved), 8)
+
+    def test_retired_gates_cannot_be_approved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.fixture(root)
+            for gate in (7, 9, 10):
+                with self.assertRaisesRegex(RuntimeError, "supported gates"):
+                    labflow.command_approve_gate(argparse.Namespace(project_root=root, lab_id="lab_example", gate=gate, note="继续"))
+
+    def test_failed_evidence_automatically_enters_recovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.fixture(root)
+            args = labflow.build_parser().parse_args(["--project-root", str(root), "record", "--lab-id", "lab_example", "--scaffold-compile", "failed", "--note", "Observed compiler error CS0103"])
+            with mock.patch.object(labflow, "next_action", return_value="recover"):
+                labflow.command_record(args)
+            saved = labflow.load_state(root, "lab_example")
+            self.assertEqual(labflow.current_gate(saved), 4)
+            self.assertEqual(saved["blocker_recovery"]["active"]["gate"], 4)
+            self.assertEqual(saved["blocker_recovery"]["active"]["required_rechecks"], ["scaffold_compile"])
+            self.assertFalse(labflow.gate_is_approved(saved, 4))
+
+    def test_blocker_can_start_at_every_gate_and_retries_are_idempotent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for gate in labflow.GATE_SEQUENCE:
+                root = Path(directory) / str(gate)
+                state = self.fixture(root, gate)
+                first = labflow.begin_blocker(root, state, "logic", "Observed wrong state transition")
+                second = labflow.begin_blocker(root, state, "logic", "Observed again")
+                self.assertEqual(first["id"], second["id"])
+                self.assertEqual(labflow.current_gate(state), gate)
+                self.assertEqual(len(list((root / "BuildEvidence/lab_example/blocker-retrospectives").glob("*.json"))), 1)
+
+    def resolve_args(self, root):
+        return labflow.build_parser().parse_args(["--project-root", str(root), "retrospective", "--lab-id", "lab_example", "--resolve", "--root-cause", "Incorrect local state transition", "--fix", "Corrected current Lab transition", "--verification", "Observed regression check passed", "--lesson", "Validate transitions before reporting success", "--prevention", "Check state reset at the originating gate"])
+
+    def test_resolution_returns_to_gate_and_appends_only_owned_lessons(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = self.fixture(root)
+            labflow.begin_blocker(root, state, "logic", "Observed reset mismatch")
+            labflow.save_state(root, "lab_example", state)
+            with mock.patch.object(labflow, "protected_baseline_errors", return_value=[]), mock.patch.object(labflow, "source_reference_errors", return_value=[]):
+                labflow.command_retrospective(self.resolve_args(root))
+                saved = labflow.load_state(root, "lab_example")
+                self.assertIsNone(saved["blocker_recovery"]["active"])
+                self.assertEqual(labflow.current_gate(saved), 4)
+                lesson = root / "KnowledgeBase/rebuild-lessons/lab_example.md"
+                first_bytes = lesson.read_bytes()
+                first_report = root / saved["blocker_recovery"]["history"][0]["path"]
+                report_bytes = first_report.read_bytes()
+                labflow.begin_blocker(root, saved, "logic", "Observed another mismatch")
+                labflow.save_state(root, "lab_example", saved)
+                labflow.command_retrospective(self.resolve_args(root))
+                self.assertTrue(lesson.read_bytes().startswith(first_bytes))
+                self.assertEqual(first_report.read_bytes(), report_bytes)
+
+    def test_resolution_refuses_unverified_failure_or_unowned_lesson(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = self.fixture(root)
+            labflow.begin_blocker(root, state, "code", "Compile failed", ["scaffold_compile"])
+            labflow.save_state(root, "lab_example", state)
+            with mock.patch.object(labflow, "protected_baseline_errors", return_value=[]), mock.patch.object(labflow, "source_reference_errors", return_value=[]):
+                with self.assertRaisesRegex(RuntimeError, "recheck"):
+                    labflow.command_retrospective(self.resolve_args(root))
+                state["evidence"]["scaffold_compile"] = "passed"
+                labflow.save_state(root, "lab_example", state)
+                lesson = root / "KnowledgeBase/rebuild-lessons/lab_example.md"
+                lesson.parent.mkdir(parents=True)
+                lesson.write_text("existing protected history", encoding="utf-8")
+                with self.assertRaisesRegex(RuntimeError, "unowned"):
+                    labflow.command_retrospective(self.resolve_args(root))
+                self.assertEqual(lesson.read_text(encoding="utf-8"), "existing protected history")
+
+    def test_active_recovery_prevents_approval(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = self.fixture(root, 6)
+            state["evidence"].update(compile="passed", scene_built="passed")
+            labflow.begin_blocker(root, state, "logic", "Observed wrong output")
+            labflow.save_state(root, "lab_example", state)
+            with mock.patch.object(labflow, "protected_baseline_errors", return_value=[]), mock.patch.object(labflow, "source_reference_errors", return_value=[]):
+                self.assertTrue(any("recovery" in e for e in labflow.gate_readiness_errors(root, state, 6)))
+
+    def test_protected_failure_can_be_reported_but_not_resolved_by_bypass(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.fixture(root)
+            args = labflow.build_parser().parse_args(["--project-root", str(root), "retrospective", "--lab-id", "lab_example", "--kind", "protected-foundation", "--note", "Protected hash mismatch"])
+            labflow.command_retrospective(args)
+            with mock.patch.object(labflow, "protected_baseline_errors", return_value=["Protected hash mismatch"]):
+                with self.assertRaisesRegex(RuntimeError, "integrity"):
+                    labflow.command_retrospective(self.resolve_args(root))
+
+    def test_resolution_rolls_back_on_state_save_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = self.fixture(root)
+            labflow.begin_blocker(root, state, "logic", "Observed reset mismatch")
+            labflow.save_state(root, "lab_example", state)
+            before = {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+            with mock.patch.object(labflow, "protected_baseline_errors", return_value=[]), mock.patch.object(labflow, "source_reference_errors", return_value=[]), mock.patch.object(labflow, "save_state", side_effect=OSError("write failure")):
+                with self.assertRaises(OSError):
+                    labflow.command_retrospective(self.resolve_args(root))
+            after = {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+            self.assertEqual(before, after)
+
+    def test_completed_reports_and_lessons_reject_tampering(self):
+        for target in ("report", "lesson"):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                state = self.fixture(root)
+                labflow.begin_blocker(root, state, "logic", "Observed mismatch")
+                labflow.save_state(root, "lab_example", state)
+                with mock.patch.object(labflow, "protected_baseline_errors", return_value=[]), mock.patch.object(labflow, "source_reference_errors", return_value=[]):
+                    labflow.command_retrospective(self.resolve_args(root))
+                saved = labflow.load_state(root, "lab_example")
+                recovery = saved["blocker_recovery"]
+                path = root / (recovery["history"][0]["path"] if target == "report" else recovery["lesson"]["path"])
+                path.write_text("tampered", encoding="utf-8")
+                with self.assertRaisesRegex(RuntimeError, "modified"):
+                    labflow.begin_blocker(root, saved, "logic", "New mismatch")
+
+    def test_contract_failure_opens_recovery_and_requires_successful_recheck(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = self.fixture(root, 2)
+            state["brief_confirmation"] = {"confirmed": True}
+            labflow.save_state(root, "lab_example", state)
+            args = argparse.Namespace(project_root=root, lab_id="lab_example")
+            with mock.patch.object(labflow, "validate_contracts", return_value=(["Invalid reference"], [], {})):
+                self.assertEqual(labflow.command_validate(args), 1)
+            saved = labflow.load_state(root, "lab_example")
+            self.assertEqual(saved["blocker_recovery"]["active"]["required_rechecks"], ["contracts"])
+            with mock.patch.object(labflow, "protected_baseline_errors", return_value=[]), mock.patch.object(labflow, "source_reference_errors", return_value=[]), mock.patch.object(labflow, "validate_contracts", return_value=(["Invalid reference"], [], {})):
+                with self.assertRaisesRegex(RuntimeError, "recheck"):
+                    labflow.command_retrospective(self.resolve_args(root))
+
+    def test_status_is_read_only_and_pending_is_not_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.fixture(root)
+            original = labflow.state_path(root, "lab_example").read_bytes()
+            with mock.patch.object(labflow, "validate_contracts", return_value=([], [], {})), mock.patch.object(labflow, "gate_readiness_errors", return_value=["Compile pending"]), mock.patch.object(labflow, "next_action", return_value="Wait for evidence"):
+                labflow.command_status(argparse.Namespace(project_root=root, lab_id="lab_example"))
+            self.assertEqual(labflow.state_path(root, "lab_example").read_bytes(), original)
+            self.assertFalse((root / "BuildEvidence/lab_example/blocker-retrospectives").exists())
 
 
 if __name__ == "__main__":

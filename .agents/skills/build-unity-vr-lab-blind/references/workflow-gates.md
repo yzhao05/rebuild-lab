@@ -54,7 +54,7 @@ Gate 0 evidence uses `record --boundary-verifier`; Gate 4 uses
 `record --scaffold-compile`; Gate 5 uses
 `record --gate5-foundation` first and then
 `record --domain-slice/--domain-compile`; Gate 6 uses only
-`record --compile/--scene-built`; Gate 7 uses only `record --playtest`. Do not
+`record --compile/--scene-built`; optional `record --playtest` observations belong to Gate 6. Do not
 combine evidence from different gates in one command. Any Lab-specific C# edit
 invalidates compile evidence for the current gate until Unity recompiles from a
 cleared Console with zero compiler errors.
@@ -87,7 +87,7 @@ no Gold artifact or protected-foundation repair is present. Complete this gate
 with a valid, read-only per-Lab source-reference manifest whose catalog and
 manifest hashes are recorded in state. Every source path must be normalized
 repository-relative POSIX and resolve inside the current Builder Pack; the
-manifest and referenced source content must remain unchanged through Gate 10.
+manifest and referenced source content must remain unchanged through completion.
 Complete this gate before writing Lab C#. Recursively read every prior lesson under
 `KnowledgeBase/rebuild-lessons/` except files named `README.md`, including the
 recommended pre-workflow construction experience, and complete the current Lab's
@@ -103,7 +103,7 @@ Immediately afterward, still in Gate 0, run
 This per-run baseline is created once, cannot overwrite an existing baseline,
 and is checked by every later gate. Never edit the release frozen hashes or
 recapture the baseline to accept a change. If a later comparison names a
-changed protected file, stop and report that foundation defect. Gate 10's new
+changed protected file, stop and report that foundation defect. The current-run blocker
 current-Lab lesson is the only planned baseline exclusion.
 
 For a maintainer-repaired pre-scaffold Gate 4 run, follow the compatibility
@@ -210,44 +210,71 @@ If EditMode tests are part of the evidence, the Agent must identify
 assembly and expected test list/count, **Run Selected**, and the required
 green/zero-failure result before asking the user to act.
 
-## 6. Unity scene validated
+## 6. Unity scene validated and user accepted
 
-Unity compiles in dependency order (Common, then Lab assemblies), the Editor
-menu builds the scene, Common validation passes, and the Console is clean after
-Clear. The builder must fail without saving when it captures an exception/error;
-its success log alone is not evidence. Game View UI is readable and does not
-obscure the experiment. Unity MCP is not part of this gate.
+Unity compiles in dependency order, the Editor menu builds the scene, Common
+validation passes, and the Console is clean after Clear. Errors stop the builder
+before saving. Game View is readable and matches the approved Brief. Present the
+result, required behavior checks and explicit deferrals to the user. A clear
+progression response such as `继续` accepts this ready gate; do not require a fixed
+acceptance phrase or a second Gate 9 approval. Record the original user wording.
+Gate 6 approval advances directly to Gate 8. The former Gate 7 is removed.
 
-## 7. Interaction and lifecycle passed
+## 8. Two sequential handbook steps using the original Gate 8 number
 
-Desktop and XR simulator paths work and produce the same target, state change,
-visible feedback, and success result except for explicitly confirmed mapping
-exceptions; real hardware is passed or explicitly deferred;
-Capture/Restore/Reset and Start/Lab/Back meet the Brief.
+Follow [developer-handbooks.md](developer-handbooks.md). 8A generates independent
+student PDF and single-Lab developer DOCX/PDF from the same Gate 6 accepted version;
+verify implementation consistency and every rendered page. 8B then increments a
+saved copy of the existing project Development Handbook, changing only its tagged
+current-Lab section. Preserve other chapters/images, avoid duplicate additions,
+record the increment list and inspect the entire exported master PDF. Reuse and
+validation reports remain internal. Submit both steps together for one Gate 8
+confirmation, never separate 8A approval. No original gates are renumbered.
 
-## 8. Acceptance package ready
+## Automatic blocker recovery (formerly Gate 10)
 
-`BuildEvidence/<lab_id>/reuse-report.md` and
-`BuildEvidence/<lab_id>/validation-report.md`, import manifests, validation,
-and reuse provenance are complete and ready for the user's final decision. No
-global or previous-run evidence may satisfy this gate. This gate does not
-itself accept the Lab.
+The main sequence is `0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 8`. Gates 7 and 9
+are removed; Gate 10 is now an automatic interruption, not an approval gate.
+At any gate, an observed code failure or logic blocker immediately enters recovery
+without asking permission to start a retrospective. Keep the originating gate.
+Ordinary pending evidence, a question, or waiting for user approval is not a failure.
 
-## 9. User accepted
+`record ... failed` and failed contract validation open recovery automatically.
+For blockers observed outside those commands, the Agent immediately runs:
 
-Present the completed Lab and remaining deferrals to the user. Acceptance is an
-explicit user/evaluator decision, never automatic. The Gate 9 completion report
-must remind the user that Gate 10 will next summarize verified errors and store
-reusable lessons; Gate 9 is not the end of the workflow.
+```powershell
+python Tools/labflow/labflow.py retrospective --lab-id <lab_id> --kind <code|logic|protected-foundation> --note "<observed blocker and evidence>"
+```
 
-## 10. Retrospective captured
+Classify ownership and diagnose the earliest root cause. Repair current-Lab output
+within authorization, then rerun the failed check. Protected-foundation defects
+still require maintainer repair; automatic recovery grants no permission to edit
+sources, hashes, policies or baselines. Record their diagnosis and remain blocked.
+Do not switch gates, self-approve, or invent passing evidence to leave recovery.
 
-After Gate 9 approval, run `labflow retrospective`. Complete both
-`BuildEvidence/retrospectives/<lab_id>.md` and
-`KnowledgeBase/rebuild-lessons/<lab_id>.md` from verified evidence. Record the
-ordered error timeline, root causes, ownership, fixes, proof, rejected
-workarounds, deferred risks, prevention Gate, API/lifecycle constraints, and
-future search cues. If no errors occurred, state that and preserve the checks
-that prevented them. Remove every placeholder and exclude target answers, Gold
-details, copied implementation, secrets, personal paths, and guesses. Gate 10
-approval completes the workflow.
+After the fix is verified, record any required passed evidence and run:
+
+```powershell
+python Tools/labflow/labflow.py retrospective --lab-id <lab_id> --resolve --root-cause "<verified cause>" --fix "<authorized change>" --verification "<observed verification>" --prevention "<earliest preventive check>" --lesson "<verified reusable lesson>"
+```
+
+This seals `BuildEvidence/<lab_id>/blocker-retrospectives/<sequence>.json` and
+appends only to this run's `KnowledgeBase/rebuild-lessons/<lab_id>.md`. The tool
+checks existing history/lesson hashes; never hand-edit a completed report or prior
+lesson. Exclude target answers, Gold details, copied implementation, secrets,
+personal paths and guesses. Unknown causes remain open, not verified lessons.
+Repeated failures update the open incident; later incidents get new sequence IDs.
+Resolution returns to the originating gate, with its approval still required.
+There is no separate user approval for the retrospective itself.
+
+Gate 6 includes user acceptance of the validated scene, result and declared deferrals.
+When ready and presented, a clear user reply such as `继续`, `可以`, `通过`, `下一步`
+or `OK` is acceptance; retain the user's wording. Questions, negations, silence and
+requests for changes do not approve it. Gate 8 prepares and verifies handbooks after acceptance;
+its approval requires all defined handbook deliverables, including the incremental project master. There is no mandatory separate Gate 7 playtest.
+Required interactions remain covered by Gate 5 and the approved Brief/acceptance.
+
+Existing schema-2.0 runs retain Gates 0-5, source bindings, evidence and original
+baseline/receipt history. Legacy Gate 6/8 approvals lack the new acceptance/handbook
+meaning and cannot silently finish a run; reapprove these stages when reached.
+Legacy Gate 7/9/10 records remain history and never drive the new sequence.

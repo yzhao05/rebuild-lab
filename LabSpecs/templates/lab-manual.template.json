@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.0",
+  "lab_id": "",
+  "accepted_content_digest": "",
+  "sections": [
+    {
+      "title": "What is this lab about?",
+      "paragraphs": [],
+      "source_refs": [],
+      "figure_ids": []
+    },
+    {
+      "title": "Theories and Fundamentals",
+      "paragraphs": [],
+      "source_refs": [],
+      "figure_ids": []
+    },
+    {
+      "title": "Ways of Interaction in the VR Lab",
+      "paragraphs": [],
+      "source_refs": [],
+      "figure_ids": []
+    },
+    {
+      "title": "Guided Tours",
+      "paragraphs": [],
+      "source_refs": [],
+      "figure_ids": []
+    },
+    {
+      "title": "Exercises and Challenges",
+      "paragraphs": [],
+      "source_refs": [],
+      "figure_ids": []
+    },
+    {
+      "title": "Further Developments on the Lab",
+      "paragraphs": [],
+      "source_refs": [],
+      "figure_ids": []
+    }
+  ],
+  "figures": [],
+  "questions": []
+}

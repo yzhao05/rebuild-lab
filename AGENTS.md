@@ -67,15 +67,6 @@ the frozen recipe's existing instance settings and whole-room placement.
 Importing all source files is not proof of complete scene reuse: Gate 5 must
 also check the saved scene's exact linked-instance counts and reject removed,
 added, disabled or rescaled module content. Do not accept a partial room.
-All room Parts, meshes, materials, textures, .meta files and their generated
-imports are read-only to the workflow. The full assembly recipe is read-only
-as well. Never regenerate, unpack, simplify, replace, delete or edit a Part or
-its dependencies; never edit source/import hashes to accept drift. Reuse all
-five recipe instances every time: Part 01 x2, Part 02 x2, Part 03 x1. Apply only
-the frozen recipe's existing instance settings and whole-room placement.
-Importing all source files is not proof of complete scene reuse: Gate 5 must
-also check the saved scene's exact linked-instance counts and reject removed,
-added, disabled or rescaled module content. Do not accept a partial room.
 XR is a required default, not optional sample
 code: obey `Policies/reuse-policy.md` "Gate 5 XR defaults and ownership".
 Reuse complete Setup/Simulator Prefabs and Common components; never fork or
@@ -143,9 +134,9 @@ has initialized the marked child.
 Release frozen hashes are maintainer-owned and must not be edited by a rebuild
 Agent. In Gate 0, after recording an observed Builder Boundary PASS, run
 `python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>` once.
-Never overwrite or recapture it. Gates 1–10 must stop if `labflow` reports any
+Never overwrite or recapture it. All later gates must stop if `labflow` reports any
 protected file added, removed, or changed relative to that snapshot. The
-current Lab's Gate 10 lesson is the only planned exclusion.
+current Lab's blocker lesson is the only planned exclusion.
 
 For a maintainer-repaired pre-scaffold Gate 4 run, follow the compatibility
 receipt rules in `Policies/reuse-policy.md`. Preserve the original baseline,
@@ -154,11 +145,6 @@ receipt rules in `Policies/reuse-policy.md`. Preserve the original baseline,
 rehash or register receipts. Rerun Boundary, source-references and status;
 resume the same Gate 4 only when integrity passes. Prior approvals remain
 unchanged, and scaffold generation/Unity compile evidence are still required.
-For a maintainer-reviewed pending Gate 5 room-assembly correction, the separate
-`gate5_room_assembly_guidance_v1` receipt profile permits only its five named
-tooling/instruction files. The same immutable-baseline and maintainer-only
-issuance rules apply. It does not change approved assets, reusable code,
-source-reference bindings, prior approvals, or grant any Gate 5 evidence.
 For a maintainer-reviewed pending Gate 5 room-assembly correction, the separate
 `gate5_room_assembly_guidance_v1` receipt profile permits only its five named
 tooling/instruction files. The same immutable-baseline and maintainer-only
@@ -230,12 +216,21 @@ the current Lab output directly. If the earliest root cause belongs to a
 protected package, Common source, shared asset, Skill/tool, dependency, or
 project setting, stop and report the foundation defect instead.
 
-After the Gate 8 evidence package, use Gate 9 for explicit user acceptance.
-When submitting Gate 9, remind the user that the required Gate 10 retrospective
-will follow acceptance. Gate 10 must write the run record to
-`BuildEvidence/retrospectives/<lab_id>.md` and the normalized future-facing
-lesson to `KnowledgeBase/rebuild-lessons/<lab_id>.md`; only Gate 10 may create
-that exact KnowledgeBase file, and previous lessons remain read-only.
+The main sequence is 0, 1, 2, 3, 4, 5, 6, 8. Gate 6 includes user acceptance:
+after the validated scene/result is presented, `继续`, `可以`, `下一步`, `通过`
+or equivalent clear progression is sufficient. Gate 8 contains sequential steps 8A (independent Lab manuals) and 8B (incremental
+project handbook), followed by one final user confirmation. Gates 7 and 9 are removed.
+
+Any observed code or logic blocker automatically starts the retrospective subflow
+(formerly Gate 10), without requesting approval to start. Failed evidence records
+and failed contract validation open it automatically. For other blockers run
+`labflow retrospective --lab-id <lab_id> --kind <code|logic|protected-foundation>
+--note "<observed evidence>"`. Keep the current gate. Diagnose, repair within
+ownership, rerun failed checks, then `retrospective --resolve` with verified cause,
+fix, verification, prevention and lesson. Return to the same gate; recovery is
+not gate approval. See Skill `references/workflow-gates.md` for exact commands.
+Pending evidence alone is not a blocker incident. Protected defects still require
+maintainer repair and must not be bypassed by this automatic subflow.
 
 ## Protected workflow foundation
 
@@ -267,12 +262,11 @@ the resolver's absolute output is temporary and must not enter generated files.
 
 The Builder Agent may write only the current Lab's specification, five
 non-example contracts, declared Lab-specific Unity output files, and
-`BuildEvidence/<lab_id>/`. In Gate 10 only, after `labflow retrospective`
-generates them, it may also create and complete
-`BuildEvidence/retrospectives/<lab_id>.md` and
-`KnowledgeBase/rebuild-lessons/<lab_id>.md`. It must not overwrite an existing
-retrospective/lesson, edit a previous lesson, reusable source, or back-port a
-fix into Common while rebuilding a Lab.
+`BuildEvidence/<lab_id>/`. Automatic blocker recovery may record numbered
+incidents there and use `labflow retrospective --resolve` to append verified
+lessons to `KnowledgeBase/rebuild-lessons/<lab_id>.md`. This is the only knowledge
+write exception: prior entries, previous-run lessons, reusable sources and Common
+remain read-only. Never hand-edit completed incident reports or their hashes.
 
 If inspection reveals a defect, missing dependency, stale rule, or required
 change in the protected foundation, stop the current gate and report the
@@ -294,3 +288,28 @@ explicit room-source expansion during pending Gate 5. It permits only its
 named tooling/inventory files and seven named additions. Original snapshots,
 earlier receipts, source-reference bindings and approvals remain unchanged.
 Builder cannot issue or modify maintenance receipts.
+
+
+## Original Gate 8: sequential 8A and 8B handbook delivery
+
+Keep original Gate 8 numbering in the sequence 0,1,2,3,4,5,6,8. Read
+`.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md`.
+Accumulate current-project developer material at Gates 0-6 and each resolved
+blocker with `handbooks.py collect`; never invent observations at the end.
+8A generates independent student PDF and single-Lab developer DOCX/PDF from the
+same Gate 6 accepted version. Preserve `Lab <number> <theme>` naming, adding
+` Developer Handbook` only for the developer book. Verify content consistency
+and every PDF page. Clearly label executed versus document-checked procedures.
+8B starts only after 8A is verified. Increment a saved copy of the existing
+project Development Handbook: only the current Lab's tagged section, references
+to existing general material and verified unique information. Preserve all other
+chapters, images and package parts. Reruns update that section without duplicates.
+Retain the before-version, increment change list and old issues left untouched;
+render/review the whole master PDF. Never regenerate the entire master or turn
+its old implementation details into new Lab requirements or reusable sources.
+All three manuals bind the same acceptance; changed final 8A evidence invalidates
+8B. Keep current-run outputs in `BuildEvidence/<lab_id>/handbooks/`; host publishing
+is a separate release instruction. Retain reuse/validation reports internally.
+Submit both steps together for one Gate 8 user confirmation. Neither 8A nor file
+existence is approval. Missing captures/results remain pending. Workflow maintenance
+does not execute current Lab gates or request its course metadata.

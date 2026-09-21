@@ -5,6 +5,14 @@ domain: "replace_with_domain"
 workflow_mode: "rebuild"
 status: "draft"
 
+manual:
+  manual_number: null
+  manual_title: ""
+  language: ""
+  report_submission_requirements: ""
+  scoring_policy: ""
+  metadata_confirmed: false
+
 source_material:
   handbook: "docs/replace_with_handbook.pdf"
   additional_notes: []

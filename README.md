@@ -1,6 +1,6 @@
 # EMVR Blind Builder Pack
 
-中文用户使用说明（包括 AI 调用格式和 Gate 0–10 操作）：
+中文用户使用说明（包括 AI 调用格式和 Gate 0–6、8 操作）：
 [README_USER.md](README_USER.md)
 
 This directory is the self-contained workspace given to the rebuilding Agent.
@@ -82,17 +82,20 @@ foundation regressions are rerun against the same unchanged content; Gate 5
 stores content digests and rejects stale evidence.
 Integrated scene compilation remains a separate Gate 6 check, so compiler
 errors cannot accumulate across the build.
-Gate 9 records final user acceptance and announces the required Gate 10
-retrospective. Gate 10 stores the run audit under `BuildEvidence/retrospectives/`
-and the normalized future-facing lesson under
-`KnowledgeBase/rebuild-lessons/`; every later rebuild reviews those lessons at
-Gate 0.
+The main sequence is 0, 1, 2, 3, 4, 5, 6, 8. Gate 6 includes user acceptance;
+a clear progression reply such as `继续` accepts the ready, presented result.
+Gate 8 generates and verifies handbooks, retaining internal evidence. It uses verified 8A Lab manuals followed by an incremental 8B project master. Gates 7 and 9
+are removed. Any code/logic blocker automatically opens a retrospective subflow
+(formerly Gate 10): diagnose, repair within ownership, verify, append safe lessons,
+then return to the same gate. No separate approval is required for the subflow.
+Completed incidents and older lessons stay read-only; protected repair boundaries
+and original baseline/receipt integrity remain in force.
 
 Integrity has two levels. Release frozen hashes remain maintainer-owned in
 `Policies/pack-inventory.json` and the Gate 5 manifest. After that release
 Boundary passes, the rebuilding Agent creates a one-time per-run snapshot with
 `python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>`.
-Gates 1–10 compare protected files against
+All later gates compare protected files against
 `BuildEvidence/<lab_id>/gate0-protected-baseline.json`; the Agent cannot update
 or overwrite the snapshot to accept a later change.
 
@@ -163,3 +166,14 @@ If `labflow status` reports an older state schema, run
 `python Tools/labflow/labflow.py migrate-state --lab-id <lab_id>`. Migration
 preserves the files but invalidates all old approvals/evidence and resumes at
 Gate 0, because older evidence was not bound to current content.
+
+
+
+Original Gate 8 keeps its number and uses two ordered steps: 8A independent
+student and single-Lab developer manuals; 8B incremental project Development
+Handbook. Both bind the same accepted Gate 6 version. 8B preserves the existing
+master and every unrelated chapter/image, replaces only the current Lab's tagged
+section, and provides a before-version plus increment list. Review every page of
+all PDFs, then request one Gate 8 confirmation. Collect developer material during
+Gates 0-6 and resolved blockers. See
+`.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md`.

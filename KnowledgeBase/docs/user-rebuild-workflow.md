@@ -1,6 +1,6 @@
 # Unity VR Lab 盲重建工作流使用指南
 
-本指南只说明当前 Gate 0–10 工作流。Skill 和
+本指南只说明当前 Gate 0–6、8 工作流。Skill 和
 `.agents/skills/build-unity-vr-lab-blind/references/workflow-gates.md` 是最终
 权威来源。
 
@@ -91,7 +91,7 @@ python Tools/labflow/labflow.py capture-gate0-baseline --lab-id <lab_id>
 ```
 
 第二条命令也由 Agent 执行，只能在 Gate 0 成功创建一次。它把本次运行开始时的受保护文件状态保存到
-`BuildEvidence/<lab_id>/gate0-protected-baseline.json`。Gate 1–10 会持续与该文件比较；Agent 不能通过重建基线或修改发布哈希来接受后续变化。
+`BuildEvidence/<lab_id>/gate0-protected-baseline.json`。后续所有 Gate 会持续与该文件比较；Agent 不能通过重建基线或修改发布哈希来接受后续变化。
 
 Gate 4 尚未生成脚手架时，用户授权的维护方可登记逐文件旧／新哈希维护凭据，
 保留原基线和 Gate 0–3 审批。Builder 不得签发、修改、删除或重新登记凭据，
@@ -226,6 +226,12 @@ python Tools/labflow/labflow.py record --lab-id <lab_id> --domain-slice passed -
 
 ## Gate 6：场景构建与 Game View
 
+本阶段同时完成用户验收。Agent 展示验证后的场景、效果和延期项；用户回复
+“继续”“可以”“通过”“下一步”等明确同意推进的表达，即记录为验收，随后进入
+Gate 8 手册生成与验证。无需另走 Gate 7 或 Gate 9。未解决的错误和修改请求不能作为通过。
+原编号 Gate 8 分为 8A、8B：先生成两份独立 Lab 手册，再增量补充项目总手册；两步核验后统一确认。
+
+
 Agent 必须给出当前 Lab 的完整 Builder 菜单名，例如
 `Tools > EMVR > Labs > Build <Lab Title>`，而不是只说“运行 Builder”。User 从
 Unity 顶部菜单逐级点击该路径，然后点击
@@ -247,47 +253,45 @@ Play Mode 时点击顶部中央三角形按钮并确认变蓝，退出时再次�
 python Tools/labflow/labflow.py record --lab-id <lab_id> --compile passed --scene-built passed --note "<observed evidence>"
 ```
 
-## Gate 7：交互与生命周期
+## Gate 8：生成并验证学生用 Lab Manual
 
-分别测试桌面、XR Device Simulator、真实手柄（可明确延期）、Capture/Restore/
-Reset 和 Start/Lab/Back。记录：
+根据 Gate 6 用户验收的实际实验生成学生 PDF：`Lab <课程编号> <英文主题>.pdf`。
+编号、标题、语言、提交要求和计分规则从已确认 Brief 与合同读取；编号不能从
+`lab_id` 推断，旧手册的 100+5 分、Blackboard 和截止日期不能擅自继承。
 
-```powershell
-python Tools/labflow/labflow.py record --lab-id <lab_id> --playtest passed --note "<observed evidence>"
-```
+手册固定为介绍、理论、桌面/模拟器/VR 交互、图文导览、练习与挑战、扩展探索
+六部分，小节使用实际课程编号 N.1 至 N.6。按钮和操作与已验收实现一致，截图
+必须来自当前 Lab，学生版不能泄露标准答案。生成后核对内容、渲染并逐页检查
+PDF，再提交用户确认；文件存在不代表验收通过。后续实验修改使旧手册证据失效。
 
-## Gate 8：验收资料
+输出保存在当前运行 `BuildEvidence/<lab_id>/handbooks/`。复用报告、验证报告和
+导入清单保留为内部证据。不要覆盖参考手册；发布到项目 `Docs/Handbook/` 需另行
+授权。8A 同时生成独立学生 PDF 和单 Lab Developer Handbook DOCX/PDF；8B 只增补项目
+总手册的当前 Lab 小节，保留其他章节和图片，重复运行更新原小节，不重复追加。
+保存修改前版本和增补清单，检查整本 PDF；两步均绑定同一 Gate 6 验收版本，
+实际执行与文档核对明确区分，最后统一提交 Gate 8 确认。
 
-完善当前 Lab 专属文件，不能复用其他运行的报告：
+详见 `.agents/skills/build-unity-vr-lab-blind/references/student-lab-manual.md`。
 
-```text
-BuildEvidence/<lab_id>/reuse-report.md
-BuildEvidence/<lab_id>/validation-report.md
-BuildEvidence/<lab_id>/approved-asset-imports/*.json
-```
+## 代码或逻辑阻塞：自动复盘并返回原 Gate
 
-移除所有 `pending`/`TODO`，附上真实 Console、Game View、交互和延期证据。
+任一 Gate 出现代码错误或逻辑阻塞时，Agent 自动启动复盘，无需用户另行批准。
+先记录现象和归属，再修复当前 Lab 范围内的问题、重新验证并沉淀已验证经验，
+随后返回原 Gate。受保护基础缺陷仍交维护方修复，不能借复盘绕过哈希或重采基线。
+等待用户、尚未执行的测试和普通 pending 状态不等于失败，不制造虚假复盘。
 
-## Gate 9：User 最终验收
+记录保存在 `BuildEvidence/<lab_id>/blocker-retrospectives/<sequence>.json`；
+验证后由工具追加当前运行的 `KnowledgeBase/rebuild-lessons/<lab_id>.md`。
+已完成记录和旧经验只读。原 Gate 10 不再是末尾阶段，也不需要独立审批。
 
-Agent 展示完整结果和延期项，由 User 决定是否接受。提交 Gate 9 时必须提醒：
-审批后还会执行 Gate 10 经验归纳，Gate 9 不是流程终点。
 
-## Gate 10：复盘与安全知识归纳
 
-Gate 9 审批后运行：
 
-```powershell
-python Tools/labflow/labflow.py retrospective --lab-id <lab_id>
-```
-
-完善：
-
-```text
-BuildEvidence/retrospectives/<lab_id>.md
-KnowledgeBase/rebuild-lessons/<lab_id>.md
-```
-
-第一份保存本轮完整时间线；第二份只保留跨 Lab、经过验证的错误模式、API/
-生命周期约束和预防检查。不得写入旧/当前 Lab 答案、坐标、类名、场景接线、
-大段代码、隐私路径或未经验证的猜测。User 审批 Gate 10 后流程完成。
+Original Gate 8 keeps its number and uses two ordered steps: 8A independent
+student and single-Lab developer manuals; 8B incremental project Development
+Handbook. Both bind the same accepted Gate 6 version. 8B preserves the existing
+master and every unrelated chapter/image, replaces only the current Lab's tagged
+section, and provides a before-version plus increment list. Review every page of
+all PDFs, then request one Gate 8 confirmation. Collect developer material during
+Gates 0-6 and resolved blockers. See
+`.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md`.

@@ -1,0 +1,91 @@
+{
+  "reviewer": "",
+  "reviewed_at": "",
+  "rendering_sha256": "",
+  "binding": {},
+  "content": {
+    "same_accepted_version": {
+      "passed": false,
+      "observation": ""
+    },
+    "environment_and_entrypoints_verified": {
+      "passed": false,
+      "observation": ""
+    },
+    "architecture_and_code_match": {
+      "passed": false,
+      "observation": ""
+    },
+    "reuse_readonly_boundaries_correct": {
+      "passed": false,
+      "observation": ""
+    },
+    "extension_and_test_entrypoints_clear": {
+      "passed": false,
+      "observation": ""
+    },
+    "execution_and_document_checks_distinguished": {
+      "passed": false,
+      "observation": ""
+    },
+    "screenshots_and_diagrams_verified": {
+      "passed": false,
+      "observation": ""
+    },
+    "no_chat_private_paths_or_unverified_claims": {
+      "passed": false,
+      "observation": ""
+    },
+    "docx_pdf_content_match": {
+      "passed": false,
+      "observation": ""
+    },
+    "same_version": {
+      "passed": false,
+      "observation": ""
+    },
+    "student_operations_match_implementation": {
+      "passed": false,
+      "observation": ""
+    },
+    "scope_controls_and_limits_consistent": {
+      "passed": false,
+      "observation": ""
+    },
+    "only_current_lab_section_changed": {
+      "passed": false,
+      "observation": ""
+    },
+    "other_chapters_and_images_preserved": {
+      "passed": false,
+      "observation": ""
+    },
+    "shared_material_referenced_without_duplication": {
+      "passed": false,
+      "observation": ""
+    },
+    "eight_a_content_matches": {
+      "passed": false,
+      "observation": ""
+    },
+    "change_list_verified": {
+      "passed": false,
+      "observation": ""
+    },
+    "existing_issues_reported_without_unrequested_fixes": {
+      "passed": false,
+      "observation": ""
+    }
+  },
+  "pages": [
+    {
+      "page": 1,
+      "observation": "",
+      "no_placeholders": false,
+      "formula_glyphs_readable": false,
+      "images_legible": false,
+      "no_overflow": false,
+      "cross_references_correct": false
+    }
+  ]
+}
