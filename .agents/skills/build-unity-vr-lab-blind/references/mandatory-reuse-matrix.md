@@ -234,3 +234,15 @@ closure, instantiate the setup and simulator, and attach/configure the Common
 tuner on the setup root. Do not copy Lab1-named scripts, copy an old Lab scene,
 instantiate a bare XR Origin as the top-level baseline, or patch an imported
 asset copy.
+
+Maintenance closure rules: Gate 5 must call the protected portable
+`EmVrRoomLighting` from `Gate5Foundation/Editor/`, imported by the foundation
+materializer; do not recreate its execution-settings/cache/save-guard implementation
+in Lab code. See `ReusableFoundation/Gate5MinimalSlice/README.md` and reuse-policy.
+Gate 6 compile and scene checks each require matching current content digests,
+including .meta. Revised Brief/contracts use non-advancing `recheck-contracts` and
+actual user `reconfirm-inputs` for Brief/design; no silent acceptance refresh.
+During Gate 8 blocker recovery the current step may repair/build/render/check, but
+approval/advancement remains forbidden. Resolve requires a successful current-incident
+`handbooks.py check-8a` (8A) or `check` (8B), with unchanged verified bindings.
+See `workflow-gates.md` for commands and change/reacceptance rules.

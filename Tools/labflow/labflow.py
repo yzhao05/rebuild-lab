@@ -108,7 +108,18 @@ HANDBOOK_WORKFLOW_PROFILE = "gate5_two_step_handbooks_v1"
 HANDBOOK_WORKFLOW_PATHS = frozenset(('Tools/labflow/labflow.py', 'Tools/labflow/test_labflow.py', 'AGENTS.md', 'README.md', 'README_USER.md', 'Policies/reuse-policy.md', 'Policies/reuse-allowlist.json', '.agents/skills/build-unity-vr-lab-blind/SKILL.md', '.agents/skills/build-unity-vr-lab-blind/references/workflow-gates.md', 'KnowledgeBase/docs/lab-workflow-mvp.md', 'KnowledgeBase/docs/user-rebuild-workflow.md', 'Tools/labflow/manuals.py', 'Tools/labflow/test_manuals.py', 'Tools/labflow/manual-requirements.txt', '.agents/skills/build-unity-vr-lab-blind/references/student-lab-manual.md', 'Tools/labflow/handbooks.py', 'Tools/labflow/export_handbook_pdf.ps1', 'Tools/labflow/test_handbooks.py', 'LabSpecs/templates/developer-handbook.template.json', 'LabSpecs/templates/handbook-review.template.json', 'LabSpecs/templates/project-handbook-addendum.template.json', '.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md'))
 HANDBOOK_WORKFLOW_ADDITIONS = frozenset(('Tools/labflow/handbooks.py', 'Tools/labflow/export_handbook_pdf.ps1', 'Tools/labflow/test_handbooks.py', 'LabSpecs/templates/developer-handbook.template.json', 'LabSpecs/templates/handbook-review.template.json', 'LabSpecs/templates/project-handbook-addendum.template.json', '.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md'))
 PROTECTED_MAINTENANCE_PROFILES[HANDBOOK_WORKFLOW_PROFILE] = (5, HANDBOOK_WORKFLOW_PATHS)
+CLOSURE_WORKFLOW_PROFILE = "gate5_portable_lighting_and_rechecks_v1"
+CLOSURE_WORKFLOW_PATHS = frozenset(('Tools/labflow/labflow.py', 'Tools/labflow/test_labflow.py', 'Tools/labflow/manuals.py', 'Tools/labflow/handbooks.py', 'Tools/labflow/test_handbooks.py', 'Tools/labflow/test_workflow_closure.py', 'ReusableFoundation/Gate5MinimalSlice/manifest.json', 'ReusableFoundation/Gate5MinimalSlice/README.md', 'ReusableFoundation/Gate5MinimalSlice/Source/Editor/EmVrRoomLighting.cs', 'ReusableFoundation/Gate5MinimalSlice/Source/Tests/LightingEditMode/EMVR.ReusableFoundation.Lighting.Tests.asmdef', 'ReusableFoundation/Gate5MinimalSlice/Source/Tests/LightingEditMode/EmVrRoomLightingTests.cs', '.agents/skills/build-unity-vr-lab-blind/scripts/materialize_gate5_foundation.py', '.agents/skills/build-unity-vr-lab-blind/references/workflow-gates.md', '.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md', '.agents/skills/build-unity-vr-lab-blind/references/student-lab-manual.md', '.agents/skills/build-unity-vr-lab-blind/references/mandatory-reuse-matrix.md', '.agents/skills/build-unity-vr-lab-blind/SKILL.md', 'Policies/reuse-policy.md', 'Policies/reuse-allowlist.json', 'README_USER.md', 'AGENTS.md'))
+CLOSURE_WORKFLOW_ADDITIONS = frozenset(('Tools/labflow/test_workflow_closure.py', 'ReusableFoundation/Gate5MinimalSlice/Source/Editor/EmVrRoomLighting.cs', 'ReusableFoundation/Gate5MinimalSlice/Source/Tests/LightingEditMode/EMVR.ReusableFoundation.Lighting.Tests.asmdef', 'ReusableFoundation/Gate5MinimalSlice/Source/Tests/LightingEditMode/EmVrRoomLightingTests.cs'))
+PROTECTED_MAINTENANCE_PROFILES[CLOSURE_WORKFLOW_PROFILE] = (5, CLOSURE_WORKFLOW_PATHS)
 
+
+
+
+REVIEW_WORKFLOW_PROFILE = "gate5_review_recovery_portability_v1"
+REVIEW_WORKFLOW_PATHS = frozenset(('Tools/labflow/test_labflow.py', 'Tools/labflow/labflow.py', 'Tools/labflow/test_workflow_closure.py', 'Tools/labflow/test_project_integrity.py', '.agents/skills/build-unity-vr-lab-blind/scripts/verify_builder_pack.ps1', '.agents/skills/build-unity-vr-lab-blind/scripts/materialize_gate5_foundation.py', '.agents/skills/build-unity-vr-lab-blind/references/workflow-gates.md', '.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md', '.agents/skills/build-unity-vr-lab-blind/SKILL.md', 'AGENTS.md', 'README_USER.md', 'Policies/reuse-policy.md', 'Policies/reuse-allowlist.json', 'ReusableFoundation/Gate5MinimalSlice/README.md', 'ReusableFoundation/Gate5MinimalSlice/manifest.json', 'ReusableFoundation/Gate5MinimalSlice/Source/Editor/EmVrRoomLighting.cs', 'ReusableFoundation/Gate5MinimalSlice/Source/Tests/LightingEditMode/EmVrRoomLightingTests.cs'))
+REVIEW_WORKFLOW_ADDITIONS = frozenset(('Tools/labflow/test_project_integrity.py',))
+PROTECTED_MAINTENANCE_PROFILES[REVIEW_WORKFLOW_PROFILE] = (5, REVIEW_WORKFLOW_PATHS)
 
 
 SOURCE_REFERENCE_SCHEMA = "1.0.0"
@@ -663,7 +674,9 @@ def maintained_protected_files(
             permitted_additions = {EMVRLABS_ROOM_PROFILE: EMVRLABS_ROOM_ADDITIONS,
                                    LIGHTING_MAINTENANCE_PROFILE: LIGHTING_ADDITIONS,
                                    MANUAL_WORKFLOW_PROFILE: MANUAL_WORKFLOW_ADDITIONS,
-                                   HANDBOOK_WORKFLOW_PROFILE: HANDBOOK_WORKFLOW_ADDITIONS}.get(profile, frozenset())
+                                   HANDBOOK_WORKFLOW_PROFILE: HANDBOOK_WORKFLOW_ADDITIONS,
+                                   CLOSURE_WORKFLOW_PROFILE: CLOSURE_WORKFLOW_ADDITIONS,
+                                   REVIEW_WORKFLOW_PROFILE: REVIEW_WORKFLOW_ADDITIONS}.get(profile, frozenset())
             addition = relative in permitted_additions and relative not in effective
             if relative in seen or (relative not in effective and not addition):
                 return effective, [f"{label} has a duplicate or non-existing protected file: {relative}"]
@@ -1526,10 +1539,8 @@ def gate5_lab_output_digest(root: Path, lab_id: str) -> str:
     )
     if fs_exists(unity_assets):
         for path in iter_files(unity_assets):
-            if path.suffix.lower() == ".meta":
-                continue
             resolved = Path(os.path.abspath(path))
-            if any(Path(os.path.abspath(excluded)) in resolved.parents for excluded in excluded_roots):
+            if path.suffix.lower() != ".meta" and any(Path(os.path.abspath(excluded)) in resolved.parents for excluded in excluded_roots):
                 continue
             included.append(path)
     lines = [
@@ -1539,6 +1550,47 @@ def gate5_lab_output_digest(root: Path, lab_id: str) -> str:
     digest = hashlib.sha256()
     digest.update("\n".join(lines).encode("utf-8"))
     return digest.hexdigest().upper()
+
+
+def acceptance_content_digest(root: Path, lab_id: str) -> str:
+    return manual_tools().content_digest(root, lab_id, gate5_lab_output_digest(root, lab_id))
+
+
+def gate6_evidence_freshness_errors(root: Path, state: dict[str, Any]) -> list[str]:
+    digest = acceptance_content_digest(root, state['lab_id'])
+    evidence = ensure_evidence(state)
+    return [f"Gate 6 {key} evidence is missing a current content digest; rerun and record that check before acceptance."
+            for key in ('compile', 'scene_built') if evidence.get(key) == 'passed'
+            and evidence.get(key + '_content_digest') != digest]
+
+
+def contract_inputs_digest(root: Path, lab_id: str) -> str:
+    paths = [root / 'LabSpecs' / lab_id / 'brief.yaml']
+    paths += [root / 'LabInterfaceContracts' / (lab_id + '_' + kind + '.json') for kind in CONTRACT_KINDS]
+    lines = [p.relative_to(root).as_posix() + '\t' + (file_sha256(p) if p.is_file() else '<missing>') for p in paths]
+    return hashlib.sha256('\n'.join(lines).encode('utf-8')).hexdigest().upper()
+
+
+def contract_validation_freshness_errors(root: Path, state: dict[str, Any]) -> list[str]:
+    record = state.get('last_contract_validation', {})
+    if record.get('ok') is not True or record.get('content_digest') != contract_inputs_digest(root, state['lab_id']):
+        return ['Contract validation is missing or stale; run recheck-contracts without advancing the gate.']
+    return []
+
+
+def input_confirmation_digest(root: Path, lab_id: str, scope: str) -> str:
+    path = root / 'LabSpecs' / lab_id / ('brief.yaml' if scope == 'brief' else 'design.md')
+    parts = [file_sha256(path) if path.is_file() else '<missing>']
+    if scope == 'design':
+        parts.append(contract_inputs_digest(root, lab_id))
+    return hashlib.sha256('\n'.join(parts).encode('utf-8')).hexdigest().upper()
+
+
+def input_confirmation_errors(root: Path, state: dict[str, Any]) -> list[str]:
+    return [f"Current {scope} inputs lack a matching user confirmation; present changes and use reconfirm-inputs --scope {scope} with the user's actual wording."
+            for scope in ('brief', 'design')
+            if state.get('input_confirmations', {}).get(scope, {}).get('content_digest')
+            != input_confirmation_digest(root, state['lab_id'], scope)]
 
 
 def gate5_evidence_freshness_errors(root: Path, state: dict[str, Any]) -> list[str]:
@@ -1552,16 +1604,9 @@ def gate5_evidence_freshness_errors(root: Path, state: dict[str, Any]) -> list[s
                 "Gate 5 reusable-foundation evidence is stale after current-Lab output changed; "
                 "rerun the 3 foundation tests and neutral scene check, then record it again."
             )
-    if (
-        evidence.get("domain_slice") == "passed"
-        or evidence.get("domain_compile") == "passed"
-    ):
-        recorded = evidence.get("gate5_domain_lab_output_digest")
-        if not recorded or recorded != actual:
-            errors.append(
-                "Gate 5 domain evidence is stale after current-Lab output changed; "
-                "rerun the domain assertion and clean-Console compile check, then record both again."
-            )
+    for key in ('domain_slice', 'domain_compile'):
+        if evidence.get(key) == 'passed' and evidence.get(key + '_lab_output_digest') != actual:
+            errors.append(f"Gate 5 domain evidence is stale ({key}); rerun and record that observation against current content.")
     return errors
 
 
@@ -2528,6 +2573,7 @@ def gate_readiness_errors(root: Path, state: dict[str, Any], gate: int) -> list[
         errors, _warnings, _bundle = validate_contracts(root, lab_id)
         if not state.get("last_contract_validation", {}).get("ok", False):
             errors.append("Contracts have not been recorded as validated.")
+        errors.extend(contract_validation_freshness_errors(root, state))
         return errors
     if gate == 3:
         errors, _warnings, _bundle = validate_contracts(root, lab_id)
@@ -2559,7 +2605,9 @@ def gate_readiness_errors(root: Path, state: dict[str, Any], gate: int) -> list[
             missing.append("Unity domain-slice compile evidence has not passed with a clean Console.")
         return missing
     if gate == 6:
-        missing = []
+        missing = gate6_evidence_freshness_errors(root, state)
+        missing.extend(contract_validation_freshness_errors(root, state))
+        missing.extend(input_confirmation_errors(root, state))
         if evidence.get("compile") != "passed":
             missing.append("Unity compile evidence has not passed.")
         if evidence.get("scene_built") != "passed":
@@ -2590,15 +2638,27 @@ def command_validate(args: argparse.Namespace) -> int:
     lab_id = require_lab_id(args.lab_id)
     state = load_current_state(root, lab_id)
     require_gate_approved(state, 1)
-    if current_gate(state) != 2:
+    recheck = getattr(args, 'recheck', False)
+    if not recheck and current_gate(state) != 2:
         raise RuntimeError(f"Contract validation belongs to Gate 2, but current gate is {current_gate(state)}.")
+    if recheck:
+        errors = protected_baseline_errors(root, state) + source_reference_errors(root, state)
+        if errors:
+            raise RuntimeError('; '.join(errors))
+        if current_gate(state) < 2:
+            raise RuntimeError('Contract recheck requires confirmed Gate 1 inputs.')
     errors, warnings, _bundle = validate_contracts(root, lab_id)
     for warning in warnings:
         print(f"WARNING: {warning}")
     for error in errors:
         print(f"ERROR: {error}")
     if errors:
-        begin_blocker(root, state, "logic", "Contract validation failed: " + "; ".join(errors), ["contracts"])
+        state['last_contract_validation'] = {'ok': False, 'validated_at': utc_now(),
+            'content_digest': contract_inputs_digest(root, lab_id)}
+        if workflow_is_complete(state):
+            print('Completed run: reopen-acceptance before repairing or recovering changed Lab inputs. No gate advanced.')
+        else:
+            begin_blocker(root, state, "logic", "Contract validation failed: " + "; ".join(errors), ["contracts"])
         save_state(root, lab_id, state)
         print(f"Contract validation FAILED for {lab_id}: {len(errors)} error(s), {len(warnings)} warning(s).")
         return 1
@@ -2608,10 +2668,38 @@ def command_validate(args: argparse.Namespace) -> int:
             print("ERROR: Brief has not been confirmed or semantically approved by the user.")
             print(f"Run: python Tools/labflow/labflow.py approve-gate --lab-id {lab_id} --gate 1 --note \"<user confirmation>\"")
             return 1
-        state["stage"] = "contracts_ready"
-        state["last_contract_validation"] = {"ok": True, "warnings": warnings, "validated_at": utc_now()}
+        if not recheck:
+            state["stage"] = "contracts_ready"
+        active = state.get('blocker_recovery', {}).get('active') or {}
+        state["last_contract_validation"] = {"ok": True, "warnings": warnings, "validated_at": utc_now(),
+            'content_digest': contract_inputs_digest(root, lab_id), 'incident_id': active.get('id')}
         save_state(root, lab_id, state)
     print(f"Contract validation PASSED for {lab_id}: 0 errors, {len(warnings)} warning(s).")
+    return 0
+
+
+def command_reconfirm_inputs(args: argparse.Namespace) -> int:
+    root = args.project_root.resolve()
+    state = load_current_state(root, require_lab_id(args.lab_id))
+    note = validate_text_argument(args.note, 'actual user confirmation')
+    if state.get('blocker_recovery', {}).get('active'):
+        raise RuntimeError('Resolve the blocker before recording user confirmation; repairs and checks remain available.')
+    required = 1 if args.scope == 'brief' else 3
+    require_gate_approved(state, required)
+    errors = protected_baseline_errors(root, state) + source_reference_errors(root, state)
+    errors.extend(brief_readiness_errors(root, state['lab_id']) if args.scope == 'brief'
+                  else design_readiness_errors(root, state['lab_id']))
+    if args.scope == 'design':
+        errors.extend(contract_validation_freshness_errors(root, state))
+    if errors:
+        raise RuntimeError('; '.join(errors))
+    old = state.setdefault('input_confirmations', {}).get(args.scope)
+    if old:
+        state.setdefault('input_confirmation_history', []).append(dict(scope=args.scope, **old))
+    state['input_confirmations'][args.scope] = {'content_digest': input_confirmation_digest(root, state['lab_id'], args.scope),
+        'note': note, 'confirmed_at': utc_now()}
+    save_state(root, state['lab_id'], state)
+    print('Revised inputs confirmed. No gate advanced and no compile, scene or acceptance evidence was refreshed.')
     return 0
 
 
@@ -3071,6 +3159,15 @@ def command_record(args: argparse.Namespace) -> int:
         value = getattr(args, key)
         if value is not None:
             evidence[key] = value
+    # Bind each observation separately. Recording a new scene check must never
+    # refresh the digest of an earlier compile observation (or vice versa).
+    for key in ('compile', 'scene_built'):
+        value = getattr(args, key)
+        if value is not None:
+            if value == 'passed':
+                evidence[key + '_content_digest'] = acceptance_content_digest(root, lab_id)
+            else:
+                evidence.pop(key + '_content_digest', None)
     if args.gate5_foundation == "passed":
         materialization_errors = gate5_materialization_errors(root, lab_id)
         materialization_errors.extend(approved_asset_import_errors(root, lab_id))
@@ -3086,16 +3183,21 @@ def command_record(args: argparse.Namespace) -> int:
         )
     elif args.gate5_foundation is not None:
         evidence.pop("gate5_foundation_lab_output_digest", None)
-    if args.domain_slice is not None or args.domain_compile is not None:
-        if (
-            evidence.get("domain_slice") == "passed"
-            and evidence.get("domain_compile") == "passed"
-        ):
-            evidence["gate5_domain_lab_output_digest"] = gate5_lab_output_digest(
-                root, lab_id
-            )
-        else:
-            evidence.pop("gate5_domain_lab_output_digest", None)
+    for key in ('domain_slice', 'domain_compile'):
+        value = getattr(args, key)
+        if value is not None:
+            if value == 'passed':
+                evidence[key + '_lab_output_digest'] = gate5_lab_output_digest(root, lab_id)
+            else:
+                evidence.pop(key + '_lab_output_digest', None)
+    # Retain a combined summary only when BOTH independently observed versions agree.
+    if (all(evidence.get(k) == 'passed' for k in ('domain_slice', 'domain_compile'))
+            and evidence.get('domain_slice_lab_output_digest')
+            == evidence.get('domain_compile_lab_output_digest')
+            == gate5_lab_output_digest(root, lab_id)):
+        evidence['gate5_domain_lab_output_digest'] = evidence['domain_slice_lab_output_digest']
+    else:
+        evidence.pop('gate5_domain_lab_output_digest', None)
     if args.note:
         evidence.setdefault("notes", []).append({
             "recorded_at": utc_now(),
@@ -3169,6 +3271,9 @@ def begin_blocker(root: Path, state: dict[str, Any], kind: str, note: str,
         report["required_rechecks"] = active["required_rechecks"]
         write_json(path, report, force=True)
         return active
+    if gate == 8 and 'contracts' not in (required_rechecks or []):
+        scope = manual_tools().gate_step(root, state, handbook_flow_api())
+        required_rechecks = sorted(set(required_rechecks or []) | {'handbooks_8a' if scope == '8A' else 'handbooks'})
     sequence = len(recovery.get("history", [])) + 1
     relative = f"BuildEvidence/{state['lab_id']}/blocker-retrospectives/{sequence:04d}.json"
     active = {"id": sequence, "gate": gate, "kind": kind, "path": relative,
@@ -3197,6 +3302,40 @@ def blocker_active_path(root: Path, state: dict[str, Any]) -> Path:
     return path
 
 
+def handbook_flow_api():
+    # Also works for maintainer importlib loaders that do not register sys.modules.
+    return type('HandbookFlow', (), {'gate_is_approved': staticmethod(gate_is_approved),
+        'gate5_lab_output_digest': staticmethod(gate5_lab_output_digest), 'pascal_name': staticmethod(pascal_name)})
+
+
+def require_handbook_operation(root: Path, state: dict[str, Any]) -> None:
+    if current_gate(state) != 8:
+        raise RuntimeError('Handbook operations belong to original Gate 8 after Gate 6 acceptance.')
+    active = state.get('blocker_recovery', {}).get('active')
+    if active:
+        blocker_active_path(root, state)
+        if active.get('gate') != 8:
+            raise RuntimeError('Recovery may only repair and verify its originating gate.')
+
+
+def handbook_check_binding(root: Path, state: dict[str, Any], key: str) -> str:
+    books = manual_tools().handbook_tools()
+    errors = books.eight_a_errors(root, state, handbook_flow_api()) if key == 'handbooks_8a' else books.gate_errors(root, state, handbook_flow_api())
+    if errors:
+        raise RuntimeError('Handbook recheck failed: ' + '; '.join(errors))
+    return books.require_a(root, state, handbook_flow_api()) if key == 'handbooks_8a' else books.approval_binding(root, state)
+
+
+def record_handbook_recheck(root: Path, state: dict[str, Any], key: str) -> None:
+    require_handbook_operation(root, state)
+    digest = handbook_check_binding(root, state, key)
+    active = state.get('blocker_recovery', {}).get('active')
+    if active:
+        state.setdefault('verification_rechecks', {})[key] = {'content_digest': digest,
+            'incident_id': active['id'], 'checked_at': utc_now()}
+        save_state(root, state['lab_id'], state)
+
+
 def command_retrospective(args: argparse.Namespace) -> int:
     root = args.project_root.resolve()
     lab_id = require_lab_id(args.lab_id)
@@ -3221,18 +3360,33 @@ def command_retrospective(args: argparse.Namespace) -> int:
         errors.extend(protected_baseline_errors(root, state))
     if errors:
         raise RuntimeError("Cannot resolve recovery while integrity fails:\n- " + "\n- ".join(errors))
-    for key in active.get("required_rechecks", []):
+    required = set(active.get("required_rechecks", []))
+    # Legacy incidents without a scope must pass the full Gate 8 check.
+    if active['gate'] == 8 and not required:
+        required.add('handbooks')
+    for key in sorted(required):
         if key == "contracts":
             contract_errors, _warnings, _bundle = validate_contracts(root, lab_id)
-            if contract_errors or not state.get("last_contract_validation", {}).get("ok"):
+            validation = state.get('last_contract_validation', {})
+            if contract_errors or contract_validation_freshness_errors(root, state) or validation.get('incident_id') != active['id']:
                 raise RuntimeError("Required contract recheck has not passed.")
+            continue
+        if key in ('handbooks_8a', 'handbooks'):
+            digest = handbook_check_binding(root, state, key)
+            proof = state.get('verification_rechecks', {}).get(key, {})
+            if proof.get('incident_id') != active['id'] or proof.get('content_digest') != digest:
+                raise RuntimeError('Run the handbook check command successfully for this incident and current content before resolving.')
             continue
         if ensure_evidence(state).get(key) != "passed":
             raise RuntimeError(f"Required recheck has not passed: {key}")
-    if active["gate"] == 5:
+    if active["gate"] == 5 and required != {"contracts"}:
         errors = gate5_evidence_freshness_errors(root, state)
         if errors:
             raise RuntimeError("Cannot resolve with stale verification:\n- " + "\n- ".join(errors))
+    if active['gate'] == 6 and required != {'contracts'}:
+        errors = gate6_evidence_freshness_errors(root, state)
+        if errors:
+            raise RuntimeError('Cannot resolve with stale Gate 6 evidence: ' + '; '.join(errors))
     fields = {key: validate_text_argument(getattr(args, key) or "", key)
               for key in ("root_cause", "fix", "verification", "prevention", "lesson")}
     if any(re.search(r"\bTODO\b|replace_with", text, flags=re.I) for text in fields.values()):
@@ -3322,9 +3476,15 @@ def command_approve_gate(args: argparse.Namespace) -> int:
         # Accumulate observed development facts before recording acceptance.
         manual_tools().handbook_tools().collect(root, state, type("MaterialFlow", (), {
             "current_gate": staticmethod(current_gate), "pascal_name": staticmethod(pascal_name)}))
+    if gate == 6 and gate6_evidence_freshness_errors(root, state):
+        raise RuntimeError('Lab content changed while preparing approval; revalidate before acceptance.')
     record_gate_approval(state, gate, note)
+    if gate in (1, 3):
+        scope = 'brief' if gate == 1 else 'design'
+        state.setdefault('input_confirmations', {})[scope] = {'content_digest': input_confirmation_digest(root, lab_id, scope),
+            'note': note, 'confirmed_at': utc_now()}
     if gate == 6:
-        state["user_acceptance"]["content_digest"] = manual_tools().content_digest(root, lab_id, gate5_lab_output_digest(root, lab_id))
+        state["user_acceptance"]["content_digest"] = state['evidence']['compile_content_digest']
     if gate == 8:
         state["gate_approvals"]["8"]["handbooks_digest"] = manual_tools().approval_binding(root, state)
     save_state(root, lab_id, state)
@@ -3365,8 +3525,30 @@ def command_reopen_acceptance(args: argparse.Namespace) -> int:
     errors = protected_baseline_errors(root, state) + source_reference_errors(root, state)
     if errors:
         raise RuntimeError("; ".join(errors))
-    if not gate_is_approved(state, 6) or state.get("blocker_recovery", {}).get("active"):
-        raise RuntimeError("Reopening acceptance requires prior Gate 6 acceptance without an active blocker.")
+    if not gate_is_approved(state, 6):
+        raise RuntimeError("Reopening acceptance requires prior Gate 6 acceptance.")
+    report_path = None
+    report = None
+    originals = {state_path(root, lab_id): state_path(root, lab_id).read_bytes() if state_path(root, lab_id).exists() else None}
+    recovery = state.get('blocker_recovery', {})
+    active = recovery.get('active')
+    if active:
+        # An invalidated accepted version cannot satisfy handbook checks. Explicitly
+        # backtrack, preserving the unverified incident instead of claiming it passed.
+        old_digest = state.get('user_acceptance', {}).get('content_digest')
+        if (active.get('gate') != 8 or current_gate(state) != 8 or not old_digest
+                or old_digest == acceptance_content_digest(root, lab_id)):
+            raise RuntimeError('An active blocker can be superseded only when Gate 8 accepted Lab content changed.')
+        history_errors = blocker_history_errors(root, state)
+        if history_errors:
+            raise RuntimeError('; '.join(history_errors))
+        report_path = blocker_active_path(root, state)
+        originals[report_path] = report_path.read_bytes()
+        report = read_json(report_path)
+        report.update(status='superseded_by_reacceptance', superseded_at=utc_now(),
+            supersession_reason=note, next_gate=6, verified=False,
+            accepted_content_digest=old_digest, current_content_digest=acceptance_content_digest(root, lab_id))
+        recovery['active'] = None
     for gate in (6, 8):
         old = state.get("gate_approvals", {}).pop(str(gate), None)
         if old:
@@ -3374,8 +3556,22 @@ def command_reopen_acceptance(args: argparse.Namespace) -> int:
     state.setdefault("superseded_user_acceptance", []).append(state.pop("user_acceptance", {}))
     state.setdefault("superseded_scene_evidence", []).append({"evidence": dict(ensure_evidence(state)), "reason": note})
     ensure_evidence(state).update(compile="pending", scene_built="pending")
+    for key in ("compile_content_digest", "scene_built_content_digest"):
+        ensure_evidence(state).pop(key, None)
     state["stage"] = "acceptance_revalidation"
-    save_state(root, lab_id, state)
+    try:
+        if report_path:
+            write_json(report_path, report, force=True)
+            recovery.setdefault('history', []).append({'id': active['id'], 'gate': 8,
+                'path': active['path'], 'sha256': file_sha256(report_path), 'status': 'superseded_by_reacceptance'})
+        save_state(root, lab_id, state)
+    except Exception:
+        for path, content in originals.items():
+            if content is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.write_bytes(content)
+        raise
     print("Gate 6 reopened: revalidate changed content, then obtain user acceptance. Existing manuals require renewed checks.")
     return 0
 
@@ -3468,7 +3664,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate = subparsers.add_parser("validate", help="Validate all five contracts and cross-references.")
     validate.add_argument("--lab-id", required=True)
-    validate.set_defaults(func=command_validate)
+    validate.set_defaults(func=command_validate, recheck=False)
+    recheck = subparsers.add_parser('recheck-contracts', help='Revalidate current contracts without advancing the gate; allowed during recovery.')
+    recheck.add_argument('--lab-id', required=True)
+    recheck.set_defaults(func=command_validate, recheck=True)
+    reconfirm = subparsers.add_parser('reconfirm-inputs', help='Record actual renewed Brief/design confirmation without advancing or refreshing evidence.')
+    reconfirm.add_argument('--lab-id', required=True)
+    reconfirm.add_argument('--scope', choices=('brief', 'design'), required=True)
+    reconfirm.add_argument('--note', required=True)
+    reconfirm.set_defaults(func=command_reconfirm_inputs)
 
     scaffold = subparsers.add_parser("scaffold", help="Generate runtime and clean-scene builder C# skeletons.")
     scaffold.add_argument("--lab-id", required=True)

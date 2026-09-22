@@ -209,6 +209,8 @@ def main() -> int:
     print(f"[EMVR Gate 5 Foundation] MATERIALIZED: {len(copied)} files")
     print(f"Destination: {destination_root.relative_to(root).as_posix()}")
     print(f"Evidence: {evidence_path.relative_to(root).as_posix()}")
+    print("Lighting: call EMVR.ReusableFoundation.Gate5.Editor.EmVrRoomLighting.ForLab(labId, scenePath); do not reimplement the adapter.")
+    print("EditMode: original 3 foundation tests plus EMVR.ReusableFoundation.Lighting.Tests (7 lighting regressions).")
     return 0
 
 

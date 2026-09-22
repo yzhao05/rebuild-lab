@@ -188,7 +188,12 @@
     "terminal_gate": 8,
     "semantic_progression_is_approval": true,
     "blocker_recovery_at_every_gate": true,
-    "blocker_recovery_requires_separate_approval": false
+    "blocker_recovery_requires_separate_approval": false,
+    "gate6_independent_observation_digests": true,
+    "unity_meta_in_content_digest": true,
+    "non_advancing_contract_recheck": "recheck-contracts",
+    "renewed_input_confirmation": "reconfirm-inputs",
+    "gate5_independent_domain_observation_digests": true
   },
   "student_manual_workflow": {
     "gate": 8,
@@ -233,6 +238,18 @@
       "document_checked",
       "pending"
     ],
-    "master_not_a_requirement_or_reusable_code_source": true
+    "master_not_a_requirement_or_reusable_code_source": true,
+    "same_gate_recovery_operations_allowed": true,
+    "recovery_requires_current_incident_verified_bundle": true,
+    "changed_accepted_version_can_supersede_incident_without_verification": true
+  },
+  "portable_room_lighting": {
+    "source": "ReusableFoundation/Gate5MinimalSlice/Source/Editor/EmVrRoomLighting.cs",
+    "import_tool": ".agents/skills/build-unity-vr-lab-blind/scripts/materialize_gate5_foundation.py",
+    "entry": "EMVR.ReusableFoundation.Gate5.Editor.EmVrRoomLighting.ForLab",
+    "lab_reimplementation_forbidden": true,
+    "source_and_import_read_only": true,
+    "test_assembly": "EMVR.ReusableFoundation.Lighting.Tests",
+    "test_count": 7
   }
 }

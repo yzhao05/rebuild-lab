@@ -27,6 +27,18 @@
     {
       "path": "Tests/EditMode/EmVrGate5FoundationTests.cs",
       "sha256": "00DEBA5BD182F9BF1BDFA1596A1E3FAAAA6146A6BC980E521E0A03C1AAF9A395"
+    },
+    {
+      "path": "Editor/EmVrRoomLighting.cs",
+      "sha256": "48858CAD412F8DA55C708032C09F620B44753AA423E3C113D38450ED1760568D"
+    },
+    {
+      "path": "Tests/LightingEditMode/EMVR.ReusableFoundation.Lighting.Tests.asmdef",
+      "sha256": "4D6E733C07096C462EFC33435CD2675106E2FD21F003371A110DFD6C375D9424"
+    },
+    {
+      "path": "Tests/LightingEditMode/EmVrRoomLightingTests.cs",
+      "sha256": "87354DEEA9AA12436E2C3E6AEF73827B8C73E00059A8663F66FF99D864D70D3D"
     }
   ]
 }

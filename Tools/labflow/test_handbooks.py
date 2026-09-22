@@ -15,10 +15,12 @@ import manuals as m
 import test_manuals as fixtures
 
 
-def make_master(path):
+def make_master(path, legacy_text=None):
     path.parent.mkdir(parents=True, exist_ok=True)
     xml = ('<w:document xmlns:w="' + h.W + '"><w:body><w:p><w:r><w:t>Existing general setup and other Lab</w:t>'
            '</w:r></w:p><w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr></w:body></w:document>').encode()
+    if legacy_text:
+        xml=xml.replace(b'<w:sectPr>', ('<w:p><w:r><w:t>'+h.escape(legacy_text)+'</w:t></w:r></w:p><w:sectPr>').encode())
     with zipfile.ZipFile(path, 'w') as z:
         z.writestr('word/document.xml', xml)
         z.writestr('word/media/old-image.png', b'original image bytes')
@@ -142,16 +144,19 @@ class HandbookWorkflowTests(unittest.TestCase):
         m.write(self.directory/(kind+'-review.json'),{'reviewer':'Synthetic reviewer','reviewed_at':'2026-09-22T00:00:00Z',
             'rendering_sha256':m.sha(self.directory/(kind+'-rendering.json')),
             'content':{k:{'passed':True,'observation':'Synthetic evidence observation.'} for k in checks},
-            'pages':[{'page':i,'observation':'Synthetic page observation.',**{k:True for k in m.LAYOUT_CHECKS}} for i in (1,2)]})
+            'pages':[{'page':i,'observation':'Synthetic page observation.',
+                      **{k:True for k in (h.MASTER_LAYOUT_CHECKS if kind=='master' else m.LAYOUT_CHECKS)},
+                      **({'existing_issue_indexes':[]} if kind=='master' else {})} for i in (1,2)]})
 
-    def master_ready(self):
+    def master_ready(self, legacy_text=None):
         self.developer_ready()
-        original=self.root/'authorized-existing-master.docx';make_master(original)
+        original=self.root/'authorized-existing-master.docx';make_master(original,legacy_text)
         h.stage_master(self.root,self.state,labflow,original)
         patch={'lab_id':self.lab,'8a_binding':h.require_a(self.root,self.state,labflow),'introduction':['Synthetic Lab introduction.'],
                'entry_points':['Use current Editor entry.'],'module_relationships':['Controller calls model.'],
                'unique_dependencies':[],'shared_references':[{'text':'See existing general setup.','target_text':'Existing general setup and other Lab'}],
                'existing_issues':['An old paragraph needs separate review.']}
+        if legacy_text:patch['existing_issues']=['Existing general setup, original paragraph: '+legacy_text]
         m.write(self.directory/'master-addendum.json',patch)
         manifest=h.build_master(self.root,self.state,labflow)
         docx=self.root/manifest['docx_path'];pdf=docx.with_suffix('.pdf');pdf.write_bytes(b'synthetic master PDF')
@@ -213,6 +218,67 @@ class HandbookWorkflowTests(unittest.TestCase):
         self.master_ready();review=m.read(self.directory/'master-review.json');review['pages'].pop()
         m.write(self.directory/'master-review.json',review)
         self.assertIn('every rendered page',str(h.gate_errors(self.root,self.state,labflow)))
+
+    def test_legacy_placeholder_is_preserved_recorded_and_does_not_block_master(self):
+        legacy='[Describe the structure of the GitHub repository and acknowledge contributors for relevant modules.]'
+        output=self.master_ready(legacy)
+        self.assertIn(legacy.encode(),h.zip_parts(output)['word/document.xml'])
+        manifest=m.read(self.directory/'master-generation.json')
+        self.assertIn(legacy,manifest['existing_issues_not_modified'][0])
+        review=m.read(self.directory/'master-review.json')
+        review['pages'][0]['existing_issue_indexes']=[0]
+        # Truthfully record that the old paragraph is not placeholder-free.
+        review['pages'][0]['no_placeholders']=False
+        m.write(self.directory/'master-review.json',review)
+        self.assertFalse(h.gate_errors(self.root,self.state,labflow))
+        h.verify_increment(self.root/'authorized-existing-master.docx',output,self.lab)
+
+    def test_new_placeholder_cannot_be_excused_as_existing_issue(self):
+        self.master_ready()
+        patch=m.read(self.directory/'master-addendum.json')
+        for value in ('TODO','[Describe the structure of the GitHub repository.]'):
+            with self.subTest(value=value):
+                patch['introduction']=[value];patch['existing_issues']=[value]
+                m.write(self.directory/'master-addendum.json',patch)
+                with self.assertRaisesRegex(ValueError,'placeholders'):h.build_master(self.root,self.state,labflow)
+
+    def test_master_owned_section_still_requires_placeholder_review(self):
+        self.master_ready();review=m.read(self.directory/'master-review.json')
+        review['content']['new_or_updated_section_no_placeholders']['passed']=False
+        m.write(self.directory/'master-review.json',review)
+        self.assertIn('new_or_updated_section_no_placeholders',str(h.gate_errors(self.root,self.state,labflow)))
+
+    def test_new_master_layout_defects_are_not_waived_by_legacy_issues(self):
+        self.master_ready('TODO: Original unfinished paragraph')
+        original=m.read(self.directory/'master-review.json')
+        for key in h.MASTER_LAYOUT_CHECKS:
+            with self.subTest(check=key):
+                review=copy.deepcopy(original);review['pages'][0][key]=False
+                review['pages'][0]['existing_issue_indexes']=[0]
+                m.write(self.directory/'master-review.json',review)
+                self.assertIn('unresolved layout',str(h.gate_errors(self.root,self.state,labflow)))
+
+    def test_legacy_issue_page_references_must_resolve(self):
+        self.master_ready();original=m.read(self.directory/'master-review.json')
+        for refs in (None,[-1],[1],[True],[0,0],['0']):
+            with self.subTest(refs=refs):
+                review=copy.deepcopy(original);review['pages'][0]['existing_issue_indexes']=refs
+                m.write(self.directory/'master-review.json',review)
+                self.assertIn('existing_issue_indexes',str(h.gate_errors(self.root,self.state,labflow)))
+
+    def test_prepare_master_review_uses_increment_scope_and_pending_verdicts(self):
+        self.master_ready();(self.directory/'master-review.json').unlink()
+        review=h.prepare_review(self.root,self.state,labflow,'master')
+        self.assertNotIn('no_placeholders',review['pages'][0])
+        self.assertEqual(review['pages'][0]['existing_issue_indexes'],[])
+        self.assertTrue(all(review['pages'][0][k] is False for k in h.MASTER_LAYOUT_CHECKS))
+        self.assertFalse(review['content']['new_or_updated_section_no_placeholders']['passed'])
+
+    def test_developer_pages_still_require_no_placeholders(self):
+        self.developer_ready();review=m.read(self.directory/'developer-review.json')
+        review['pages'][0]['no_placeholders']=False
+        m.write(self.directory/'developer-review.json',review)
+        self.assertIn('unresolved layout',str(h.document_errors(self.root,self.state,labflow,'developer')))
 
     def test_truncated_render_and_review_lists_do_not_hide_exported_pages(self):
         self.master_ready()
@@ -347,6 +413,10 @@ class HandbookWorkflowTests(unittest.TestCase):
         self.state['gate_approvals'].pop('6')
         self.state.pop('user_acceptance')
         self.state['evidence']=dict(labflow.default_evidence(),compile='passed',scene_built='passed')
+        digest = labflow.acceptance_content_digest(self.root, self.lab)
+        self.state['evidence'].update(compile_content_digest=digest, scene_built_content_digest=digest)
+        self.state['last_contract_validation'] = {'ok': True, 'content_digest': labflow.contract_inputs_digest(self.root, self.lab)}
+        self.state['input_confirmations'] = {scope: {'content_digest': labflow.input_confirmation_digest(self.root, self.lab, scope)} for scope in ('brief', 'design')}
         with mock.patch.object(labflow,'load_current_state',return_value=self.state), \
              mock.patch.object(labflow,'protected_baseline_errors',return_value=[]), \
              mock.patch.object(labflow,'source_reference_errors',return_value=[]), \

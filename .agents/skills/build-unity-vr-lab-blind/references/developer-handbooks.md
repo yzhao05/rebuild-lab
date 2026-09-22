@@ -228,8 +228,35 @@ binds `master-rendering.json`, passes all master checks, and explicitly inspects
 **all pages of the whole project PDF**, including unchanged chapters.
 Developer/master export records retain the actual PDF page count separately
 from render and review lists. Missing export evidence or truncated page lists
-requires rerendering; shortening both lists cannot satisfy full coverage. Missing,
-blurry or overflowing content keeps the gate pending. Review DOCX/PDF consistency.
+requires rerendering; shortening both lists cannot satisfy full coverage.
+
+8B is an increment into an existing document, so its review scope differs from
+the two newly authored 8A books:
+
+- The new or updated current-Lab section must contain no placeholders. Confirm
+  `new_or_updated_section_no_placeholders`; adding an issue record cannot waive
+  unfinished content in the owned section. Authoring prompts such as
+  `[Describe the structure ...]` are also rejected in newly written prose.
+- Preserve defects already present in untouched base chapters. Record their
+  original location and description in `master-addendum.json` `existing_issues`;
+  verbatim quotes of original unfinished wording are permitted in this internal
+  evidence. The generation record and increment change list retain these issues.
+  They do not require unrequested rewriting and do not alone block Gate 8B.
+- Inspect **every PDF page** for defects introduced by this increment: missing
+  formula glyphs, degraded images, overflow, and broken cross-references. Pass
+  `no_new_formula_glyph_defects`, `no_new_image_legibility_defects`,
+  `no_new_overflow`, and `no_new_cross_reference_errors` only after comparison
+  with the saved base. A defect caused or worsened by the increment must be fixed;
+  it cannot be categorized as an inherited issue.
+- On each master review page, `existing_issue_indexes` lists the zero-based
+  entries in `existing_issues` that appear there; use `[]` when none appear.
+  Keep observations factual; put verbatim unfinished text in the issue record.
+  `prepare-review --kind master` prepares these fields and leaves checks pending.
+  Do not reuse the new-document `no_placeholders` page check for the whole master.
+
+Review DOCX/PDF consistency for the complete master. Missing page reviews still
+block approval. Student and single-Lab developer manuals remain newly authored
+documents: their full no-placeholder and layout requirements are unchanged.
 
 ## One final Gate 8 confirmation
 
@@ -248,3 +275,12 @@ this archives the old Gate 8 approval while preserving Gate 6 acceptance. Lab
 implementation/teaching changes still require `reopen-acceptance` and Gate 6
 revalidation. Status checks completed bundles again instead of blindly trusting
 an old completion flag.
+
+## Recovery and version changes
+
+Follow [workflow-gates.md](workflow-gates.md#recovery-checks-and-version-bound-acceptance)
+for current-step repair/check commands, verified incident resolution, contract
+rechecks, input confirmation and acceptance digests. Its version-change section
+defines how an invalidated accepted Lab returns from blocked Gate 8 to Gate 6;
+an unverified superseded incident must not appear as a successful troubleshooting
+recipe in the Developer Handbook.

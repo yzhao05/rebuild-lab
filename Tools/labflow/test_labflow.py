@@ -1155,6 +1155,9 @@ class LabflowTests(unittest.TestCase):
                 current_digest = labflow.gate5_lab_output_digest(root, "lab_example")
                 state["evidence"]["gate5_foundation_lab_output_digest"] = current_digest
                 state["evidence"]["gate5_domain_lab_output_digest"] = current_digest
+                self.assertTrue(labflow.gate_readiness_errors(root, state, 5))  # Combined-only legacy evidence is insufficient.
+                state["evidence"]["domain_slice_lab_output_digest"] = current_digest
+                state["evidence"]["domain_compile_lab_output_digest"] = current_digest
                 self.assertEqual(labflow.gate_readiness_errors(root, state, 5), [])
 
     def test_materialized_foundation_copy_must_match_source(self) -> None:
@@ -1573,6 +1576,10 @@ class CompactWorkflowTests(unittest.TestCase):
             root = Path(directory)
             state = self.fixture(root, 6)
             state["evidence"].update(compile="passed", scene_built="passed")
+            digest = labflow.acceptance_content_digest(root, "lab_example")
+            state['evidence'].update(compile_content_digest=digest, scene_built_content_digest=digest)
+            state['last_contract_validation'] = {'ok': True, 'content_digest': labflow.contract_inputs_digest(root, "lab_example")}
+            state['input_confirmations'] = {scope: {'content_digest': labflow.input_confirmation_digest(root, "lab_example", scope)} for scope in ('brief', 'design')}
             labflow.save_state(root, "lab_example", state)
             with mock.patch.object(labflow, "protected_baseline_errors", return_value=[]), mock.patch.object(labflow, "source_reference_errors", return_value=[]):
                 self.assertEqual(labflow.gate_readiness_errors(root, state, 6), [])
@@ -1661,6 +1668,10 @@ class CompactWorkflowTests(unittest.TestCase):
             root = Path(directory)
             state = self.fixture(root, 6)
             state["evidence"].update(compile="passed", scene_built="passed")
+            digest = labflow.acceptance_content_digest(root, "lab_example")
+            state['evidence'].update(compile_content_digest=digest, scene_built_content_digest=digest)
+            state['last_contract_validation'] = {'ok': True, 'content_digest': labflow.contract_inputs_digest(root, "lab_example")}
+            state['input_confirmations'] = {scope: {'content_digest': labflow.input_confirmation_digest(root, "lab_example", scope)} for scope in ('brief', 'design')}
             labflow.begin_blocker(root, state, "logic", "Observed wrong output")
             labflow.save_state(root, "lab_example", state)
             with mock.patch.object(labflow, "protected_baseline_errors", return_value=[]), mock.patch.object(labflow, "source_reference_errors", return_value=[]):

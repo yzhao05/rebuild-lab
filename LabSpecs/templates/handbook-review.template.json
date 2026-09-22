@@ -75,6 +75,10 @@
     "existing_issues_reported_without_unrequested_fixes": {
       "passed": false,
       "observation": ""
+    },
+    "new_or_updated_section_no_placeholders": {
+      "passed": false,
+      "observation": ""
     }
   },
   "pages": [
@@ -87,5 +91,15 @@
       "no_overflow": false,
       "cross_references_correct": false
     }
-  ]
+  ],
+  "master_page_template": {
+    "page": 1,
+    "observation": "",
+    "existing_issue_indexes": [],
+    "no_new_formula_glyph_defects": false,
+    "no_new_image_legibility_defects": false,
+    "no_new_overflow": false,
+    "no_new_cross_reference_errors": false
+  },
+  "master_page_usage": "For master-review.json, use master_page_template for each pages entry. prepare-review --kind master does this automatically. The ordinary pages example applies to the new developer handbook."
 }

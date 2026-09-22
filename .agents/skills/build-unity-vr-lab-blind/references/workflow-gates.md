@@ -278,3 +278,72 @@ Existing schema-2.0 runs retain Gates 0-5, source bindings, evidence and origina
 baseline/receipt history. Legacy Gate 6/8 approvals lack the new acceptance/handbook
 meaning and cannot silently finish a run; reapprove these stages when reached.
 Legacy Gate 7/9/10 records remain history and never drive the new sequence.
+
+## Recovery checks and version-bound acceptance
+
+During an active blocker, repair/build/render/review/check commands at the originating
+Gate 8 remain available. Integrity and Gate 6 accepted-version checks still apply.
+Approval and advancing remain prohibited. For an 8A incident, run
+`python Tools/labflow/handbooks.py check-8a --lab-id <lab_id>` successfully; for 8B,
+run `python Tools/labflow/handbooks.py check --lab-id <lab_id>`. The commands record
+the actual verified bundle binding and incident ID. Resolve recomputes the checks
+and requires matching proof: prose alone, a stale check or a previous incident's
+success is insufficient. Student-only `manuals.py check` is available but cannot
+substitute for the joint 8A check. Resolving 8A does not require unfinished 8B.
+
+Gate 6 `record --compile passed` and `record --scene-built passed` bind independent
+content digests at observation time. Record each promptly after its actual Unity
+check; do not record an older observation against newer files. Before user approval,
+both must match the current content, including Unity .meta, project/package settings
+and reusable foundation. Recording one check never refreshes the other. Approval
+uses that verified digest rather than relabelling a new version as accepted.
+Old unbound flags cannot pass. Semantic user replies such as `继续` remain sufficient
+after the result is ready and presented; no new gate or fixed approval phrase exists.
+
+After Gate 2, use `python Tools/labflow/labflow.py recheck-contracts --lab-id <lab_id>`
+to check the current Brief and all five contracts without advancing/changing the
+gate, approvals or Unity observations. `validate` remains the Gate 2 command.
+Recheck is available during recovery; failure opens/updates the current incident,
+and contract recovery requires a successful current-incident recheck. A contract
+incident at Gate 8 can resolve its contract checks before reopening acceptance;
+it does not claim the now-stale handbooks have passed.
+
+For revised Brief metadata, language, submission/grading requirements or teaching
+scope, present the changes for user confirmation and record the actual wording with
+`reconfirm-inputs --lab-id <lab_id> --scope brief --note "<user wording>"`.
+After any Brief/contract change, rerun contract checks, review design compatibility,
+and record renewed design confirmation with the same command and `--scope design`.
+Architecture, formula, interaction or API changes also require revising and confirming
+the design. These commands do not advance gates or refresh old evidence. Original
+approvals remain history; new confirmation digests bind the current inputs. Legacy
+unbound confirmations require review when the run resumes, not during maintenance.
+Resolve an active incident before recording new user confirmation.
+
+If accepted Lab content changed, run `reopen-acceptance`, recheck contracts as needed,
+rerun compile/scene validation and obtain fresh semantic Gate 6 acceptance before
+regenerating/reviewing handbooks. For document-only edits with unchanged accepted
+content, use `reopen-handbooks`. Neither command invents acceptance or recaptures the
+Gate 0 baseline. Maintenance must not execute any current Lab gate or ask for its
+manual metadata; future runs read the confirmed Brief/contracts and ask only when
+necessary information is missing.
+
+### Version changes during recovery
+
+Gate 5 domain-slice and domain-compile observations each bind their own content
+digest, just like Gate 6 compile/scene observations. Recording one never refreshes
+the other. Legacy combined-only evidence needs fresh observations before approval.
+Contract-only recovery verifies the current contract result and incident, without
+pretending that unrelated stale Unity observations passed; gate readiness continues
+to reject them until their own checks are rerun.
+
+If accepted Lab content changes during Gate 8 recovery, use `reopen-acceptance`
+with the actual change reason. The tool verifies that the accepted digest changed,
+archives the open incident as `superseded_by_reacceptance` (not resolved/verified),
+withdraws Gates 6/8 acceptance and returns to Gate 6 with pending compile/scene checks.
+No verified lesson is produced from that unverified incident. Redo contract/input
+confirmation and Unity checks as needed, obtain fresh user acceptance, then revalidate
+both handbook steps. With unchanged accepted content, the blocker must still pass
+its required checks; reopening cannot be used to escape it. This is an explicit
+backtrack, not approval or advancement. Completed-run contract failures are recorded
+and instruct reopening acceptance before repair; they do not throw while attempting
+to start recovery on a completed run.

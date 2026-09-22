@@ -169,3 +169,10 @@ After student review, complete the independent developer handbook and 8A
 cross-document review, then 8B's incremental master and whole-PDF review. Submit
 the final deliverables together for one Gate 8 user confirmation. Do not separately
 approve 8A or finish Gate 8 after the student book alone. Keep internal evidence.
+
+Gate 8 recovery permits current-step init/build/render/check while keeping integrity
+and accepted-version validation. A successful student-only check is not joint 8A
+proof: finish the developer/consistency review and run `handbooks.py check-8a` before
+resolving an 8A incident. Full `handbooks.py check` is required for 8B. See
+[workflow-gates.md](workflow-gates.md) for non-advancing contract rechecks and renewed
+Brief/design/acceptance requirements after metadata or teaching changes.

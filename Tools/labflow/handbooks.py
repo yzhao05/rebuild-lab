@@ -35,7 +35,12 @@ DEVELOPER_CHECKS = ("same_accepted_version", "environment_and_entrypoints_verifi
 CROSS_CHECKS = ("same_version", "student_operations_match_implementation", "scope_controls_and_limits_consistent")
 MASTER_CHECKS = ("only_current_lab_section_changed", "other_chapters_and_images_preserved",
     "shared_material_referenced_without_duplication", "eight_a_content_matches", "change_list_verified",
-    "existing_issues_reported_without_unrequested_fixes", "docx_pdf_content_match")
+    "existing_issues_reported_without_unrequested_fixes", "new_or_updated_section_no_placeholders", "docx_pdf_content_match")
+# Existing master defects are recorded, not silently repaired or certified absent.
+# Every page still needs review for regressions caused by the current increment.
+MASTER_LAYOUT_CHECKS = ("no_new_formula_glyph_defects", "no_new_image_legibility_defects",
+                        "no_new_overflow", "no_new_cross_reference_errors")
+AUTHORING_PLACEHOLDER = re.compile(r"\[\s*(?:describe|insert|replace|add|fill\s+in)\b[^\]]*\]", re.I)
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 ERRORS = (OSError, ValueError, TypeError, KeyError, AttributeError, zipfile.BadZipFile)
 
@@ -60,7 +65,7 @@ def text(value):
 
 
 def clean_prose(value):
-    if not text(value) or m.PLACEHOLDER.search(value) or re.search(r"[A-Za-z]:[\\/]|file://|/Users/|/home/|/tmp/|AppData[\\/]", value):
+    if not text(value) or m.PLACEHOLDER.search(value) or AUTHORING_PLACEHOLDER.search(value) or re.search(r"[A-Za-z]:[\\/]|file://|/Users/|/home/|/tmp/|AppData[\\/]", value):
         raise ValueError("Handbook prose contains missing content, placeholders or a local/private path.")
 
 
@@ -322,8 +327,15 @@ def document_errors(root, state, flow, kind):
             if m.sha(m.checked_path(root, page["path"], f"BuildEvidence/{state['lab_id']}/handbooks/{kind}-renders")) != page["sha256"]:
                 raise ValueError("A reviewed page changed.")
             clean_prose(reviewed.get("observation"))
-            if any(reviewed.get(check) is not True for check in m.LAYOUT_CHECKS):
+            layout_checks = MASTER_LAYOUT_CHECKS if kind == "master" else m.LAYOUT_CHECKS
+            if any(reviewed.get(check) is not True for check in layout_checks):
                 raise ValueError("A PDF page has an unresolved layout check.")
+            if kind == "master":
+                refs = reviewed.get("existing_issue_indexes")
+                issues = manifest["existing_issues_not_modified"]
+                if (not isinstance(refs, list) or any(type(i) is not int or not 0 <= i < len(issues) for i in refs)
+                        or len(set(refs)) != len(refs)):
+                    raise ValueError("Master page existing_issue_indexes must identify recorded existing_issues (zero-based).")
         return []
     except ERRORS as error:
         return [kind.title() + " Handbook: " + str(error)]
@@ -513,6 +525,10 @@ def master_inputs(root, state, flow):
                    'Accepted content: ' + m.accepted_digest(root,state,flow)]
     if not isinstance(patch.get('existing_issues'), list):
         raise ValueError("List pre-existing master issues separately; never fix them implicitly.")
+    # Issue records may quote original TODOs/placeholders. They are internal
+    # evidence, never new handbook prose or an exemption for the owned section.
+    if any(not text(issue) for issue in patch['existing_issues']):
+        raise ValueError("Every existing_issues entry needs a location and substantive description.")
     return source_path, patch, paragraphs, binding
 
 
@@ -600,7 +616,9 @@ def prepare_review(root, state, flow, kind):
         if type(count) is not int or count < 1 or [p.get('page') for p in rendering.get('pages', [])] != list(range(1, count + 1)):
             raise ValueError('Render all PDF pages before preparing review.')
         review['rendering_sha256'] = m.sha(folder / (prefix + 'rendering.json'))
-        review['pages'] = [{'page': i, 'observation': '', **{key: False for key in m.LAYOUT_CHECKS}} for i in range(1, count + 1)]
+        layout_checks = MASTER_LAYOUT_CHECKS if kind == 'master' else m.LAYOUT_CHECKS
+        review['pages'] = [{'page': i, 'observation': '', **{key: False for key in layout_checks},
+                            **({'existing_issue_indexes': []} if kind == 'master' else {})} for i in range(1, count + 1)]
     review['content'] = {key: {'passed': False, 'observation': ''} for key in checks}
     m.write(path, review)
     return review
@@ -638,8 +656,7 @@ def main():
         if args.action=='collect':
             collect(root,state,flow)
         else:
-            if flow.current_gate(state)!=8 or state.get('blocker_recovery',{}).get('active'):
-                raise ValueError('Handbook execution belongs to original Gate 8 after Gate 6 acceptance, without an active blocker.')
+            flow.require_handbook_operation(root, state)
             if flow.gate_is_approved(state,8) and args.action not in ('check','check-8a'):
                 raise ValueError('Reopen handbooks before revising an approved Gate 8 bundle.')
             accepted=m.accepted_digest(root,state,flow)
@@ -665,9 +682,10 @@ def main():
             else:
                 errors=eight_a_errors(root,state,flow) if args.action=='check-8a' else gate_errors(root,state,flow)
                 if errors:raise ValueError('; '.join(errors))
+                flow.record_handbook_recheck(root,state,'handbooks_8a' if args.action=='check-8a' else 'handbooks')
         print('Handbook '+args.action+' completed. No Gate approval, Unity action or host publication recorded.')
         return 0
-    except ERRORS + (ImportError,subprocess.SubprocessError) as error:
+    except ERRORS + (RuntimeError,ImportError,subprocess.SubprocessError) as error:
         print('ERROR: '+str(error));return 1
 
 

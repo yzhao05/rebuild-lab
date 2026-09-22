@@ -8,6 +8,42 @@ if ([string]::IsNullOrWhiteSpace($BuilderRoot)) {
     $BuilderRoot = Join-Path $PSScriptRoot "..\..\..\.."
 }
 
+# PowerShell 5 Get-FileHash resolves through its provider and fails at MAX_PATH.
+# Hash exact bytes through an extended Windows path; never normalize file content.
+function Get-PortableNativePath([string]$Path) {
+    $full = [System.IO.Path]::GetFullPath($Path)
+    if ($full.StartsWith('\\?\')) { return $full }
+    if ($full.StartsWith('\\')) { return '\\?\UNC\' + $full.Substring(2) }
+    return '\\?\' + $full
+}
+
+function Get-PortableFileHash([string]$LiteralPath, [string]$Algorithm = 'SHA256') {
+    if ($Algorithm -ne 'SHA256') { throw 'Only SHA256 is supported by the release verifier.' }
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::OpenRead((Get-PortableNativePath $LiteralPath))
+        return [pscustomobject]@{ Hash = ([System.BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '') }
+    }
+    finally {
+        if ($null -ne $stream) { $stream.Dispose() }
+        $sha.Dispose()
+    }
+}
+
+# Use the same native path for existence and reads as for hashes. Provider
+# Test-Path can report an existing long path as absent without raising an error.
+function Test-PortablePath([string]$LiteralPath) {
+    $native = Get-PortableNativePath $LiteralPath
+    return ([System.IO.File]::Exists($native) -or [System.IO.Directory]::Exists($native))
+}
+
+function Get-PortableContent([string]$LiteralPath, [switch]$Raw) {
+    $native = Get-PortableNativePath $LiteralPath
+    if ($Raw) { return [System.IO.File]::ReadAllText($native) }
+    return [System.IO.File]::ReadAllLines($native)
+}
+
 $BuilderRoot = (Resolve-Path -LiteralPath $BuilderRoot).Path
 $errors = New-Object System.Collections.Generic.List[string]
 $required = @(
@@ -54,9 +90,9 @@ $required = @(
 )
 
 $workspaceMarkerPath = Join-Path $BuilderRoot ".emvr-workspace.json"
-if (Test-Path -LiteralPath $workspaceMarkerPath) {
+if (Test-PortablePath -LiteralPath $workspaceMarkerPath) {
     try {
-        $workspaceMarker = Get-Content -Raw -LiteralPath $workspaceMarkerPath | ConvertFrom-Json
+        $workspaceMarker = Get-PortableContent -Raw -LiteralPath $workspaceMarkerPath | ConvertFrom-Json
         $expectedName = "EMVR_Blind_Rebuild_$($workspaceMarker.lab_id)"
         if ($workspaceMarker.schema_version -ne "1.2.0" -or
             $workspaceMarker.workflow_mode -ne "blind-rebuild" -or
@@ -76,15 +112,15 @@ if (Test-Path -LiteralPath $workspaceMarkerPath) {
 }
 
 foreach ($relative in $required) {
-    if (-not (Test-Path -LiteralPath (Join-Path $BuilderRoot $relative))) {
+    if (-not (Test-PortablePath -LiteralPath (Join-Path $BuilderRoot $relative))) {
         $errors.Add("Missing required Builder Pack item: $relative")
     }
 }
 
 $sourceReferenceCatalogPath = Join-Path $BuilderRoot "Policies\reuse-source-references.json"
-if (Test-Path -LiteralPath $sourceReferenceCatalogPath) {
+if (Test-PortablePath -LiteralPath $sourceReferenceCatalogPath) {
     try {
-        $sourceReferenceCatalog = Get-Content -Raw -LiteralPath $sourceReferenceCatalogPath | ConvertFrom-Json
+        $sourceReferenceCatalog = Get-PortableContent -Raw -LiteralPath $sourceReferenceCatalogPath | ConvertFrom-Json
         if ($sourceReferenceCatalog.schema_version -ne "1.0.0" -or
             $sourceReferenceCatalog.reference_base -ne "builder_pack_root" -or
             $sourceReferenceCatalog.path_format -ne "repository_relative_posix" -or
@@ -118,7 +154,7 @@ if (Test-Path -LiteralPath $sourceReferenceCatalogPath) {
                 $errors.Add("Invalid reusable source reference: $relativeSource")
                 continue
             }
-            if (-not (Test-Path -LiteralPath (Join-Path $BuilderRoot ($relativeSource.Replace('/', '\'))))) {
+            if (-not (Test-PortablePath -LiteralPath (Join-Path $BuilderRoot ($relativeSource.Replace('/', '\'))))) {
                 $errors.Add("Missing reusable source reference target: $relativeSource")
             }
         }
@@ -129,8 +165,8 @@ if (Test-Path -LiteralPath $sourceReferenceCatalogPath) {
 }
 
 $approvedRoomPath = Join-Path $BuilderRoot "ApprovedAssets\EMVRRoom\Prefabs\Room_Big_Part_01.prefab"
-if (Test-Path -LiteralPath $approvedRoomPath) {
-    $approvedRoomYaml = Get-Content -Raw -LiteralPath $approvedRoomPath
+if (Test-PortablePath -LiteralPath $approvedRoomPath) {
+    $approvedRoomYaml = Get-PortableContent -Raw -LiteralPath $approvedRoomPath
     $roomMeshRendererCount = [regex]::Matches($approvedRoomYaml, '(?m)^MeshRenderer:$').Count
     foreach ($requiredGeometry in @('Floor', 'Wall', 'Roof')) {
         if ($approvedRoomYaml -notmatch "(?m)^\s*m_Name:\s*.*$requiredGeometry") {
@@ -143,10 +179,10 @@ if (Test-Path -LiteralPath $approvedRoomPath) {
 }
 
 $attributesPath = Join-Path $BuilderRoot ".gitattributes"
-if (Test-Path -LiteralPath $attributesPath) {
+if (Test-PortablePath -LiteralPath $attributesPath) {
     $hasBytePreservingRule = $false
     $hasTransformingRule = $false
-    foreach ($line in Get-Content -LiteralPath $attributesPath) {
+    foreach ($line in Get-PortableContent -LiteralPath $attributesPath) {
         $rule = $line.Split('#')[0].Trim()
         if ([string]::IsNullOrWhiteSpace($rule)) { continue }
         $tokens = @($rule -split '\s+')
@@ -164,8 +200,8 @@ if (Test-Path -LiteralPath $attributesPath) {
 }
 
 $xrControlsPath = Join-Path $BuilderRoot "ApprovedAssets\XRInteractionToolkitSamples\XR Device Simulator\XR Device Simulator Controls.inputactions"
-if (Test-Path -LiteralPath $xrControlsPath) {
-    $xrControls = Get-Content -Raw -LiteralPath $xrControlsPath
+if (Test-PortablePath -LiteralPath $xrControlsPath) {
+    $xrControls = Get-PortableContent -Raw -LiteralPath $xrControlsPath
     foreach ($requiredBinding in @('"name": "Keyboard Y Translate"', '"path": "<Keyboard>/downArrow"', '"path": "<Keyboard>/upArrow"')) {
         if (-not $xrControls.Contains($requiredBinding)) {
             $errors.Add("Validated XR Device Simulator control binding is missing: $requiredBinding")
@@ -174,8 +210,8 @@ if (Test-Path -LiteralPath $xrControlsPath) {
 }
 
 $gate5ManifestPath = Join-Path $BuilderRoot "ReusableFoundation\Gate5MinimalSlice\manifest.json"
-if (Test-Path -LiteralPath $gate5ManifestPath) {
-    $gate5Manifest = Get-Content -Raw -LiteralPath $gate5ManifestPath | ConvertFrom-Json
+if (Test-PortablePath -LiteralPath $gate5ManifestPath) {
+    $gate5Manifest = Get-PortableContent -Raw -LiteralPath $gate5ManifestPath | ConvertFrom-Json
     $gate5SourceRoot = Join-Path $BuilderRoot "ReusableFoundation\Gate5MinimalSlice\Source"
     if (@($gate5Manifest.files).Count -eq 0) {
         $errors.Add("Gate 5 reusable foundation manifest contains no source files.")
@@ -187,20 +223,20 @@ if (Test-Path -LiteralPath $gate5ManifestPath) {
         if (-not $sourcePath.StartsWith($sourceRootFull, [System.StringComparison]::OrdinalIgnoreCase)) {
             $errors.Add("Gate 5 foundation manifest path escapes Source: $($entry.path)")
         }
-        elseif (-not (Test-Path -LiteralPath $sourcePath)) {
+        elseif (-not (Test-PortablePath -LiteralPath $sourcePath)) {
             $errors.Add("Missing Gate 5 foundation source: $($entry.path)")
         }
         else {
             if (-not $listedGate5Files.Add($sourcePath)) {
                 $errors.Add("Gate 5 foundation manifest contains a duplicate path: $($entry.path)")
             }
-            $actualHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash
+            $actualHash = (Get-PortableFileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash
             if ($actualHash -ne [string]$entry.sha256) {
                 $errors.Add("Gate 5 foundation source hash mismatch: $($entry.path)")
             }
         }
     }
-    if (Test-Path -LiteralPath $gate5SourceRoot) {
+    if (Test-PortablePath -LiteralPath $gate5SourceRoot) {
         foreach ($sourceFile in @(Get-ChildItem -LiteralPath $gate5SourceRoot -Recurse -File | Where-Object { $_.Extension -ne '.meta' })) {
             if (-not $listedGate5Files.Contains($sourceFile.FullName)) {
                 $errors.Add("Gate 5 foundation source is not listed in manifest: $($sourceFile.FullName.Substring($gate5SourceRoot.Length).TrimStart('\'))")
@@ -210,12 +246,12 @@ if (Test-Path -LiteralPath $gate5ManifestPath) {
 }
 
 $oldAgentBundlePath = Join-Path $BuilderRoot "KnowledgeBase\EMVR-Agent-Knowledge"
-if (Test-Path -LiteralPath $oldAgentBundlePath) {
+if (Test-PortablePath -LiteralPath $oldAgentBundlePath) {
     $errors.Add("Unsafe legacy Agent bundle remains active: KnowledgeBase\EMVR-Agent-Knowledge")
 }
 
 $restrictedArchive = Join-Path $BuilderRoot "KnowledgeBase\legacy-lab-specific-summaries"
-if ((Test-Path -LiteralPath $restrictedArchive) -and -not (Test-Path -LiteralPath (Join-Path $restrictedArchive "README.md"))) {
+if ((Test-PortablePath -LiteralPath $restrictedArchive) -and -not (Test-PortablePath -LiteralPath (Join-Path $restrictedArchive "README.md"))) {
     $errors.Add("Restricted legacy archive exists without its boundary README.")
 }
 
@@ -231,7 +267,7 @@ if ($activeStates.Count -gt 1) {
     $errors.Add("More than one active Lab workflow exists. Use one isolated Builder Pack per run.")
 }
 
-if (Test-Path -LiteralPath (Join-Path $BuilderRoot "workflow rebuild")) {
+if (Test-PortablePath -LiteralPath (Join-Path $BuilderRoot "workflow rebuild")) {
     $errors.Add("Unexpected nested Unity project remains at `workflow rebuild`; remove or archive it outside the Builder Pack.")
 }
 
@@ -240,7 +276,7 @@ foreach ($maintenanceLeak in @(
     "WorkflowMaintenance",
     "EMVR_Workflow_Maintenance"
 )) {
-    if (Test-Path -LiteralPath (Join-Path $BuilderRoot $maintenanceLeak)) {
+    if (Test-PortablePath -LiteralPath (Join-Path $BuilderRoot $maintenanceLeak)) {
         $errors.Add("Maintainer-only material leaked into the Builder Pack: $maintenanceLeak")
     }
 }
@@ -271,16 +307,16 @@ $sourceFiles = @(
 )
 
 $manifestPath = Join-Path $BuilderRoot "UnityProject\Packages\manifest.json"
-if (Test-Path -LiteralPath $manifestPath) {
-    $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+if (Test-PortablePath -LiteralPath $manifestPath) {
+    $manifest = Get-PortableContent -Raw -LiteralPath $manifestPath | ConvertFrom-Json
     $manifestDirectory = Split-Path -Parent $manifestPath
     $lockPath = Join-Path $manifestDirectory "packages-lock.json"
     $lock = $null
-    if (-not (Test-Path -LiteralPath $lockPath)) {
+    if (-not (Test-PortablePath -LiteralPath $lockPath)) {
         $errors.Add("Unity packages-lock.json is missing.")
     }
     else {
-        $lock = Get-Content -Raw -LiteralPath $lockPath | ConvertFrom-Json
+        $lock = Get-PortableContent -Raw -LiteralPath $lockPath | ConvertFrom-Json
     }
 
     foreach ($package in $manifest.dependencies.PSObject.Properties) {
@@ -288,7 +324,7 @@ if (Test-Path -LiteralPath $manifestPath) {
         if ($version.StartsWith("file:", [System.StringComparison]::OrdinalIgnoreCase)) {
             $relativePath = $version.Substring(5).Replace('/', [System.IO.Path]::DirectorySeparatorChar)
             $resolvedPath = [System.IO.Path]::GetFullPath((Join-Path $manifestDirectory $relativePath))
-            if (-not (Test-Path -LiteralPath (Join-Path $resolvedPath "package.json"))) {
+            if (-not (Test-PortablePath -LiteralPath (Join-Path $resolvedPath "package.json"))) {
                 $errors.Add("Local UPM dependency does not resolve to package.json: $($package.Name) -> $version -> $resolvedPath")
             }
 
@@ -323,14 +359,14 @@ if (Test-Path -LiteralPath $manifestPath) {
 }
 
 $projectSettingsPath = Join-Path $BuilderRoot "UnityProject\ProjectSettings\ProjectSettings.asset"
-if (Test-Path -LiteralPath $projectSettingsPath) {
+if (Test-PortablePath -LiteralPath $projectSettingsPath) {
     if (Select-String -LiteralPath $projectSettingsPath -Pattern "UNITY_MCP_READY" -SimpleMatch -Quiet) {
         $errors.Add("UNITY_MCP_READY is present while Unity MCP is disabled.")
     }
 }
 
 $activeMcpDllPath = Join-Path $BuilderRoot "UnityProject\Assets\Plugins\NuGet"
-if (Test-Path -LiteralPath $activeMcpDllPath) {
+if (Test-PortablePath -LiteralPath $activeMcpDllPath) {
     $errors.Add("Unity MCP NuGet DLLs remain inside UnityProject/Assets while MCP is disabled.")
 }
 
@@ -338,7 +374,7 @@ function Get-DirectoryDigest([string]$Path) {
     $lines = [System.Collections.Generic.List[string]]::new()
     foreach ($file in @(Get-ChildItem -LiteralPath $Path -Recurse -File)) {
         $relative = $file.FullName.Substring($Path.Length).TrimStart('\').Replace('\', '/')
-        $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
+        $hash = (Get-PortableFileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
         $lines.Add("$relative`t$hash")
     }
     $lines.Sort([System.StringComparer]::Ordinal)
@@ -354,7 +390,7 @@ function Get-DirectoryDigest([string]$Path) {
 
 $canonicalCommon = Join-Path $BuilderRoot "UnityProject\LocalPackages\com.emvr.lab-common"
 $legacyCommonMirror = Join-Path $BuilderRoot "LocalPackages\com.emvr.lab-common"
-if ((Test-Path -LiteralPath $canonicalCommon) -and (Test-Path -LiteralPath $legacyCommonMirror)) {
+if ((Test-PortablePath -LiteralPath $canonicalCommon) -and (Test-PortablePath -LiteralPath $legacyCommonMirror)) {
     $canonicalHash = Get-DirectoryDigest $canonicalCommon
     $mirrorHash = Get-DirectoryDigest $legacyCommonMirror
     if ($canonicalHash -ne $mirrorHash) {
@@ -363,29 +399,29 @@ if ((Test-Path -LiteralPath $canonicalCommon) -and (Test-Path -LiteralPath $lega
 }
 
 $inventoryPath = Join-Path $BuilderRoot "Policies\pack-inventory.json"
-if (Test-Path -LiteralPath $inventoryPath) {
-    $inventory = Get-Content -Raw -LiteralPath $inventoryPath | ConvertFrom-Json
+if (Test-PortablePath -LiteralPath $inventoryPath) {
+    $inventory = Get-PortableContent -Raw -LiteralPath $inventoryPath | ConvertFrom-Json
     $roomRecipePath = Join-Path $BuilderRoot "Policies\emvr-room-assembly.json"
-    if ((Test-Path -LiteralPath $roomRecipePath) -and
-        (Get-FileHash -LiteralPath $roomRecipePath -Algorithm SHA256).Hash -ne $inventory.sections.EMVRRoomAssembly.sha256) {
+    if ((Test-PortablePath -LiteralPath $roomRecipePath) -and
+        (Get-PortableFileHash -LiteralPath $roomRecipePath -Algorithm SHA256).Hash -ne $inventory.sections.EMVRRoomAssembly.sha256) {
         $errors.Add("EMVRLABS room assembly recipe differs from the frozen inventory.")
     }
     $commonInventory = $inventory.sections.'UnityProject/LocalPackages/com.emvr.lab-common'
     if ($inventory.sections.EMVRRoomLighting) {
         $lightingProfilePath = Join-Path $BuilderRoot 'Policies/emvr-room-lighting.json'
-        if (-not (Test-Path -LiteralPath $lightingProfilePath) -or
-            (Get-FileHash -LiteralPath $lightingProfilePath -Algorithm SHA256).Hash -ne $inventory.sections.EMVRRoomLighting.sha256) {
+        if (-not (Test-PortablePath -LiteralPath $lightingProfilePath) -or
+            (Get-PortableFileHash -LiteralPath $lightingProfilePath -Algorithm SHA256).Hash -ne $inventory.sections.EMVRRoomLighting.sha256) {
             $errors.Add('Full room lighting profile is missing or differs from frozen inventory.')
         } else {
-            $lightingProfile = Get-Content -Raw -LiteralPath $lightingProfilePath | ConvertFrom-Json
+            $lightingProfile = Get-PortableContent -Raw -LiteralPath $lightingProfilePath | ConvertFrom-Json
             foreach ($entry in $lightingProfile.source_files) {
                 $lightingSourcePath = Join-Path $BuilderRoot $entry.path
-                if (-not (Test-Path -LiteralPath $lightingSourcePath) -or
-                    (Get-FileHash -LiteralPath $lightingSourcePath -Algorithm SHA256).Hash -ne $entry.sha256) {
+                if (-not (Test-PortablePath -LiteralPath $lightingSourcePath) -or
+                    (Get-PortableFileHash -LiteralPath $lightingSourcePath -Algorithm SHA256).Hash -ne $entry.sha256) {
                     $errors.Add("Read-only lighting source/archive changed: $($entry.path)")
                 }
-                if ($entry.path -like '*.lighting' -and (Test-Path -LiteralPath $lightingSourcePath)) {
-                    if ([System.IO.File]::ReadAllBytes($lightingSourcePath) -contains 13) {
+                if ($entry.path -like '*.lighting' -and (Test-PortablePath -LiteralPath $lightingSourcePath)) {
+                    if ([System.IO.File]::ReadAllBytes((Get-PortableNativePath $lightingSourcePath)) -contains 13) {
                         $errors.Add('Published RoomLighting must use LF line endings for Unity serialization; maintainer repair required.')
                     }
                 }
@@ -393,13 +429,13 @@ if (Test-Path -LiteralPath $inventoryPath) {
         }
     }
     $commonPackageJson = Join-Path $canonicalCommon "package.json"
-    if ((Test-Path -LiteralPath $commonPackageJson) -and $commonInventory.package_json_sha256) {
-        $actualPackageHash = (Get-FileHash -LiteralPath $commonPackageJson -Algorithm SHA256).Hash
+    if ((Test-PortablePath -LiteralPath $commonPackageJson) -and $commonInventory.package_json_sha256) {
+        $actualPackageHash = (Get-PortableFileHash -LiteralPath $commonPackageJson -Algorithm SHA256).Hash
         if ($actualPackageHash -ne $commonInventory.package_json_sha256) {
             $errors.Add("Canonical Common package.json differs from Policies/pack-inventory.json.")
         }
     }
-    if (Test-Path -LiteralPath $canonicalCommon) {
+    if (Test-PortablePath -LiteralPath $canonicalCommon) {
         $commonFiles = @(Get-ChildItem -LiteralPath $canonicalCommon -Recurse -File)
         $commonBytes = ($commonFiles | Measure-Object -Property Length -Sum).Sum
         if ($commonFiles.Count -ne [int]$commonInventory.files -or $commonBytes -ne [long]$commonInventory.bytes) {
@@ -411,7 +447,7 @@ if (Test-Path -LiteralPath $inventoryPath) {
     }
     $approvedRoot = Join-Path $BuilderRoot "ApprovedAssets"
     $approvedInventory = $inventory.sections.ApprovedAssets
-    if (Test-Path -LiteralPath $approvedRoot) {
+    if (Test-PortablePath -LiteralPath $approvedRoot) {
         $approvedFiles = @(Get-ChildItem -LiteralPath $approvedRoot -Recurse -File)
         $approvedBytes = ($approvedFiles | Measure-Object -Property Length -Sum).Sum
         if ($approvedFiles.Count -ne [int]$approvedInventory.files -or $approvedBytes -ne [long]$approvedInventory.bytes) {
@@ -467,7 +503,7 @@ if ($errors.Count -gt 0) {
     exit 1
 }
 
-$commonPackage = Get-Content -Raw -LiteralPath (Join-Path $BuilderRoot "UnityProject\LocalPackages\com.emvr.lab-common\package.json") | ConvertFrom-Json
+$commonPackage = Get-PortableContent -Raw -LiteralPath (Join-Path $BuilderRoot "UnityProject\LocalPackages\com.emvr.lab-common\package.json") | ConvertFrom-Json
 $fileCount = $sourceFiles.Count
 Write-Host "[EMVR Builder Boundary] PASS" -ForegroundColor Green
 Write-Host "Builder root: $BuilderRoot"

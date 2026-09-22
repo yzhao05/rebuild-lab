@@ -98,7 +98,7 @@ def metadata_errors(root, lab_id):
     try:
         metadata(root, lab_id)
         return []
-    except (ValueError, OSError, TypeError) as error:
+    except (RuntimeError, ValueError, OSError, TypeError) as error:
         return [str(error)]
 
 
@@ -430,8 +430,7 @@ def main():
         errors = flow.protected_baseline_errors(root, state) + flow.source_reference_errors(root, state)
         if errors:
             raise ValueError("; ".join(errors))
-        if flow.current_gate(state) != 8 or state.get("blocker_recovery", {}).get("active"):
-            raise ValueError("Manual operations require active Gate 8 after Gate 6 user acceptance, without an open blocker.")
+        flow.require_handbook_operation(root, state)
         if flow.gate_is_approved(state,8) and args.action != 'check':
             raise ValueError('Reopen handbooks before revising an approved Gate 8 bundle.')
         digest = accepted_digest(root, state, flow)
@@ -454,7 +453,7 @@ def main():
                 raise ValueError("; ".join(errors))
         print("Student manual " + args.action + " completed. No user approval or Gate completion recorded; complete developer review and then the incremental project handbook before Gate 8 approval.")
         return 0
-    except (ValueError, OSError, KeyError, TypeError, AttributeError, ImportError, subprocess.CalledProcessError) as error:
+    except (RuntimeError, ValueError, OSError, KeyError, TypeError, AttributeError, ImportError, subprocess.CalledProcessError) as error:
         print("ERROR: " + str(error))
         return 1
 

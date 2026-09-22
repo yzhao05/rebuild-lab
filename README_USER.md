@@ -12,6 +12,21 @@ GitHub 不要求 CRLF。本发布包通过 `.gitattributes` 的 `* -text` 保留
 中执行 `git add -A` 和 `git add --renormalize .`，检查暂存差异后再提交，确保旧
 索引也按保留字节规则重新写入。不要只提交 `.gitattributes` 而保留旧转换后的文件。
 
+如果在含当前 Lab 运行内容的维护工作区提交，只暂存本次审核过的工作流路径，
+不要运行 `git add .` 或 `git add -A`。例如在 Windows CMD 中：
+
+```cmd
+git status --short
+git add .gitattributes .gitignore .agents AGENTS.md README.md README_USER.md Policies ReusableFoundation Tools LabSpecs/templates
+git diff --cached --stat
+git -c core.whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol diff --cached --check
+```
+
+确认暂存列表没有当前 Lab、维护凭证、临时文件和 Unity 缓存后，再 commit 和 push。
+`.gitignore` 不会取消已经跟踪的文件；如果旧仓库已跟踪 `UnityProject/UserSettings`，
+可运行 `git rm -r --cached --ignore-unmatch UnityProject/UserSettings` 取消跟踪，
+保留本机文件。这些命令不自动删除或排除其他已暂存内容，因此仍须检查整个暂存列表。
+
 下载时可用 Git clone 或 Download ZIP。ZIP 解压后的目录可能带 `-main` 等后缀，
 请将主目录重命名为 `EMVR_Blind_BuilderPack`。在该目录运行边界检查：
 
@@ -536,3 +551,21 @@ section, and provides a before-version plus increment list. Review every page of
 all PDFs, then request one Gate 8 confirmation. Collect developer material during
 Gates 0-6 and resolved blockers. See
 `.agents/skills/build-unity-vr-lab-blind/references/developer-handbooks.md`.
+
+Maintenance closure rules: Gate 5 must call the protected portable
+`EmVrRoomLighting` from `Gate5Foundation/Editor/`, imported by the foundation
+materializer; do not recreate its execution-settings/cache/save-guard implementation
+in Lab code. See `ReusableFoundation/Gate5MinimalSlice/README.md` and reuse-policy.
+Gate 6 compile and scene checks each require matching current content digests,
+including .meta. Revised Brief/contracts use non-advancing `recheck-contracts` and
+actual user `reconfirm-inputs` for Brief/design; no silent acceptance refresh.
+During Gate 8 blocker recovery the current step may repair/build/render/check, but
+approval/advancement remains forbidden. Resolve requires a successful current-incident
+`handbooks.py check-8a` (8A) or `check` (8B), with unchanged verified bindings.
+See `.agents/skills/build-unity-vr-lab-blind/references/workflow-gates.md` for commands and change/reacceptance rules.
+
+When accepted Lab content changes during blocked Gate 8, explicitly backtrack with
+`reopen-acceptance`: the incident is archived as unverified/superseded, Gates 6/8 are
+withdrawn and current compile/scene checks become pending. This exception does not
+approve a gate or bypass protection. Unchanged-content blockers still require their
+verified rechecks. Gate 5 domain observations also bind independent content digests.
